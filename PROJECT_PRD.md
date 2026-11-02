@@ -112,7 +112,7 @@ Uniform API envelope: success `{ data, meta? }`, failure `{ error: { code, messa
 
 ## 13. Stage-wise Plan
 
-See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). Stages 0–12 follow the brief's order. One adjustment: **Media library basics move into Stage 6** (needed for product images) and **Stage 3 pages use text/image sections only** (richer blocks added in Stage 7) to avoid a dependency cycle between pages and homepage sections.
+See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). Stages 0–12 follow the brief's order. One adjustment: **Media library basics move into Stage 6** (needed for product images) and **Stage 3 pages use text/image sections only** (Markdown rich text + image/text; category assignment for pages is deferred to Stage 6 when categories exist) (richer blocks added in Stage 7) to avoid a dependency cycle between pages and homepage sections.
 
 ## 14. Completion & Audit Tracking
 

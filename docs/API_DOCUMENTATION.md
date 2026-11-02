@@ -28,13 +28,17 @@ Permission column: `—` public, `auth` any logged-in user, otherwise a permissi
 No DELETE: users are deactivated (`isActive:false`) so order history stays intact. Rules (server-enforced, transactional): no self role change/deactivation; last active superadmin cannot be demoted/deactivated; role/active/password changes revoke the user's sessions (`tokenVersion`); changing your own password re-issues your cookie.
 
 ## Pages (Stage 3)
-| Method | Path | Perm |
-|---|---|---|
-| GET | /admin/pages | pages:read |
-| POST | /admin/pages | pages:write |
-| GET/PATCH/DELETE | /admin/pages/:id | pages:write |
-| POST | /admin/pages/:id/publish · /unpublish · /schedule | pages:publish |
-| GET | /pages/:slug | — (published only; `?preview=token` for drafts) |
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /admin/pages | pages:read | `q`, `status`, `page`, `limit` (≤50) |
+| POST | /admin/pages | pages:write | always created as `draft` |
+| GET | /admin/pages/:id | pages:read | |
+| PATCH | /admin/pages/:id | pages:write | content only (`title, slug, description, sections, seo`) **plus required `baseUpdatedAt`** (the `updatedAt` you loaded; stale => 409). Status/token cannot be set here. Changing a non-draft page also needs `pages:publish` |
+| DELETE | /admin/pages/:id | pages:write | hard delete |
+| POST | /admin/pages/:id/publish | pages:publish | body `{action:"publish"}` \| `{action:"unpublish"}` \| `{action:"schedule", publishAt:<future ISO>}` |
+| POST | /admin/pages/:id/preview-token | pages:write | rotates the secret preview token (old link stops working); returns the full page (new `updatedAt`) |
+
+Public rendering is not an API: `/[...slug]` (live pages only; scheduled pages go live once `publishAt` passes, within ~60 s) and `/preview/:token` (any status, `noindex`, `no-referrer`, never cached). Section types: `richtext {markdown}`, `imageText {heading, markdown, imageUrl, imageAlt, imagePosition, ctaLabel, ctaUrl}`. Markdown is sanitized (allowlist) at render time. Slugs: 1–3 lowercase kebab segments; first segment may not be reserved (`admin`, `api`, `login`, `cart`, …).
 
 ## Navigation (Stage 4) / Footer (Stage 5)
 | Method | Path | Perm |

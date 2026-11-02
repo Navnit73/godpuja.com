@@ -228,3 +228,26 @@ dialog.modal::backdrop { background: var(--color-scrim); }
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* Rendered CMS content (markdown output). Tokens only. */
+@utility content {
+  @apply text-base leading-relaxed text-foreground;
+  & > * + * { @apply mt-4; }
+  & h2 { @apply mt-8 text-3xl font-semibold; }
+  & h3 { @apply mt-6 text-2xl font-semibold; }
+  & h4 { @apply mt-4 text-xl font-semibold; }
+  & a { @apply text-primary underline underline-offset-2 hover:text-saffron-700; }
+  & ul { @apply list-disc pl-6; }
+  & ol { @apply list-decimal pl-6; }
+  & li + li { @apply mt-1; }
+  & blockquote { @apply border-l-4 border-accent pl-4 text-muted; }
+  & hr { @apply border-border; }
+  & img { @apply h-auto max-w-full rounded-xl; }
+  & code { @apply rounded-md bg-sandal-100 px-1.5 py-0.5 text-sm; }
+  & pre { @apply overflow-x-auto rounded-xl bg-sandal-100 p-4 text-sm; }
+  & pre code { @apply bg-transparent p-0; }
+  & > :first-child { margin-top: 0; }
+  & table { @apply block w-full overflow-x-auto border-collapse text-sm; }
+  & th, & td { @apply border border-border px-3 py-2 text-left; }
+  & th { @apply bg-sandal-100; }
+}

@@ -67,6 +67,10 @@ Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50�
 | Navbar | sticky, `surface`, bottom `border`, **no shadow** |
 | Admin shell (Stage 2) | sidebar 256px (drawer < lg: hidden from tab order when closed, Esc closes, background `inert` when open), sticky header with breadcrumbs + sign-out, content in `max-w-7xl` |
 
+## Rendered content
+
+`.content` (in `globals.css`) styles CMS markdown output (headings, lists, links, quotes, code, tables, images) with tokens only. Rich text is always rendered through it; never style CMS HTML with one-off classes.
+
 ## Accessibility
 
 Focus ring: 2px `accent` + 2px offset on every interactive element. Never remove outlines without replacement. Gold (`accent`) is decorative/ring only; text uses `primary`, `foreground`, or `muted`. Icon-only buttons need `aria-label`. Respect `prefers-reduced-motion`.

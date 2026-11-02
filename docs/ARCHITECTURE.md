@@ -57,6 +57,11 @@ docs/  PROJECT_PRD.md  DESIGN_SYSTEM.md  PROJECT_TRACKER.md
 | A8 | Stock decrement via atomic `findOneAndUpdate({ stock: { $gte: qty } })` inside the transaction | Prevents overselling |
 | A9 | Idempotency key on order creation and payment events (unique index) | No duplicate orders/payments |
 | A10 | shadcn/ui used only as copy-in primitives (Dialog, DropdownMenu, Popover) restyled with tokens | Accessibility without a heavy library |
+| A12 | CMS rich text is stored as **Markdown** (`marked`) and converted to HTML + sanitized (`sanitize-html` allowlist) at read time, inside the cached public reader | No heavy WYSIWYG dependency; sanitization at render is the security boundary and cannot be bypassed by stored data |
+| A13 | Preview uses a separate uncached route `/preview/[token]` (192-bit token, rotatable) instead of a `?preview=` query param | Keeps public routes cacheable; no runtime APIs in cached scopes |
+| A14 | Scheduled publishing is evaluated at read time (`status=scheduled AND publishAt<=now`); public cache revalidates every 60 s; no cron | Simple and consistent; up-to-60 s delay accepted |
+| A15 | Admin page edits use optimistic concurrency: PATCH must send the `updatedAt` it loaded (`baseUpdatedAt`); a mismatch returns 409 instead of overwriting | Two editors cannot silently clobber each other |
+| A16 | **Deployment constraint:** `"use cache"` is in-memory per server instance, so `revalidateTag` only clears the instance that served the admin request. Run a single instance, or configure a shared cache handler, before scaling out (decide at Stage 11) | Otherwise an unpublished page can stay visible on other instances for up to ~60 s |
 | A11 | Drag-and-drop with `@dnd-kit` (admin nav/home/sections only) | Small, accessible; only genuinely needed lib for reordering |
 
 ## Dependencies (planned)

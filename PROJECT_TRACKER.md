@@ -3,7 +3,7 @@
 Statuses: `NOT_STARTED` · `IN_PROGRESS` · `IMPLEMENTATION_COMPLETE` · `AUDIT_IN_PROGRESS` · `AUDIT_COMPLETE` · `BLOCKED`
 A task is complete only after implementation works **and** audit verification passes.
 
-**Current stage: 3 (not started)** · Last updated: 2026-11-02
+**Current stage: 4 (not started)** · Last updated: 2026-11-02
 
 | Stage | Task | Implementation | Audit | Status |
 |---|---|---|---|---|
@@ -27,7 +27,12 @@ A task is complete only after implementation works **and** audit verification pa
 | 2 | UI kit (Button, Field, Modal, Toast, EmptyState, tokens) | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
 | 2 | Admin shell (sidebar, header, breadcrumbs, permission-aware nav) | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
 | 2 | Users & roles admin page + dashboard | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
-| 3 | CMS pages + dynamic rendering | Pending | Pending | NOT_STARTED |
+| 3 | Pages model, service, admin API (concurrency-safe) | Complete | Complete | AUDIT_COMPLETE |
+| 3 | Markdown sections + sanitization | Complete | Complete | AUDIT_COMPLETE |
+| 3 | Publish / unpublish / schedule | Complete | Complete | AUDIT_COMPLETE |
+| 3 | Preview (token route, headers) | Complete | Complete | AUDIT_COMPLETE |
+| 3 | Dynamic public rendering + SEO metadata | Complete | Complete (soft-404 deferred to Stage 10) | AUDIT_COMPLETE |
+| 3 | Admin pages list + editor UI | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
 | 4 | Dynamic navbar | Pending | Pending | NOT_STARTED |
 | 5 | Dynamic footer | Pending | Pending | NOT_STARTED |
 | 6 | Categories, products, media, inventory | Pending | Pending | NOT_STARTED |
@@ -38,6 +43,6 @@ A task is complete only after implementation works **and** audit verification pa
 | 11 | Performance, security, accessibility | Pending | Pending | NOT_STARTED |
 | 12 | E2E, final audit, release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md).
+Audit reports: [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md).
 
-Carried forward: browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.
+Carried forward: soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

@@ -40,7 +40,7 @@ export default function AdminFrame({ user, items, children }: Props) {
   const segments = pathname.split("/").filter(Boolean);
   const crumbs = segments.map((seg, i) => ({
     href: "/" + segments.slice(0, i + 1).join("/"),
-    label: BREADCRUMB_LABELS[seg] ?? seg.charAt(0).toUpperCase() + seg.slice(1),
+    label: BREADCRUMB_LABELS[seg] ?? (/^[a-f0-9]{24}$/.test(seg) ? "Edit" : seg.charAt(0).toUpperCase() + seg.slice(1)),
   }));
 
   async function logout() {

@@ -1,0 +1,76 @@
+# API Documentation (planned)
+
+Base path `/api`. JSON only. Auth via httpOnly session cookie. Mutations require same-origin `Origin`.
+
+**Success:** `{ "data": …, "meta": { "page", "limit", "total" }? }`
+**Error:** `{ "error": { "code": "VALIDATION_ERROR", "message": "…", "fields": { "email": "Invalid" }? } }`
+Codes → HTTP: `VALIDATION_ERROR` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `RATE_LIMITED` 429, `INTERNAL` 500.
+Lists: `?page=1&limit=20` (max 50), `?q=`, `?sort=`. Only needed fields are projected.
+
+Permission column: `—` public, `auth` any logged-in user, otherwise a permission string.
+
+## Auth (Stage 1)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| POST | /auth/login | — | rate-limited; sets cookie |
+| POST | /auth/logout | auth | clears cookie |
+| POST | /auth/register | — | customer role only |
+| GET | /auth/me | auth | current user |
+
+## Users & roles (Stage 2)
+GET/POST `/admin/users`, GET/PATCH/DELETE `/admin/users/:id` — `users:*`.
+
+## Pages (Stage 3)
+| Method | Path | Perm |
+|---|---|---|
+| GET | /admin/pages | pages:read |
+| POST | /admin/pages | pages:write |
+| GET/PATCH/DELETE | /admin/pages/:id | pages:write |
+| POST | /admin/pages/:id/publish · /unpublish · /schedule | pages:publish |
+| GET | /pages/:slug | — (published only; `?preview=token` for drafts) |
+
+## Navigation (Stage 4) / Footer (Stage 5)
+| Method | Path | Perm |
+|---|---|---|
+| GET | /menus/:key | — (cached) |
+| GET/POST | /admin/menus | nav:write |
+| PUT | /admin/menus/:id | nav:write (whole tree incl. order) |
+| GET | /footer | — (cached) |
+| PUT | /admin/footer | footer:write |
+
+## Catalog (Stage 6)
+| Method | Path | Perm |
+|---|---|---|
+| GET | /products | — (`category, q, sort, minPrice, maxPrice, featured, page, limit`) |
+| GET | /products/:slug | — |
+| GET | /products/:slug/related | — |
+| GET/POST | /admin/products | products:read/write |
+| GET/PATCH/DELETE | /admin/products/:id | products:write |
+| PATCH | /admin/inventory/:id | inventory:write (atomic `$inc` / set) |
+| GET | /categories | — (tree, cached) |
+| GET/POST | /admin/categories · PATCH/DELETE `/admin/categories/:id` | categories:write |
+| POST | /admin/media (multipart) · GET /admin/media · DELETE /admin/media/:id | media:write |
+
+## Homepage (Stage 7)
+GET `/homepage` (— cached, resolves product rails in one batched query); PUT `/admin/homepage` — `home:write`.
+
+## Cart, checkout, orders (Stage 9)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| POST | /cart/validate | — | recompute prices/stock server-side |
+| POST | /checkout | — | requires `Idempotency-Key`; transaction: validate → decrement stock → create order → create payment intent |
+| POST | /payments/webhook | signature | idempotent on provider event id |
+| GET | /orders/:id | owner or token | confirmation view |
+| GET | /account/orders | auth | |
+| GET | /admin/orders | orders:read | filters: status, payment, date, q |
+| GET | /admin/orders/:id | orders:read | |
+| PATCH | /admin/orders/:id/status | orders:write | validated transition |
+| POST | /admin/orders/:id/notes | orders:write | |
+| POST | /admin/orders/:id/refund | orders:refund | |
+| GET | /admin/orders/export | orders:read | CSV, streamed |
+
+## SEO & settings (Stages 5/10)
+GET `/sitemap.xml`, `/robots.txt` (Next metadata routes); GET/POST `/admin/redirects`; GET/PUT `/admin/settings` — `settings:write`; GET `/admin/dashboard` — `dashboard:read`; GET `/admin/customers` — `customers:read`.
+
+## Rate limits (initial)
+login 5/min/IP+email · register 5/min/IP · checkout 10/min/IP · search 60/min/IP · admin writes 120/min/user.

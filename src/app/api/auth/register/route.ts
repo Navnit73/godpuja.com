@@ -7,6 +7,8 @@ import { clientIp, rateLimit } from "@/server/rate-limit";
 import { registerSchema } from "@/lib/validation/auth";
 
 export const POST = handle(async (req) => {
+  // No public sign-up UI exists until the storefront account feature (Stage 8/9). Closed by default.
+  if (process.env.ALLOW_PUBLIC_REGISTRATION !== "true") throw new ApiError("FORBIDDEN", "Registration is not open");
   rateLimit(`register:${clientIp(req)}`, 5, 60_000);
   const { name, email, password } = registerSchema.parse(await readJson(req));
 

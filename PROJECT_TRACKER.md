@@ -43,6 +43,6 @@ A task is complete only after implementation works **and** audit verification pa
 | 11 | Performance, security, accessibility | Pending | Pending | NOT_STARTED |
 | 12 | E2E, final audit, release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md).
+Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md).
 
 Carried forward: soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

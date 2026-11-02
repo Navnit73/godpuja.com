@@ -1,20 +1,20 @@
-# API Documentation (planned)
+# API Documentation
 
 Base path `/api`. JSON only. Auth via httpOnly session cookie. Mutations require same-origin `Origin`.
 
 **Success:** `{ "data": …, "meta": { "page", "limit", "total" }? }`
 **Error:** `{ "error": { "code": "VALIDATION_ERROR", "message": "…", "fields": { "email": "Invalid" }? } }`
 Codes → HTTP: `VALIDATION_ERROR` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `RATE_LIMITED` 429, `INTERNAL` 500.
-Lists: `?page=1&limit=20` (max 50), `?q=`, `?sort=`. Only needed fields are projected.
+Lists: `?page=1&limit=20` (max 50), `?q=` plus module-specific filters. Request bodies must be `application/json` and ≤ 1 MB. Unknown `/api/*` paths return the JSON `NOT_FOUND` envelope. Only needed fields are projected.
 
 Permission column: `—` public, `auth` any logged-in user, otherwise a permission string.
 
 ## Auth (Stage 1)
 | Method | Path | Perm | Notes |
 |---|---|---|---|
-| POST | /auth/login | — | rate-limited; sets cookie |
-| POST | /auth/logout | auth | clears cookie |
-| POST | /auth/register | — | customer role only |
+| POST | /auth/login | — | rate-limited (5/min per IP+email, 30/min per IP, 20 failed attempts/15 min per account); sets cookie; returns `role` |
+| POST | /auth/logout | — | clears the cookie (idempotent). Sessions are stateless: a copied cookie stays valid until it expires (7 days) or the user's role/active/password changes (`tokenVersion`) |
+| POST | /auth/register | — | customer role only. **Closed by default** (403) unless `ALLOW_PUBLIC_REGISTRATION=true`; enabled with the storefront account pages (Stage 8/9) |
 | GET | /auth/me | auth | current user |
 
 ## Users & roles (Stage 2)

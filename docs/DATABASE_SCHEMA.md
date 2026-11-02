@@ -3,7 +3,7 @@
 All collections have `createdAt`, `updatedAt` (Mongoose timestamps). IDs are ObjectId. References are by id; small denormalised snapshots are used where history matters (orders).
 
 ## users
-`name, email (unique, lowercase), passwordHash, role ('superadmin'|'admin'|'editor'|'manager'|'customer'), phone?, addresses[{label,name,phone,line1,line2,city,state,pincode,country,isDefault}], isActive, lastLoginAt`
+`name, email (unique, lowercase), passwordHash, tokenVersion (int, bumped on role/active/password change to revoke sessions), role ('superadmin'|'admin'|'editor'|'manager'|'customer'), phone?, addresses[{label,name,phone,line1,line2,city,state,pincode,country,isDefault}], isActive, lastLoginAt`
 Indexes: `{email:1}` unique; `{role:1}`.
 
 ## categories
@@ -17,7 +17,7 @@ Indexes: `{slug:1}` unique; `{sku:1}` unique; `{status:1, category:1, createdAt:
 Rules: `salePrice < price`; price in paise (integer) to avoid float errors; if `variants` exist, stock is per-variant.
 
 ## pages
-`title, slug (unique), category (ref categories?), description, sections[{id,type,enabled,data}], status ('draft'|'published'|'scheduled'), publishAt?, publishedAt?, previewToken, seo{…}`
+`title, slug (unique), description, sections[{id,type,enabled,data}], status ('draft'|'published'|'scheduled'), publishAt?, publishedAt?, previewToken, seo{…}`
 Indexes: `{slug:1}` unique; `{status:1, publishAt:1}`.
 
 ## menus
@@ -34,6 +34,11 @@ Embedded (a menu is always read whole). Index: `{key:1}` unique.
 `orderNumber (unique, human readable), idempotencyKey (unique), user? (ref), guestEmail?, items[{product,variantSku?,name,sku,image,unitPrice,qty,lineTotal}], pricing{subtotal,discount,shipping,tax,total}, shippingAddress, billingAddress, status, payment{provider,providerOrderId,providerPaymentId,status('pending'|'paid'|'failed'|'refunded'|'partially_refunded'),paidAt}, refunds[{amount,reason,at,by}], notes[{text,by,at}], history[{status,by,at,note}]`
 Indexes: `{orderNumber:1}` unique; `{idempotencyKey:1}` unique; `{user:1, createdAt:-1}`; `{status:1, createdAt:-1}`; `{'payment.providerPaymentId':1}` sparse unique.
 Snapshots of name/price/SKU keep orders correct after product edits.
+
+> Page `category` assignment is deferred to Stage 6 (categories do not exist yet). `publishedAt` is the go-live time (set on publish; equals `publishAt` for scheduled pages). `previewToken` is unique and rotatable. Edits use optimistic concurrency on `updatedAt`.
+
+## locks
+Single document `{_id: "superadmin-guard", n}` written inside transactions that remove a superadmin, so concurrent demotions conflict and retry (see `services/users.ts`).
 
 ## redirects
 `from (unique, normalised path), to, code (301), hits`. Index `{from:1}` unique.

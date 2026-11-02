@@ -10,6 +10,7 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
   title: "GodPuja — Sacred rituals, made simple",
   description: "Book pujas, find blessings and connect with tradition.",
 };

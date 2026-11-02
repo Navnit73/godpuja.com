@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { safeNext } from "@/lib/safe-next";
 import AdminFrame from "@/components/admin/AdminFrame";
 import { ADMIN_NAV } from "@/components/admin/nav";
 import { currentUser } from "@/server/auth/guard";
@@ -11,7 +13,10 @@ export const metadata: Metadata = { title: { default: "Admin — GodPuja", templ
 // Authoritative, DB-backed check (role + active + tokenVersion). Proxy is only a coarse gate.
 async function Gate({ children }: { children: ReactNode }) {
   const user = await currentUser();
-  if (!user || !isStaff(user.role)) redirect("/login?next=/admin");
+  if (!user || !isStaff(user.role)) {
+    const wanted = safeNext((await headers()).get("x-next-path"));
+    redirect(`/login?next=${encodeURIComponent(wanted)}`);
+  }
   const items = ADMIN_NAV.filter((i) => can(user.role, i.permission)).map(({ label, href }) => ({ label, href }));
   return <AdminFrame user={{ name: user.name, role: user.role }} items={items}>{children}</AdminFrame>;
 }

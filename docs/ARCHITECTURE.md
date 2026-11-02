@@ -52,7 +52,7 @@ docs/  PROJECT_PRD.md  DESIGN_SYSTEM.md  PROJECT_TRACKER.md
 | A3 | Services are the only code that imports models | One place for validation, caching, invalidation |
 | A4 | Sections are typed JSON blocks (`type` + `data`) validated by a Zod discriminated union | Flexible without a visual builder |
 | A5 | `cacheComponents` is enabled in `next.config.ts`: public CMS reads use `"use cache"` + `cacheLife` + `cacheTag`; anything reading cookies/headers must sit inside `<Suspense>`. Cache tags per content type (`nav`, `footer`, `home`, `page:<slug>`, `product:<slug>`, `categories`); admin writes call `revalidateTag` | Instant CMS updates, cached reads |
-| A6 | JWT cookie sessions via `jose`; role in token, re-verified in DB for destructive actions | Stateless and edge-compatible `proxy.ts` |
+| A6 | JWT cookie sessions via `jose` (HS256, 7 days). The token carries role + `tokenVersion`, but every admin page and API handler re-reads the user from the DB (role, active, tokenVersion); `proxy.ts` is only a coarse gate | Stateless and edge-compatible `proxy.ts` |
 | A7 | MongoDB transactions (replica set required; Atlas provides it) for order creation + stock | Consistency; local dev needs a replica set (`mongod --replSet`) |
 | A8 | Stock decrement via atomic `findOneAndUpdate({ stock: { $gte: qty } })` inside the transaction | Prevents overselling |
 | A9 | Idempotency key on order creation and payment events (unique index) | No duplicate orders/payments |

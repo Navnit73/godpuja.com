@@ -67,7 +67,15 @@ function assertSameOrigin(req: Request) {
   }
 }
 
+const MAX_BODY_BYTES = 1_000_000; // 1 MB; page content is capped well below this
+
 export async function readJson(req: Request) {
+  if (!(req.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
+    throw new ApiError("VALIDATION_ERROR", "Content-Type must be application/json");
+  }
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY_BYTES) {
+    throw new ApiError("VALIDATION_ERROR", "Request body is too large");
+  }
   try {
     return await req.json();
   } catch {

@@ -17,14 +17,14 @@
 
 | Role | Token / class | Value | Use |
 |---|---|---|---|
-| Primary | `primary` (`saffron-600`) | #d9600b | CTAs, links, active states |
-| Primary hover | `saffron-700` | #b44809 | hover/pressed |
+| Primary | `primary` (`saffron-700`) | #b44809 | CTAs, links, active states. White on it is 5.6:1 (AA); `saffron-600` (#d9600b, 3.7:1) is **graphic only** (logo mark), never for text |
+| Primary hover | `saffron-800` | #8f380f | hover/pressed |
 | Text | `foreground` (`kumkum-900`) | #3b0d10 | body, headings |
 | Muted text | `muted` | #7a625a | secondary text (AA on `background`) |
 | Background | `background` (`sandal-50`) | #fffdf8 | page |
 | Surface | `surface` | #ffffff | cards, navbar, tables, inputs |
 | Border | `border` (`sandal-300`) | #e9d8b9 | dividers, input borders |
-| Accent | `accent` (`gold-500`) | #c19a2e | focus ring, ornaments only (not text on light) |
+| Accent | `accent` (`gold-600`) | #9a7623 | focus ring (≥3:1 on white), divider ornament. Not for body text |
 | Success | `success` (`tulsi-700`) / `success-soft` (`tulsi-50`) | #335738 / #f2f7f2 | success text and tonal badges (AA). `tulsi-500` is decorative only |
 | Danger | `danger` (`kumkum-600`) / `danger-soft` | #a82a30 | errors, destructive |
 | Scrim | `scrim` | maroon @ 45% | modal and mobile-drawer backdrop only (the single translucent token; no frosted/blurred surfaces) |
@@ -39,9 +39,9 @@ Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50�
 
 ## Spacing, radius, containers
 
-- Spacing: Tailwind 4px scale; use 2/3/4/6/8/12/16/24 only. Section vertical rhythm: `py-16` desktop, `py-10` mobile.
+- Spacing: Tailwind 4px scale; allowed steps 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 12, 16, 24. No arbitrary values (`w-[…]`, `grid-cols-[…]`). Section vertical rhythm: `py-16` desktop, `py-10` mobile.
 - Radius: `rounded-md` (inputs, small controls), `rounded-xl` (cards, modals), `rounded-full` (buttons, badges). No other radii.
-- Containers: storefront `max-w-6xl` (1152), admin content `max-w-7xl`, prose `max-w-3xl`. Horizontal padding `px-4` mobile, `px-6` ≥ sm.
+- Containers: storefront listings `max-w-6xl` (1152), CMS page content `max-w-4xl`, admin content `max-w-7xl`. Horizontal padding `px-4` mobile, `px-6` ≥ sm.
 - Breakpoints: Tailwind defaults — sm 640, md 768, lg 1024, xl 1280.
 
 ## Elevation
@@ -70,6 +70,8 @@ Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50�
 ## Rendered content
 
 `.content` (in `globals.css`) styles CMS markdown output (headings, lists, links, quotes, code, tables, images) with tokens only. Rich text is always rendered through it; never style CMS HTML with one-off classes.
+
+White (`text-white`) is allowed for text on solid status fills (`btn-danger`, error toasts).
 
 ## Accessibility
 

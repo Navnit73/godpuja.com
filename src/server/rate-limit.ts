@@ -34,6 +34,16 @@ export function rateLimit(key: string, limit: number, windowMs: number) {
  * The first entry is client-controlled and must not be used for limiting.
  * Assumes the app runs behind exactly one proxy/CDN that appends to the header (e.g. Vercel).
  */
+/** Throw if `key` has already reached `limit`, without counting this call. Pair with rateLimit() on failures only. */
+export function rateLimitPeek(key: string, limit: number) {
+  const entry = hits.get(key);
+  if (entry && entry.reset >= Date.now() && entry.count >= limit) {
+    throw new ApiError("RATE_LIMITED", "Too many requests, try again later", undefined, {
+      "Retry-After": String(Math.ceil((entry.reset - Date.now()) / 1000)),
+    });
+  }
+}
+
 export const clientIp = (req: Request) => {
   const parts = req.headers.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean);
   return req.headers.get("x-real-ip") || parts?.[parts.length - 1] || "unknown";

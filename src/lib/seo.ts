@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import type { PublicPage } from "@/server/services/pages";
 
 /** Absolute URL for a CMS page path. */
-export const pageUrl = (siteUrl: string, slug: string) => `${siteUrl.replace(/\/$/, "")}/${slug}`;
+/** The page with slug "home" is served at "/", so that is its canonical URL. */
+export const pageUrl = (siteUrl: string, slug: string) => {
+  const base = siteUrl.replace(/\/$/, "");
+  return slug === "home" ? `${base}/` : `${base}/${slug}`;
+};
 
 export function buildPageMetadata(page: PublicPage, siteUrl: string): Metadata {
   const title = page.seo.title || page.title;

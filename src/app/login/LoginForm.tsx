@@ -21,8 +21,9 @@ export default function LoginForm() {
   async function onSubmit(values: LoginInput) {
     setError(null);
     try {
-      await api.post("/auth/login", values);
-      router.replace(next);
+      const me = await api.post<{ role: string }>("/auth/login", values);
+      // Customers have no admin access; send them to the storefront instead of bouncing back to /login.
+      router.replace(me.role === "customer" ? "/" : next);
       router.refresh();
     } catch (e) {
       setError(e instanceof ApiClientError ? e.message : "Could not sign in. Try again.");

@@ -139,8 +139,8 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
   const live = meta && (meta.status === "published" || (meta.status === "scheduled" && meta.publishAt && new Date(meta.publishAt) <= new Date()));
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid items-start gap-6 lg:grid-cols-[1fr_20rem]">
-      <fieldset disabled={readOnly || isSubmitting} className="min-w-0 space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid items-start gap-6 lg:grid-cols-3">
+      <fieldset disabled={readOnly || isSubmitting} className="min-w-0 space-y-6 lg:col-span-2">
         {formError && <p role="alert" className="alert-error">{formError}</p>}
 
         <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="basics">

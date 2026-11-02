@@ -1,8 +1,8 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { SignJWT } from "jose";
-import { ApiError, handle } from "@/server/api";
+import { ApiError, handle, readJson } from "@/server/api";
 import { safeNext } from "@/lib/safe-next";
-import { _resetRateLimit, clientIp, rateLimit } from "@/server/rate-limit";
+import { _resetRateLimit, clientIp, rateLimit, rateLimitPeek } from "@/server/rate-limit";
 import { verifySession } from "@/server/auth/session";
 import { registerSchema } from "@/lib/validation/auth";
 
@@ -73,5 +73,25 @@ describe("password length", () => {
     const base = { name: "Ram", email: "r@x.com" };
     expect(registerSchema.safeParse({ ...base, password: "a1" + "b".repeat(70) }).success).toBe(true);
     expect(registerSchema.safeParse({ ...base, password: "a1" + "b".repeat(71) }).success).toBe(false);
+  });
+});
+
+describe("rateLimitPeek (failure-only lockout)", () => {
+  beforeEach(() => _resetRateLimit());
+  it("does not count itself, only blocks once failures reached the limit", () => {
+    for (let i = 0; i < 50; i++) rateLimitPeek("acct", 3); // peeking alone never locks
+    for (let i = 0; i < 3; i++) rateLimit("acct", 3, 60_000); // 3 recorded failures
+    expect(() => rateLimitPeek("acct", 3)).toThrow(ApiError);
+    expect(() => rateLimitPeek("other", 3)).not.toThrow();
+  });
+});
+
+describe("readJson", () => {
+  const req = (body: string, headers: Record<string, string>) => new Request("http://x/api", { method: "POST", body, headers });
+  it("accepts JSON, rejects wrong content-type, oversized and malformed bodies", async () => {
+    await expect(readJson(req('{"a":1}', { "content-type": "application/json" }))).resolves.toEqual({ a: 1 });
+    await expect(readJson(req('{"a":1}', { "content-type": "text/plain" }))).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(readJson(req("{", { "content-type": "application/json" }))).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(readJson(req("{}", { "content-type": "application/json", "content-length": "5000000" }))).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
 });

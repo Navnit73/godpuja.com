@@ -18,7 +18,10 @@ export async function proxy(req: NextRequest) {
     url.searchParams.set("next", pathname + search);
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+  // Let the admin layout redirect stale sessions back to the page that was requested.
+  const headers = new Headers(req.headers);
+  headers.set("x-next-path", pathname + search);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = { matcher: ["/admin/:path*", "/api/admin/:path*"] };

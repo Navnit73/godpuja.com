@@ -30,7 +30,8 @@ function Section({ s }: { s: PublicSection }) {
 
 export default function PageView({ page }: { page: PublicPage }) {
   return (
-    <article className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
+    <main className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
+    <article>
       {page.isPreview && (
         <p role="status" className="mb-6 rounded-md border border-gold-300 bg-warning-soft px-3 py-2 text-sm text-warning">
           Preview — this page is not published and is hidden from search engines.
@@ -41,5 +42,6 @@ export default function PageView({ page }: { page: PublicPage }) {
       <div className="divider-gold my-8" />
       <div className="space-y-12">{page.sections.map((s) => <Section key={s.id} s={s} />)}</div>
     </article>
+    </main>
   );
 }

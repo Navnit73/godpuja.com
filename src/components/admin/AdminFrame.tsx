@@ -26,14 +26,20 @@ export default function AdminFrame({ user, items, children }: Props) {
   const firstLink = useRef<HTMLAnchorElement>(null);
 
   // Drawer: Esc closes, focus moves in on open and back to the menu button on close.
+  // Focus must be restored AFTER the content stops being inert, hence the effect on `open`.
+  const wasOpen = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    firstLink.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setOpen(false); menuBtn.current?.focus(); }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    if (open) {
+      firstLink.current?.focus();
+      const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+      document.addEventListener("keydown", onKey);
+      wasOpen.current = true;
+      return () => document.removeEventListener("keydown", onKey);
+    }
+    if (wasOpen.current) {
+      wasOpen.current = false;
+      menuBtn.current?.focus();
+    }
   }, [open]);
 
   const isActive = (href: string) => (href === "/admin" ? pathname === href : pathname.startsWith(href));

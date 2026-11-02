@@ -61,18 +61,21 @@ Storefront: the header uses menu `header` (items filtered by `showOnDesktop`); o
 
 Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 
-## Catalog (Stage 6)
-| Method | Path | Perm |
-|---|---|---|
-| GET | /products | — (`category, q, sort, minPrice, maxPrice, featured, page, limit`) |
-| GET | /products/:slug | — |
-| GET | /products/:slug/related | — |
-| GET/POST | /admin/products | products:read/write |
-| GET/PATCH/DELETE | /admin/products/:id | products:write |
-| PATCH | /admin/inventory/:id | inventory:write (atomic `$inc` / set) |
-| GET | /categories | — (tree, cached) |
-| GET/POST | /admin/categories · PATCH/DELETE `/admin/categories/:id` | categories:write |
-| POST | /admin/media (multipart) · GET /admin/media · DELETE /admin/media/:id | media:write |
+## Catalog & media (Stage 6)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /categories | — (tree, cached, tag `categories`) | active only; an inactive category hides its subtree |
+| GET | /products | — (rate limited 120/min/IP, uncached, index-backed) | `category` (path, includes active descendants), `q` (text search), `sort` (`newest`\|`price-asc`\|`price-desc`\|`popular`), `minPrice`/`maxPrice` (paise, on sale-or-list price), `featured=1`, `page`, `limit` (≤50). Never exposes stock counts (`inStock` only) |
+| GET | /products/:slug | — (cached, tag `product:<slug>`) | active products only; description sanitised; variants with `inStock` |
+| GET/POST | /admin/categories | categories:write | list is flat in tree order with product counts |
+| GET/PATCH/DELETE | /admin/categories/:id | categories:write | PATCH = whole record + `baseUpdatedAt` (409 if stale); slug/parent change moves the subtree + records 301s atomically; DELETE refused (409) with children/products |
+| GET/POST | /admin/products | products:read / write | list: `q` (name/SKU/variant SKU), `status`, `category`, `lowStock=1`, `page`, `limit` |
+| GET/PATCH/DELETE | /admin/products/:id | products:read / write | PATCH needs `baseUpdatedAt`; **ignores stock** for existing products |
+| PATCH | /admin/inventory/:id | inventory:write | `{delta}` or `{set}`, plus `sku` for variants; atomic; 409 if it would go below zero |
+| GET/POST | /admin/media | media:write (GET also products:write) | POST multipart `file`; JPEG/PNG/GIF/WebP by magic bytes, ≤5 MB; 503 `NOT_CONFIGURED` without Cloudinary credentials |
+| PATCH/DELETE | /admin/media/:id | media:write | PATCH `{alt}`; DELETE refused (409) while a product/category uses the image |
+
+Related products (`/products/:slug/related`) are built with the storefront in Stage 8.
 
 ## Homepage (Stage 7)
 GET `/homepage` (— cached, resolves product rails in one batched query); PUT `/admin/homepage` — `home:write`.

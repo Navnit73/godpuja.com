@@ -2,10 +2,10 @@ import { z } from "zod";
 import { validateSlug } from "@/lib/slug";
 
 // "" is allowed for optional fields (empty form inputs); services normalise "" to undefined.
-const httpUrl = z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" });
-const optionalUrl = z.union([z.literal(""), httpUrl]);
+export const httpUrl = z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" });
+export const optionalUrl = z.union([z.literal(""), httpUrl]);
 /** Internal path ("/about") or absolute http(s) URL. */
-const linkUrl = z.union([
+export const linkUrl = z.union([
   z.literal(""),
   httpUrl,
   z.string().regex(/^\/(?!\/)[^\s\\]*$/, "Use a path like /about or a full URL"),

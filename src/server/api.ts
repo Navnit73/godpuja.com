@@ -1,13 +1,14 @@
+import { unstable_rethrow } from "next/navigation";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 export type ErrorCode =
   | "VALIDATION_ERROR" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND"
-  | "CONFLICT" | "RATE_LIMITED" | "INTERNAL";
+  | "CONFLICT" | "RATE_LIMITED" | "NOT_CONFIGURED" | "UPSTREAM" | "INTERNAL";
 
 const STATUS: Record<ErrorCode, number> = {
   VALIDATION_ERROR: 400, UNAUTHENTICATED: 401, FORBIDDEN: 403,
-  NOT_FOUND: 404, CONFLICT: 409, RATE_LIMITED: 429, INTERNAL: 500,
+  NOT_FOUND: 404, CONFLICT: 409, RATE_LIMITED: 429, NOT_CONFIGURED: 503, UPSTREAM: 502, INTERNAL: 500,
 };
 
 export class ApiError extends Error {
@@ -31,6 +32,7 @@ export function handle<C = unknown>(fn: (req: Request, ctx: C) => Promise<Respon
       if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) assertSameOrigin(req);
       return await fn(req, ctx as C);
     } catch (err) {
+      unstable_rethrow(err); // Next.js control-flow signals (prerender bail-out, redirects) must propagate, not become 500s
       if (err instanceof ZodError) {
         const fields: Record<string, string> = {};
         for (const i of err.issues) fields[i.path.join(".") || "_"] ??= i.message;

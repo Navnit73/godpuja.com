@@ -7,14 +7,14 @@ All collections have `createdAt`, `updatedAt` (Mongoose timestamps). IDs are Obj
 Indexes: `{email:1}` unique; `{role:1}`.
 
 ## categories
-`name, slug, parent (ref categories|null), path (e.g. "puja-kits/diwali"), level, description, image{url,alt}, order, isActive, seo{title,description,canonical,ogImage,noindex}`
+`name, slug (single kebab segment), parent (ref categories|null), path (e.g. "puja-kits/diwali"), level (1–3), description, image{url,alt}, order, isActive, seo{title,description,canonical,ogImage,noindex}`
 Indexes: `{path:1}` unique; `{parent:1, order:1}`; `{isActive:1}`.
-`path` is recomputed (with descendants) when slug/parent changes, and a redirect is written.
+`path` is recomputed (with the whole subtree) when slug/parent changes, in one transaction, and a 301 is recorded for every moved URL (`/category/<path>`). Moving under own descendant or beyond 3 levels is rejected. Delete is refused while it has subcategories or products. Inactive categories hide their subtree and products.
 
 ## products
-`name, slug (unique), sku (unique), shortDescription, description (sanitised HTML), images[{url,alt,order}], category (ref), brand, price, salePrice?, stock, lowStockThreshold, status ('draft'|'active'|'archived'), isFeatured, attributes[{name,value}], variants[{sku,options{},price?,salePrice?,stock}], shipping{weightGrams,length,width,height,freeShipping}, soldCount, seo{title,description,canonical,ogImage,noindex}, schemaOverrides?`
-Indexes: `{slug:1}` unique; `{sku:1}` unique; `{status:1, category:1, createdAt:-1}`; `{status:1, isFeatured:1}`; `{status:1, soldCount:-1}`; text index `{name, shortDescription, brand}`.
-Rules: `salePrice < price`; price in paise (integer) to avoid float errors; if `variants` exist, stock is per-variant.
+`name, slug (unique), sku (unique, upper-case), shortDescription, description (Markdown, sanitised when rendered), images[{url,alt,order}], category (ref), brand, price, salePrice?, effectivePrice (= salePrice ?? price, denormalised for filter/sort), stock, lowStockThreshold, status ('draft'|'active'|'archived'), isFeatured, attributes[{name,value}], variants[{sku,options{},price?,salePrice?,stock}], shipping{weightGrams,length,width,height,freeShipping}, soldCount, seo{title,description,canonical,ogImage,noindex}, schemaOverrides?`
+Indexes: `{slug:1}` unique; `{sku:1}` unique; `{variants.sku:1}` unique (partial); `{status:1, category:1, createdAt:-1}`; `{status:1, isFeatured:1}`; `{status:1, soldCount:-1}`; `{status:1, effectivePrice:1}`; `{updatedAt:-1}`; text index `{name, shortDescription, brand}`.
+Rules: `salePrice < price`; money in integer paise; if `variants` exist, stock is per-variant (SKUs unique across all products incl. variants). **Stock is never written by the product editor**: edits keep current stock (variants matched by SKU) and stock changes only through `adjustStock` (single atomic update with a `stock >= -delta` guard, `timestamps:false` so it doesn't invalidate editors). Activating needs a category and a price. A slug change records a 301 (`/product/<old>` → `/product/<new>`).
 
 ## pages
 `title, slug (unique), description, sections[{id,type,enabled,data}], status ('draft'|'published'|'scheduled'), publishAt?, publishedAt?, previewToken, seo{…}`
@@ -44,7 +44,7 @@ Snapshots of name/price/SKU keep orders correct after product edits.
 Single document `{_id: "superadmin-guard", n}` written inside transactions that remove a superadmin, so concurrent demotions conflict and retry (see `services/users.ts`).
 
 ## redirects
-`from (unique, normalised path), to, code (301), hits`. Index `{from:1}` unique.
+`from (unique, normalised path), to, code (301), hits`. Index `{from:1}` unique. Written in the same transaction as the slug/path change; kept loop- and chain-free (Stage 10 reads it in the proxy).
 
 ## media
 `url, publicId, filename, mime, size, width, height, alt, uploadedBy`. Index `{createdAt:-1}`.

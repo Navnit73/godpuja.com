@@ -7,7 +7,7 @@ function Html({ html, className = "" }: { html: string; className?: string }) {
   return <div className={`content ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function Section({ s }: { s: PublicSection }) {
+export function Section({ s }: { s: PublicSection }) {
   if (s.type === "richtext") return <Html html={s.html} />;
   const external = /^https?:\/\//i.test(s.ctaUrl);
   return (

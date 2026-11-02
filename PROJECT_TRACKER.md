@@ -3,7 +3,7 @@
 Statuses: `NOT_STARTED` · `IN_PROGRESS` · `IMPLEMENTATION_COMPLETE` · `AUDIT_IN_PROGRESS` · `AUDIT_COMPLETE` · `BLOCKED`
 A task is complete only after implementation works **and** audit verification passes.
 
-**Current stage: 6 (not started)** · Last updated: 2026-11-02
+**Current stage: 6 (implemented; independent audit pending)** · Last updated: 2026-11-02
 
 | Stage | Task | Implementation | Audit | Status |
 |---|---|---|---|---|
@@ -39,7 +39,11 @@ A task is complete only after implementation works **and** audit verification pa
 | 5 | Footer model, service, admin API (concurrency-safe) | Complete | Complete | AUDIT_COMPLETE |
 | 5 | Admin footer editor | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
 | 5 | Dynamic footer + newsletter capture endpoint | Complete | Complete | AUDIT_COMPLETE |
-| 6 | Categories, products, media, inventory | Pending | Pending | NOT_STARTED |
+| 6 | Categories (nested, 3 levels, path + 301 on move, transactional) | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 6 | Products (variants, attributes, SEO, optimistic concurrency) + admin UI | Complete | Self-verified (browser/axe pending) | IMPLEMENTATION_COMPLETE |
+| 6 | Inventory (atomic, race-tested) + admin UI | Complete | Self-verified | IMPLEMENTATION_COMPLETE |
+| 6 | Media library (Cloudinary signed upload, magic-byte checks) | Complete — live upload **untested: no Cloudinary credentials yet** | Pending | IMPLEMENTATION_COMPLETE |
+| 6 | Redirect table + public catalog reads + index verification (explain) | Complete | Self-verified | IMPLEMENTATION_COMPLETE |
 | 7 | Homepage builder | Pending | Pending | NOT_STARTED |
 | 8 | Storefront + product pages | Pending | Pending | NOT_STARTED |
 | 9 | Cart, checkout, orders | Pending | Pending | BLOCKED (payment gateway deferred by owner) |
@@ -47,6 +51,6 @@ A task is complete only after implementation works **and** audit verification pa
 | 11 | Performance, security, accessibility | Pending | Pending | NOT_STARTED |
 | 12 | E2E, final audit, release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md).
+Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md).
 
 Carried forward: newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP handling and body-size check (Stage 11); soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

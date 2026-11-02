@@ -4,7 +4,7 @@ export const MAX_MENU_ITEMS = 100;
 export const MENU_DEPTH = 3;
 
 /** Internal path ("/about") or absolute http(s) URL. Same rule as page CTA links. */
-const link = z.union([
+export const linkUrl = z.union([
   z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" }),
   z.string().regex(/^\/(?!\/)[^\s\\]*$/, "Use a path like /about or a full URL"),
 ]);
@@ -23,10 +23,10 @@ const itemBase = z.object({
   showOnMobile: z.boolean(),
 });
 
-function checkTarget(i: z.infer<typeof itemBase>, ctx: z.RefinementCtx) {
+export function checkTarget(i: { type: "page" | "external"; ref?: string; url?: string }, ctx: z.RefinementCtx) {
   if (i.type === "page" && !i.ref) ctx.addIssue({ code: "custom", path: ["ref"], message: "Choose a page" });
   if (i.type === "external") {
-    const r = link.safeParse(i.url ?? "");
+    const r = linkUrl.safeParse(i.url ?? "");
     if (!r.success) ctx.addIssue({ code: "custom", path: ["url"], message: r.error.issues[0]?.message ?? "Enter a link" });
   }
 }

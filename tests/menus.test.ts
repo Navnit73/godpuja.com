@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { connectDB } from "@/server/db";
 import { Menu } from "@/server/models/Menu";
 import { Page } from "@/server/models/Page";
-import { createMenu, findPublicMenu, getMenu, listMenus, updateMenu } from "@/server/services/menus";
+import { createMenu, findPublicMenu, getMenu, listLinkablePages, listMenus, updateMenu } from "@/server/services/menus";
 import { createPage, setPublishState } from "@/server/services/pages";
 import { ApiError } from "@/server/api";
 import { can } from "@/server/auth/permissions";
@@ -177,6 +177,16 @@ describe("menus service (godpuja_test)", () => {
     await Page.updateOne({ _id: p.id }, { $set: { status: "scheduled", publishAt: new Date(Date.now() + 60_000) } });
     expect((await findPublicMenu("header"))!.items).toHaveLength(0);
     expect((await findPublicMenu("header", new Date(Date.now() + 120_000)))!.items).toHaveLength(1);
+  });
+
+  it("link picker is capped but always includes pages that are already linked", async () => {
+    const a = await mkPage("aaa"); await mkPage("bbb"); const z = await mkPage("zzz");
+    const plain = await listLinkablePages([], 2);
+    expect(plain.pages.map((p) => p.slug)).toEqual(["aaa", "bbb"]); // sorted by title
+    expect(plain.truncated).toBe(true);
+    const withRef = await listLinkablePages([z.id, a.id, "not-an-id"], 2);
+    expect(withRef.pages.map((p) => p.slug).sort()).toEqual(["aaa", "bbb", "zzz"]);
+    expect((await listLinkablePages([], 10)).truncated).toBe(false);
   });
 
   it("deleted pages disappear from the public menu", async () => {

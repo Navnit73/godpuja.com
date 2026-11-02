@@ -25,7 +25,10 @@ Indexes: `{slug:1}` unique; `{status:1, publishAt:1}`.
 Embedded (a menu is always read whole). Index: `{key:1}` unique.
 
 ## footer (single doc)
-`columns[{id,heading,order,enabled,links[{label,url,order}]}], social[{platform,url,enabled}], contact{address,phone,email}, newsletter{enabled,heading,text}, legalLinks[{label,url}], copyright`
+`key ('main', unique), columns[{id,heading,enabled,links[link]}] (≤6 cols, ≤12 links), social[{id,platform,url(https),enabled}], contact{address,phone,email}, newsletter{enabled,heading,text}, legalLinks[link] (≤8), copyright ('{year}' placeholder)` where `link = {id,label,type('page'|'external'),ref?,url?,openInNewTab,enabled}` (same link rules as menus). Order = array order. Optimistic concurrency on `updatedAt`; the first save is create-only (unique key).
+
+## subscribers
+`email (unique, lowercase), source, createdAt`. Written by the public newsletter endpoint (idempotent upsert).
 
 ## homepage (single doc)
 `sections[{id,type('hero'|'banner'|'featuredCategories'|'featuredProducts'|'latestProducts'|'bestSellers'|'richText'|'imageText'|'testimonials'|'offer'|'custom'),enabled,order,data}]`

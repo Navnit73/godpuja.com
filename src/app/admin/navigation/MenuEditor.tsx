@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -42,7 +42,7 @@ function mapErrors(items: MenuItemInput[], issues: { path: PropertyKey[]; messag
 
 type RowProps = {
   item: MenuItemInput; items: MenuItemInput[]; pages: LinkPage[]; errors: Errors; expanded: Set<string>; readOnly: boolean;
-  toggle: (id: string) => void; apply: (next: MenuItemInput[], focusId?: string) => void;
+  toggle: (id: string) => void; apply: (next: MenuItemInput[], focusKey?: string) => void;
 };
 
 function Row({ item, items, pages, errors, expanded, readOnly, toggle, apply }: RowProps) {
@@ -71,13 +71,13 @@ function Row({ item, items, pages, errors, expanded, readOnly, toggle, apply }: 
           {item.enabled && !item.showOnMobile && <span className="badge-muted">Desktop only</span>}
           {!readOnly && (
             <>
-              <button type="button" className={btn} disabled={at.index === 0} aria-label={`Move ${item.label || "item"} up`} onClick={() => apply(move(items, item.id, -1), item.id)}>↑</button>
-              <button type="button" className={btn} disabled={at.index === at.siblings.length - 1} aria-label={`Move ${item.label || "item"} down`} onClick={() => apply(move(items, item.id, 1), item.id)}>↓</button>
-              <button type="button" className={btn} disabled={!canOutdent(items, item.id)} aria-label={`Move ${item.label || "item"} out one level`} onClick={() => apply(outdent(items, item.id), item.id)}>←</button>
-              <button type="button" className={btn} disabled={!canIndent(items, item.id)} aria-label={`Nest ${item.label || "item"} under the item above`} onClick={() => apply(indent(items, item.id), item.id)}>→</button>
+              <button type="button" className={btn} data-act={`${item.id}:up`} disabled={at.index === 0} aria-label={`Move ${item.label || "item"} up`} onClick={() => apply(move(items, item.id, -1), `${item.id}:up`)}>↑</button>
+              <button type="button" className={btn} data-act={`${item.id}:down`} disabled={at.index === at.siblings.length - 1} aria-label={`Move ${item.label || "item"} down`} onClick={() => apply(move(items, item.id, 1), `${item.id}:down`)}>↓</button>
+              <button type="button" className={btn} data-act={`${item.id}:out`} disabled={!canOutdent(items, item.id)} aria-label={`Move ${item.label || "item"} out one level`} onClick={() => apply(outdent(items, item.id), `${item.id}:out`)}>←</button>
+              <button type="button" className={btn} data-act={`${item.id}:in`} disabled={!canIndent(items, item.id)} aria-label={`Nest ${item.label || "item"} under the item above`} onClick={() => apply(indent(items, item.id), `${item.id}:in`)}>→</button>
             </>
           )}
-          <button type="button" className="btn-outline btn-sm" aria-expanded={open} onClick={() => toggle(item.id)}>{open ? "Done" : readOnly ? "View" : "Edit"}</button>
+          <button type="button" data-act={`${item.id}:edit`} className="btn-outline btn-sm" aria-expanded={open} onClick={() => toggle(item.id)}>{open ? "Done" : readOnly ? "View" : "Edit"}</button>
         </div>
 
         {open && (
@@ -128,7 +128,7 @@ function Level({ list, ...rest }: { list: MenuItemInput[] } & Omit<RowProps, "it
   );
 }
 
-export default function MenuEditor({ menu, pages, readOnly = false }: { menu: AdminMenu; pages: LinkPage[]; readOnly?: boolean }) {
+export default function MenuEditor({ menu, pages, pagesTruncated = false, readOnly = false }: { menu: AdminMenu; pages: LinkPage[]; pagesTruncated?: boolean; readOnly?: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [meta, setMeta] = useState(menu);
@@ -139,6 +139,8 @@ export default function MenuEditor({ menu, pages, readOnly = false }: { menu: Ad
   const [errors, setErrors] = useState<Errors>({});
   const [general, setGeneral] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const pendingFocus = useRef<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -149,7 +151,16 @@ export default function MenuEditor({ menu, pages, readOnly = false }: { menu: Ad
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const apply = (next: MenuItemInput[]) => { setItems(next); setDirty(true); };
+  const apply = (next: MenuItemInput[], focusKey?: string) => { setItems(next); setDirty(true); if (focusKey) pendingFocus.current = focusKey; };
+  // Rows remount when an item changes level, so focus is restored to the same action (or the row's Edit button
+  // if that action is no longer available) after React has rendered the new tree.
+  useEffect(() => {
+    const key = pendingFocus.current;
+    if (!key) return;
+    pendingFocus.current = null;
+    const id = key.split(":")[0];
+    (document.querySelector<HTMLButtonElement>(`[data-act="${key}"]:not(:disabled)`) ?? document.querySelector<HTMLButtonElement>(`[data-act="${id}:edit"]`))?.focus();
+  }, [items]);
   const toggle = (id: string) => setExpanded((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const onDragEnd = (e: DragEndEvent) => { if (e.over && e.active.id !== e.over.id) apply(reorder(items, String(e.active.id), String(e.over.id))); };
 
@@ -172,6 +183,7 @@ export default function MenuEditor({ menu, pages, readOnly = false }: { menu: Ad
       toast("Menu saved. It is live on the storefront.");
       router.refresh();
     } catch (e) {
+      setConflict(e instanceof ApiClientError && e.status === 409);
       setGeneral(e instanceof ApiClientError ? e.fields?.items ?? e.fields?.name ?? e.message : "Could not save the menu");
     } finally {
       setBusy(false);
@@ -185,7 +197,13 @@ export default function MenuEditor({ menu, pages, readOnly = false }: { menu: Ad
         <Input label="Menu name" value={name} readOnly={readOnly} onChange={(e) => { setName(e.target.value); setDirty(true); }} />
         {!readOnly && <Button onClick={save} loading={busy} disabled={!dirty}>Save menu</Button>}
       </div>
-      {general && <p role="alert" className="alert-error">{general}</p>}
+      {general && (
+        <div role="alert" className="alert-error flex flex-wrap items-center justify-between gap-3">
+          <p>{general}</p>
+          {conflict && <button type="button" className="btn-outline btn-sm" onClick={() => window.location.reload()}>Reload latest (discards your edits)</button>}
+        </div>
+      )}
+      {pagesTruncated && <p className="alert-error" role="status">Only the first {pages.length} pages (A–Z) can be chosen in the page picker. Use a custom link for others.</p>}
       <p className="text-sm text-muted">
         {total} item{total === 1 ? "" : "s"}. Drag the handle or use the arrow buttons to reorder; → nests an item under the one above (up to {MENU_DEPTH} levels). Items linking to unpublished pages stay hidden on the storefront until the page is live.
       </p>

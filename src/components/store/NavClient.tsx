@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { PublicMenuItem } from "@/server/services/menus";
 
 type Props = { desktop: PublicMenuItem[]; mobile: PublicMenuItem[] };
@@ -29,30 +29,32 @@ const linkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transi
 function DesktopItem({ item }: { item: PublicMenuItem }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLLIElement>(null);
+  const toggleBtn = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
   const pathname = usePathname();
   const [seenPath, setSeenPath] = useState(pathname);
   if (seenPath !== pathname) { setSeenPath(pathname); setOpen(false); } // close after navigating
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
   if (!item.children.length) return <li><NavLink item={item} className={`block ${linkCls}`} /></li>;
   return (
     <li ref={ref} className="relative"
-      onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+      onKeyDown={(e) => { if (e.key === "Escape" && open) { setOpen(false); toggleBtn.current?.focus(); } }}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
       <div className="flex items-center">
         <NavLink item={item} className={`block ${linkCls} pr-1`} />
-        <button type="button" className="rounded-md px-1.5 py-2 text-sm hover:bg-sandal-100" aria-expanded={open}
+        <button ref={toggleBtn} type="button" className="rounded-md px-1.5 py-2 text-sm hover:bg-sandal-100" aria-expanded={open} aria-controls={panelId}
           aria-label={`${item.label} submenu`} onClick={() => setOpen((o) => !o)}>
           <span aria-hidden="true">▾</span>
         </button>
       </div>
       {open && (
-        <ul className="absolute left-0 top-full z-40 mt-1 min-w-56 rounded-lg border border-border bg-surface p-2 shadow-elev-3">
+        <ul id={panelId} className="absolute left-0 top-full z-40 mt-1 min-w-56 rounded-lg border border-border bg-surface p-2 shadow-elev-3">
           {item.children.map((c) => (
             <li key={c.id}>
               <NavLink item={c} className={`block ${linkCls}`} />

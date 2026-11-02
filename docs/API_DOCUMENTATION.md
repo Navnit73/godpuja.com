@@ -51,11 +51,15 @@ Public rendering is not an API: `/[...slug]` (live pages only; scheduled pages g
 
 Storefront: the header uses menu `header` (items filtered by `showOnDesktop`); on small screens the `mobile` menu if it has items, else `header` filtered by `showOnMobile`. Admin saves and any page publish/unpublish/slug change call `revalidateTag("nav")`.
 
-## Footer (Stage 5)
-| Method | Path | Perm |
-|---|---|---|
-| GET | /footer | — (cached) |
-| PUT | /admin/footer | footer:write |
+## Footer & newsletter (Stage 5)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /footer | — (cached ≤60 s, tag `footer`) | Resolved footer (`data: null` until first saved): disabled items, dead page links and empty columns removed; `{year}` filled in |
+| GET | /admin/footer | footer:write | returns defaults with `updatedAt: null` before the first save |
+| PUT | /admin/footer | footer:write | whole document + `baseUpdatedAt` (`null` only for the first save; stale => 409); linked pages must exist |
+| POST | /newsletter | — | `{email, website?}`; rate limited (5/min/IP); idempotent (always `{subscribed:true}` for valid input, so addresses cannot be enumerated); non-empty honeypot field `website` stores nothing |
+
+Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 
 ## Catalog (Stage 6)
 | Method | Path | Perm |

@@ -66,14 +66,31 @@ export async function updateMenu(id: string, { baseUpdatedAt, name, items }: Upd
   return toAdmin(updated);
 }
 
-/** Pages offered in the link picker. Capped; the editor says so when truncated. */
-export async function listLinkablePages(limit = 200) {
+/**
+ * Pages offered in the link picker: the first `limit` by title, plus any page already linked from `extraRefs`
+ * (so an existing link always displays correctly). `truncated` tells the editor to warn.
+ */
+export async function listLinkablePages(extraRefs: string[] = [], limit = 200) {
   await connectDB();
-  const rows = await Page.find().select("title slug status publishAt").sort({ title: 1 }).limit(limit).lean();
-  return rows.map((p) => ({ id: String(p._id), title: p.title, slug: p.slug, live: isLive(p) }));
+  const [rows, total] = await Promise.all([
+    Page.find().select("title slug status publishAt").sort({ title: 1 }).limit(limit).lean(),
+    Page.estimatedDocumentCount(),
+  ]);
+  const have = new Set(rows.map((p) => String(p._id)));
+  const missing = extraRefs.filter((r) => !have.has(r) && mongoose.isValidObjectId(r));
+  const extra = missing.length ? await Page.find({ _id: { $in: missing } }).select("title slug status publishAt").lean() : [];
+  const pages = [...rows, ...extra].map((p) => ({ id: String(p._id), title: p.title, slug: p.slug, live: isLive(p) }));
+  return { pages, truncated: total > limit };
 }
 
 // ---------- Public (storefront) reads ----------
+
+/** page id -> slug for the live pages among `refs`, in one query. Shared by menus and the footer. */
+export async function liveSlugs(refs: string[], now = new Date()): Promise<Map<string, string>> {
+  const pages = refs.length ? await Page.find({ _id: { $in: refs } }).select("slug status publishAt").lean() : [];
+  return new Map(pages.filter((p) => isLive(p, now)).map((p) => [String(p._id), p.slug]));
+}
+export const pageHref = (slug: string) => (slug === "home" ? "/" : `/${slug}`);
 
 export type PublicMenuItem = {
   id: string; label: string; href: string; external: boolean; newTab: boolean;
@@ -93,9 +110,7 @@ export async function findPublicMenu(key: string, now = new Date()): Promise<Pub
   const m = await Menu.findOne({ key }).lean();
   if (!m) return null;
   const items = m.items ?? [];
-  const refs = pageRefs(items);
-  const pages = refs.length ? await Page.find({ _id: { $in: refs } }).select("slug status publishAt").lean() : [];
-  const slugs = new Map(pages.filter((p) => isLive(p, now)).map((p) => [String(p._id), p.slug]));
+  const slugs = await liveSlugs(pageRefs(items), now);
 
   const resolve = (list: MenuItemInput[]): PublicMenuItem[] => {
     const out: PublicMenuItem[] = [];
@@ -105,7 +120,7 @@ export async function findPublicMenu(key: string, now = new Date()): Promise<Pub
       if (i.type === "page") {
         const slug = i.ref ? slugs.get(i.ref) : undefined;
         if (slug === undefined) continue;
-        href = slug === "home" ? "/" : `/${slug}`;
+        href = pageHref(slug);
       } else {
         href = i.url ?? "";
         if (!href) continue;

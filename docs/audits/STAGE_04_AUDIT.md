@@ -1,6 +1,6 @@
 # Stage 4 — Navigation: verification report
 
-Status: **IMPLEMENTATION_COMPLETE — independent audit pending.** This report records the implementer's own verification; it is not the independent audit the workflow requires.
+Status: **AUDIT_COMPLETE** (independent read-only review by a separate agent; no High findings; Medium/Low findings fixed or carried forward below).
 
 ## Delivered
 - `Menu` model, service, admin API (`/api/admin/menus[/:id]`), public `GET /api/menus/:key`.
@@ -24,3 +24,7 @@ Status: **IMPLEMENTATION_COMPLETE — independent audit pending.** This report r
 - Browser pass of the editor (drag with pointer, screen-reader announcements) and axe scan of header + editor (Stage 11/12 with Playwright).
 - Mobile menu is a simple disclosure panel (no focus trap) — acceptable for a non-modal panel; revisit in the a11y pass.
 - `"use cache"` is per instance (see ARCHITECTURE A16).
+
+## Independent audit findings (2026-11-02)
+Fixed: (M) keyboard focus lost after move/nest/un-nest in the editor — focus is restored to the same action; (M) page picker silently truncated at 200 — referenced pages are always included and a notice is shown; (M) dropdown: Escape returns focus to the toggle, `aria-controls` added, outside-click uses `pointerdown`; (L) public `/api/menus/:key` now rate limited (120/min/IP); (L) a dedicated `mobile` menu now honours `showOnMobile`; (L) 409 conflict offers "Reload latest"; picker test added.
+Carried forward: shared/multi-instance cache (Stage 11, ARCHITECTURE A16); `Content-Length`-only body size check in `readJson` and the proxy-trust logic in `clientIp` (Stage 11 hardening); cross-level drag silently no-ops (buttons are the cross-level path); control characters inside URLs (admin-only, cosmetic); component/route-level and axe/browser tests (Stage 11/12).

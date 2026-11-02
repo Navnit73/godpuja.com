@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { findPublicPage } from "../services/pages";
+import { invalidateFooter } from "./footer";
 import { invalidateMenus } from "./menus";
 
 /**
@@ -18,6 +19,7 @@ export async function getPublicPage(slug: string) {
 /** Call after any admin write that changes what the public sees. `expire: 0` => next request is fresh. */
 export function invalidatePages(...slugs: (string | undefined)[]) {
   revalidateTag("pages", { expire: 0 });
-  invalidateMenus(); // menus resolve page links, so a slug change / unpublish must refresh them too
+  invalidateMenus(); // menus and the footer resolve page links, so a slug change / unpublish must refresh them too
+  invalidateFooter();
   for (const s of new Set(slugs.filter(Boolean) as string[])) revalidateTag(`page:${s}`, { expire: 0 });
 }

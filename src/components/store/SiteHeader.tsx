@@ -24,9 +24,10 @@ export function HeaderShell({ children }: { children?: React.ReactNode }) {
 export default async function SiteHeader() {
   await connection(); // read at request time so the build never needs the database
   // A dedicated "mobile" menu wins on small screens; otherwise the header menu is reused, filtered by visibility flags.
-  const [header, mobile] = await Promise.all([getPublicMenu("header"), getPublicMenu("mobile")]);
+  const read = (key: string) => getPublicMenu(key).catch((e) => { console.error(`[nav] ${key} menu read failed`, e); return null; });
+  const [header, mobile] = await Promise.all([read("header"), read("mobile")]);
   const desktopItems = visibleOn(header?.items ?? [], "showOnDesktop");
-  const mobileItems = mobile && mobile.items.length ? mobile.items : visibleOn(header?.items ?? [], "showOnMobile");
+  const mobileItems = visibleOn(mobile && mobile.items.length ? mobile.items : header?.items ?? [], "showOnMobile");
   return (
     <HeaderShell>
       <NavClient desktop={desktopItems} mobile={mobileItems} />

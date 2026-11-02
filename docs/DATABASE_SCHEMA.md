@@ -51,13 +51,13 @@ Snapshots of name/price/SKU keep orders correct after product edits.
 Single document `{_id: "superadmin-guard", n}` written inside transactions that remove a superadmin, so concurrent demotions conflict and retry (see `services/users.ts`).
 
 ## redirects
-`from (unique, normalised path), to, code (301), hits`. Index `{from:1}` unique. Written in the same transaction as the slug/path change; kept loop- and chain-free (Stage 10 reads it in the proxy).
+`from (unique, normalised path), to, code (301), hits`. Index `{from:1}` unique. Written in the same transaction as the slug/path change (products, categories) or right after it (CMS pages), plus manual entries from /admin/seo; kept loop- and chain-free; cleared when a URL becomes a real page again and when its target is deleted. Read by the proxy (cached 60 s).
 
 ## media
 `url, publicId, filename, mime, size, width, height, alt, uploadedBy`. Index `{createdAt:-1}`.
 
 ## settings (single doc)
-`siteName, siteUrl, logo, favicon, contact, defaultSeo{title,description,ogImage}, currency, shipping{flatRate,freeOver}, tax{inclusive,rate}, socials, analyticsId`
+`key ('main', unique), siteName, defaultTitle, defaultDescription, defaultOgImage, twitterHandle, logoUrl, homeTitle, homeDescription` (Stage 10, SEO only). Site URL comes from the `SITE_URL` env; shipping rules from env (Stage 9). Optimistic concurrency on `updatedAt`; first save create-only.
 
 ## auditLogs
 `actor (ref users), action, entity, entityId, before?, after?, ip, at`. Index `{entity:1, entityId:1, at:-1}`; TTL optional.

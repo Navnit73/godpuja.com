@@ -3,7 +3,7 @@
 Statuses: `NOT_STARTED` · `IN_PROGRESS` · `IMPLEMENTATION_COMPLETE` · `AUDIT_IN_PROGRESS` · `AUDIT_COMPLETE` · `BLOCKED`
 A task is complete only after implementation works **and** audit verification passes.
 
-**Current stage: 8 + 9 (implemented; independent audit pending)** · Last updated: 2026-11-02
+**Current stage: 10 (implemented; independent audit pending — stages 8, 9, 10 await audit)** · Last updated: 2026-11-02
 
 | Stage | Task | Implementation | Audit | Status |
 |---|---|---|---|---|
@@ -53,10 +53,12 @@ A task is complete only after implementation works **and** audit verification pa
 | 9 | Order lifecycle (transition table, cancel restores stock once), payment status, notes, refunds (record-only), CSV export | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
 | 9 | Admin orders UI (list, filters, detail, actions, history) | Complete | Self-verified (browser/axe pending) | IMPLEMENTATION_COMPLETE |
 | 9 | Payment gateway adapter | **BLOCKED — owner has not chosen a gateway.** COD provider + generic signed webhook only (adapter slot documented) | — | BLOCKED |
-| 10 | SEO | Pending | Pending | NOT_STARTED |
+| 10 | Proxy: real 404s, 301 redirect table, malformed-URL 400 | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 10 | Metadata everywhere (titles, canonicals, OG/Twitter, noindex rules), JSON-LD (Product, Breadcrumbs, Organization, WebSite) | Complete | Self-verified; rich-results validator not run (needs a public URL) | IMPLEMENTATION_COMPLETE |
+| 10 | sitemap.xml, robots.txt, admin SEO settings + redirects manager, CMS page slug 301s | Complete | Self-verified (browser/axe pending) | IMPLEMENTATION_COMPLETE |
 | 11 | Performance, security, accessibility | Pending | Pending | NOT_STARTED |
 | 12 | E2E, final audit, release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md) · [Stage 9](docs/audits/STAGE_09_AUDIT.md).
+Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md) · [Stage 9](docs/audits/STAGE_09_AUDIT.md) · [Stage 10](docs/audits/STAGE_10_AUDIT.md).
 
-Carried forward: Stage 9 — payment gateway adapter pending owner decision (COD + generic webhook only); customer accounts / order history deferred (guest token only); no order emails yet (provider Resend, Stage 9 follow-up); Cloudinary live upload/delete test once credentials exist; homepage product cards and category tiles link to `/product/<slug>` and `/category/<path>`, which return 404 until the storefront pages ship in Stage 8; newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP handling and body-size check (Stage 11); soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.
+Carried forward: Stage 9 — payment gateway adapter pending owner decision (COD + generic webhook only); customer accounts / order history deferred (guest token only); no order emails yet (provider Resend, Stage 9 follow-up); Cloudinary live upload/delete test once credentials exist; homepage product cards and category tiles link to `/product/<slug>` and `/category/<path>`, which return 404 until the storefront pages ship in Stage 8; newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP handling and body-size check (Stage 11); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

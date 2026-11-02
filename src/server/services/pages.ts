@@ -4,6 +4,9 @@ import { ApiError } from "../api";
 import { connectDB } from "../db";
 import { Page, type PageDoc } from "../models/Page";
 import { renderMarkdown } from "../markdown";
+import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
+
+const pagePath = (slug: string) => (slug === "home" ? "/" : `/${slug}`);
 import type { ListPagesInput, PageInput, PublishInput } from "@/lib/validation/pages";
 
 export type PageStatus = "draft" | "published" | "scheduled";
@@ -102,6 +105,7 @@ export async function createPage(input: PageInput) {
   await connectDB();
   try {
     const p = await Page.create({ ...normalise(input), status: "draft", previewToken: newToken() });
+    await clearRedirectsFrom([pagePath(p.slug)]); // the URL is a real page again
     return toAdmin(p.toObject() as PageDoc);
   } catch (err) {
     return dupSlug(err);
@@ -131,6 +135,11 @@ export async function updatePage(id: string, input: PageInput, baseUpdatedAt: st
     if (!exists) throw new ApiError("NOT_FOUND", "Page not found");
     throw new ApiError("CONFLICT", "This page was changed by someone else. Reload to see their changes before saving.");
   }
+  if (prev.slug !== input.slug) {
+    // Old links keep working: 301 from the old URL (the proxy serves it), and the new URL is never a redirect source.
+    await clearRedirectsFrom([pagePath(input.slug)]);
+    if (prev.slug !== "home") await recordRedirects([{ from: pagePath(prev.slug), to: pagePath(input.slug) }]);
+  }
   return { page: await getPage(id), previousSlug: prev.slug };
 }
 
@@ -139,6 +148,7 @@ export async function deletePage(id: string) {
   await connectDB();
   const p = await Page.findByIdAndDelete(id).select("slug").lean();
   if (!p) throw new ApiError("NOT_FOUND", "Page not found");
+  await dropRedirectsTo([pagePath(p.slug)]);
   return { slug: p.slug };
 }
 

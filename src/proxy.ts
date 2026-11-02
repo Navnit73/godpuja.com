@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/server/auth/session";
 import { isStaff } from "@/server/auth/permissions";
+import { checkPath, redirectFor } from "@/server/route-check";
 
-// Coarse gate only. Every admin page and API handler re-checks authoritatively (see server/auth/guard.ts).
-export async function proxy(req: NextRequest) {
+const isAdmin = (p: string) => p === "/admin" || p.startsWith("/admin/") || p.startsWith("/api/admin/");
+
+// Coarse admin gate only. Every admin page and API handler re-checks authoritatively (see server/auth/guard.ts).
+async function adminGate(req: NextRequest) {
   const session = await verifySession(req.cookies.get(SESSION_COOKIE)?.value);
   const { pathname, search } = req.nextUrl;
-
   if (!session || !isStaff(session.role)) {
     if (pathname.startsWith("/api/admin")) {
       return NextResponse.json(
@@ -24,4 +26,30 @@ export async function proxy(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ["/admin/:path*", "/api/admin/:path*"] };
+/**
+ * Storefront: decide the HTTP status BEFORE the page streams (afterwards it is fixed at 200).
+ * Malformed URL -> 400 · recorded redirect -> 301 · unknown product/category/page -> real 404.
+ */
+async function storefront(req: NextRequest) {
+  if (req.method !== "GET" && req.method !== "HEAD") return NextResponse.next();
+  const { pathname, search } = req.nextUrl;
+  let path: string;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch {
+    return new NextResponse("Bad request", { status: 400, headers: { "content-type": "text/plain" } });
+  }
+  const key = (path.length > 1 ? path.replace(/\/+$/, "") : path).toLowerCase();
+  const to = await redirectFor(key);
+  if (to) return NextResponse.redirect(/^https?:\/\//.test(to) ? to : new URL(to + search, req.url), 301);
+  if ((await checkPath(path)).kind === "notFound") return NextResponse.rewrite(new URL("/page-not-found", req.url));
+  return NextResponse.next();
+}
+
+export async function proxy(req: NextRequest) {
+  return isAdmin(req.nextUrl.pathname) ? adminGate(req) : storefront(req);
+}
+
+// Everything except API routes (other than /api/admin), Next internals and files with an extension
+// (static assets, sitemap.xml, robots.txt, icons).
+export const config = { matcher: ["/api/admin/:path*", "/((?!api/|_next/|.*\\.[a-z0-9]+$).*)"] };

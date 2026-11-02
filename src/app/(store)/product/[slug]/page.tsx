@@ -5,6 +5,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import AddToCart from "@/components/store/AddToCart";
 import Breadcrumbs from "@/components/store/Breadcrumbs";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbLd, productLd } from "@/lib/jsonld";
 import ProductCard from "@/components/store/ProductCard";
 import ProductGallery from "@/components/store/ProductGallery";
 import { env } from "@/server/env";
@@ -54,6 +56,7 @@ async function Content({ params }: Props) {
   if (!p) notFound();
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+      <JsonLd data={[productLd(env().SITE_URL, p), breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, path: `/category/${c.path}` })), { name: p.name, path: `/product/${p.slug}` }])]} />
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/category/${c.path}` })), { name: p.name }]} />
       <div className="grid gap-8 md:grid-cols-2">
         <ProductGallery images={p.images} name={p.name} />

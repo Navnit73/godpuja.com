@@ -4,7 +4,7 @@ const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const RESERVED_SLUGS = [
   "admin", "api", "login", "logout", "register", "account", "cart", "checkout", "order", "orders",
   "category", "categories", "product", "products", "search", "preview", "sitemap.xml", "robots.txt",
-  "_next", "favicon.ico", "icon.svg", "apple-icon.png", "icon",
+  "_next", "favicon.ico", "icon.svg", "apple-icon.png", "icon", "page-not-found",
 ] as const;
 
 export function slugify(input: string) {

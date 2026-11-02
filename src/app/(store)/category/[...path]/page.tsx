@@ -4,6 +4,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import Link from "next/link";
 import Breadcrumbs from "@/components/store/Breadcrumbs";
+import JsonLd from "@/components/JsonLd";
+import { breadcrumbLd } from "@/lib/jsonld";
 import ProductListing from "@/components/store/ProductListing";
 import { parseListing } from "@/lib/listing";
 import { publicProductsSchema } from "@/lib/validation/catalog";
@@ -20,16 +22,22 @@ async function pathOf(params: Props["params"]) {
   } catch { return null; }
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   await connection();
   const path = await pathOf(params);
   const cat = path ? await findPublicCategory(path) : null;
   if (!cat) return { robots: { index: false } };
   const title = cat.seo.title || cat.name;
   const description = cat.seo.description || cat.description || undefined;
-  const canonical = cat.seo.canonical || `${env().SITE_URL.replace(/\/$/, "")}/category/${cat.path}`;
+  const q = parseListing(await searchParams, { category: cat.path, q: undefined });
+  // Sorted/filtered variants are near-duplicates: noindex them and point at the plain listing. Plain pages 2..n
+  // are distinct content and canonicalise to themselves.
+  const filtered = q.sort !== "newest" || q.minPrice !== undefined || q.maxPrice !== undefined;
+  const base = `${env().SITE_URL.replace(/\/$/, "")}/category/${cat.path}`;
+  const canonical = cat.seo.canonical || (!filtered && q.page > 1 ? `${base}?page=${q.page}` : base);
   return {
-    title, description, alternates: { canonical }, robots: cat.seo.noindex ? { index: false, follow: false } : undefined,
+    title: q.page > 1 && !filtered ? `${title} — page ${q.page}` : title, description, alternates: { canonical },
+    robots: cat.seo.noindex ? { index: false, follow: false } : filtered ? { index: false, follow: true } : undefined,
     openGraph: { type: "website", title, description, url: canonical, images: cat.seo.ogImage || cat.image.url ? [{ url: cat.seo.ogImage || cat.image.url }] : undefined },
   };
 }
@@ -43,6 +51,7 @@ async function Content({ params, searchParams }: Props) {
   const result = await findPublicProducts(query);
   return (
     <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+      <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...cat.breadcrumbs.map((b) => ({ name: b.name, path: `/category/${b.path}` }))])} />
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...cat.breadcrumbs.map((b, i, a) => ({ name: b.name, href: i < a.length - 1 ? `/category/${b.path}` : undefined }))]} />
       <h1 className="text-4xl font-semibold">{cat.name}</h1>
       {cat.description && <p className="mt-2 max-w-3xl text-muted">{cat.description}</p>}

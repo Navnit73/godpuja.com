@@ -19,7 +19,8 @@ Status: **IMPLEMENTATION_COMPLETE — independent audit pending** (implementer's
 - Customer accounts are not part of this release (registration is closed); orders are reached through the token link.
 
 ## Verification
-- `tsc`, `eslint`, `next build` clean. `tests/storefront.test.ts` (6): listing query parsing (rupees→paise, bad values ignored, forced category scope), link building, category page visibility through ancestors, breadcrumbs, related products ordering and exclusions. Combined suite and a live end-to-end run: see the final integration notes below.
+- `tsc`, `eslint`, `next build` clean. `tests/storefront.test.ts` (6): listing query parsing (rupees→paise, bad values ignored, forced category scope), link building, category page visibility through ancestors, breadcrumbs, related products ordering and exclusions. Combined suite with Stage 9: **12 files, 272 tests pass**.
+- Live run (test DB, `next start`): category page (with sort + price filter), search (and the 1-character hint), product page, cart and checkout pages all render with the right `<title>`/`<h1>`; browse → validate cart → checkout → confirmation page works end to end (see Stage 9 report for the order-side checks). Fixed during integration: the confirmation page read URL params outside `<Suspense>`, which broke `next build`.
 
 ## Not verified / carried forward
 - Browser pass + axe on the storefront pages (Stage 11/12).

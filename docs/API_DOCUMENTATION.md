@@ -113,8 +113,20 @@ All admin writes append an entry (kind, status, note, actor, time) to the order'
 
 Env: `SHIPPING_FLAT_PAISE` (default 5000), `FREE_SHIPPING_OVER_PAISE` (default 99900), `PAYMENT_WEBHOOK_SECRET`. Shipping is free at/above the threshold, or if any product in the order has `freeShipping`.
 
-## SEO & settings (Stages 5/10)
-GET `/sitemap.xml`, `/robots.txt` (Next metadata routes); GET/POST `/admin/redirects`; GET/PUT `/admin/settings` — `settings:write`; GET `/admin/dashboard` — `dashboard:read`; GET `/admin/customers` — `customers:read`.
+## SEO (Stage 10)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /sitemap.xml | — (cached, tags `pages`/`products`/`categories`) | live CMS pages, visible categories, active products outside hidden categories; `noindex` items, drafts and private routes excluded; ≤50k URLs |
+| GET | /robots.txt | — | disallows `/admin`, `/api/`, `/cart`, `/checkout`, `/order/`, `/preview/`, `/search`, `/login` |
+| GET/PUT | /admin/seo | seo:write | site name, default title/description/share image, Twitter handle, logo, homepage title/description; PUT needs `baseUpdatedAt` (`null` for the first save) |
+| GET/POST | /admin/redirects | seo:write | list (`q`, `page`, `limit` ≤50); POST `{from, to}` (path → path or https URL). Chains collapsed, loops refused, internal paths (`/admin`, `/api`, `/_next`, `/login`, `/order`, `/preview`, `/`) cannot be sources |
+| DELETE | /admin/redirects/:id | seo:write | |
+
+**Proxy (before rendering):** malformed URL → `400`; recorded redirect → `301` (query string kept); unknown `/product/<slug>`, `/category/<path>` or CMS slug → real `404` (rewritten to `/page-not-found`). Lookups are cached per instance (redirect table 60 s, existence 60 s positive / 15 s negative), so a new redirect can take up to a minute to apply. Redirects are written automatically when a product, category (with subtree) or CMS page changes URL.
+
+**Metadata:** every storefront page has a title (`%s — <site name>`; homepage uses its own title as-is), description, canonical (absolute, from `SITE_URL`), Open Graph and Twitter tags. Sorted/filtered category listings are `noindex, follow` with the plain listing as canonical; page 2+ is indexable with its own canonical and a "page N" title. Search, cart, checkout, order and preview pages are `noindex`. JSON-LD: `Product` (+ `Offer`/`AggregateOffer`, INR, availability) and `BreadcrumbList` on product pages, `BreadcrumbList` on categories, `Organization` + `WebSite` (with `SearchAction`) on the homepage.
+
+Settings beyond SEO (shipping/tax live in env for now), dashboard and customers APIs are not built yet.
 
 ## Rate limits (initial)
 login 5/min/IP+email · register 5/min/IP · checkout 10/min/IP · search 60/min/IP · admin writes 120/min/user.

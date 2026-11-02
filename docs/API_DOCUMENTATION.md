@@ -78,7 +78,13 @@ Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 Related products (`/products/:slug/related`) are built with the storefront in Stage 8.
 
 ## Homepage (Stage 7)
-GET `/homepage` (— cached, resolves product rails in one batched query); PUT `/admin/homepage` — `home:write`.
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /homepage | — (cached 60 s; tags `home`, `products`, `categories`) | `{sections:[…]}` resolved for visitors; `data: null` until first saved |
+| GET | /admin/homepage | home:write | `{sections, updatedAt}`; `updatedAt: null` before the first save |
+| PUT | /admin/homepage | home:write | whole list + `baseUpdatedAt` (`null` only for the first save; stale => 409). Order = array order; `enabled` toggles visibility |
+
+Section types: `hero`, `banner` (≤4), `featuredCategories` (≤8), `featuredProducts` / `latestProducts` / `bestSellers` (heading, optional category path, 1–12 products; ≤6 rails total), `richText`, `imageText`, `testimonials` (≤8), `offer` (optional `expiresAt`), `custom` (markdown + tone). ≤30 sections. Visitors never see: disabled sections, expired offers, empty rails, inactive/deleted categories (or any under an inactive parent), empty text blocks. Rails run one indexed, limited query each (in parallel) and one query covers all category sections. `/` falls back to the CMS page `home`, then to a neutral placeholder, when no homepage sections are configured.
 
 ## Cart, checkout, orders (Stage 9)
 | Method | Path | Perm | Notes |

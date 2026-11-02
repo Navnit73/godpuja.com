@@ -290,7 +290,8 @@ export async function findRail(spec: RailSpec, catPath: Map<string, string>): Pr
     if (!ids) return [];
     filter.category = { $in: ids };
   }
-  const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
+  // No _id tiebreaker: rails are not paginated, and without it the sort is served straight from the index.
+  const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1 } : { createdAt: -1 };
   const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).limit(spec.limit).lean();
   return rows.map((p) => toPublicProduct(p as ProductDoc, catPath));
 }

@@ -6,6 +6,7 @@ export type NavItem = { label: string; href: string; permission: Permission };
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", permission: "dashboard:read" },
   { label: "Pages", href: "/admin/pages", permission: "pages:read" },
+  { label: "Homepage", href: "/admin/homepage", permission: "home:write" },
   { label: "Categories", href: "/admin/categories", permission: "categories:write" },
   { label: "Products", href: "/admin/products", permission: "products:read" },
   { label: "Inventory", href: "/admin/inventory", permission: "inventory:write" },
@@ -20,6 +21,7 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   users: "Users & roles",
   pages: "Pages",
   navigation: "Navigation",
+  homepage: "Homepage",
   categories: "Categories",
   products: "Products",
   inventory: "Inventory",

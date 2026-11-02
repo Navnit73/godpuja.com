@@ -13,7 +13,7 @@ Indexes: `{path:1}` unique; `{parent:1, order:1}`; `{isActive:1}`.
 
 ## products
 `name, slug (unique), sku (unique, upper-case), shortDescription, description (Markdown, sanitised when rendered), images[{url,alt,order}], category (ref), brand, price, salePrice?, effectivePrice (= salePrice ?? price, denormalised for filter/sort), stock, lowStockThreshold, status ('draft'|'active'|'archived'), isFeatured, attributes[{name,value}], variants[{sku,options{},price?,salePrice?,stock}], shipping{weightGrams,length,width,height,freeShipping}, soldCount, seo{title,description,canonical,ogImage,noindex}, schemaOverrides?`
-Indexes: `{slug:1}` unique; `{sku:1}` unique; `{variants.sku:1}` unique (partial); `{status:1, category:1, createdAt:-1}`; `{status:1, isFeatured:1}`; `{status:1, soldCount:-1}`; `{status:1, effectivePrice:1}`; `{updatedAt:-1}`; text index `{name, shortDescription, brand}`.
+Indexes: `{slug:1}` unique; `{sku:1}` unique; `{variants.sku:1}` unique (partial); `{status:1, category:1, createdAt:-1}`; `{status:1, isFeatured:1, createdAt:-1}`; `{status:1, createdAt:-1}`; `{status:1, soldCount:-1}`; `{status:1, effectivePrice:1}`; `{updatedAt:-1}`; text index `{name, shortDescription, brand}`.
 Rules: `salePrice < price`; money in integer paise; if `variants` exist, stock is per-variant (SKUs unique across all products incl. variants). **Stock is never written by the product editor**: edits keep current stock (variants matched by SKU) and stock changes only through `adjustStock` (single atomic update with a `stock >= -delta` guard, `timestamps:false` so it doesn't invalidate editors). Activating needs a category and a price. A slug change records a 301 (`/product/<old>` → `/product/<new>`).
 
 ## pages
@@ -31,7 +31,7 @@ Embedded (a menu is always read whole). Index: `{key:1}` unique.
 `email (unique, lowercase), source, createdAt`. Written by the public newsletter endpoint (idempotent upsert).
 
 ## homepage (single doc)
-`sections[{id,type('hero'|'banner'|'featuredCategories'|'featuredProducts'|'latestProducts'|'bestSellers'|'richText'|'imageText'|'testimonials'|'offer'|'custom'),enabled,order,data}]`
+`key ('main', unique), sections[{id,type,enabled,data}]` — order = array order; ≤30 sections, ≤6 product rails. Types and `data`: `hero{heading,subheading,imageUrl,imageAlt,ctaLabel,ctaUrl,secondaryCtaLabel,secondaryCtaUrl}`, `banner{items[{imageUrl,imageAlt,heading,text,linkUrl}] ≤4}`, `featuredCategories{heading,categoryIds[≤8]}`, `featuredProducts|latestProducts|bestSellers{heading,category(path|''),limit 1–12}`, `richText{markdown}`, `imageText{…as pages}`, `testimonials{heading,items[{quote,author,role}] ≤8}`, `offer{heading,text,code,ctaLabel,ctaUrl,expiresAt|''}`, `custom{markdown,tone}`. Optimistic concurrency on `updatedAt`; first save is create-only.
 
 ## orders
 `orderNumber (unique, human readable), idempotencyKey (unique), user? (ref), guestEmail?, items[{product,variantSku?,name,sku,image,unitPrice,qty,lineTotal}], pricing{subtotal,discount,shipping,tax,total}, shippingAddress, billingAddress, status, payment{provider,providerOrderId,providerPaymentId,status('pending'|'paid'|'failed'|'refunded'|'partially_refunded'),paidAt}, refunds[{amount,reason,at,by}], notes[{text,by,at}], history[{status,by,at,note}]`

@@ -8,3 +8,9 @@ export const formatDateTime = (iso: string | null | undefined, empty = "—") =>
 
 /** "YYYY-MM-DDTHH:mm" typed in a datetime-local input, interpreted as India Standard Time -> ISO string. */
 export const istInputToIso = (v: string) => new Date(`${v}:00+05:30`).toISOString();
+
+/** ISO instant -> "YYYY-MM-DDTHH:mm" in India Standard Time, for a datetime-local input. */
+export const isoToIstInput = (iso: string) => {
+  const d = new Date(new Date(iso).getTime() + 5.5 * 3600_000);
+  return d.toISOString().slice(0, 16);
+};

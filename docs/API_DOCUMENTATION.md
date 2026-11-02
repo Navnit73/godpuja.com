@@ -40,12 +40,20 @@ No DELETE: users are deactivated (`isActive:false`) so order history stays intac
 
 Public rendering is not an API: `/[...slug]` (live pages only; scheduled pages go live once `publishAt` passes, within ~60 s) and `/preview/:token` (any status, `noindex`, `no-referrer`, never cached). Section types: `richtext {markdown}`, `imageText {heading, markdown, imageUrl, imageAlt, imagePosition, ctaLabel, ctaUrl}`. Markdown is sanitized (allowlist) at render time. Slugs: 1–3 lowercase kebab segments; first segment may not be reserved (`admin`, `api`, `login`, `cart`, …).
 
-## Navigation (Stage 4) / Footer (Stage 5)
+## Navigation (Stage 4)
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /menus/:key | — (cached ≤60 s, tag `nav`) | Resolved tree: disabled items, links to non-live/deleted pages (and their subtrees) removed; page refs resolved to current URLs. 404 if the menu does not exist |
+| GET | /admin/menus | nav:write | list (`id, key, name, itemCount, updatedAt`) |
+| POST | /admin/menus | nav:write | `{key, name}`; duplicate key => 409 |
+| GET | /admin/menus/:id | nav:write | |
+| PUT | /admin/menus/:id | nav:write | whole tree `{name, items, baseUpdatedAt}`; stale `baseUpdatedAt` => 409; linked pages must exist; ≤3 levels, ≤100 items; link types `page` and `external` only until Stage 6 |
+
+Storefront: the header uses menu `header` (items filtered by `showOnDesktop`); on small screens the `mobile` menu if it has items, else `header` filtered by `showOnMobile`. Admin saves and any page publish/unpublish/slug change call `revalidateTag("nav")`.
+
+## Footer (Stage 5)
 | Method | Path | Perm |
 |---|---|---|
-| GET | /menus/:key | — (cached) |
-| GET/POST | /admin/menus | nav:write |
-| PUT | /admin/menus/:id | nav:write (whole tree incl. order) |
 | GET | /footer | — (cached) |
 | PUT | /admin/footer | footer:write |
 

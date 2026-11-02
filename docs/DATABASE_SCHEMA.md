@@ -21,7 +21,7 @@ Rules: `salePrice < price`; price in paise (integer) to avoid float errors; if `
 Indexes: `{slug:1}` unique; `{status:1, publishAt:1}`.
 
 ## menus
-`key ('header'|'mobile'|'footer-legal'|custom, unique), name, items[ menuItem ]` where `menuItem = {id, label, type('page'|'category'|'product'|'external'), ref?, url?, openInNewTab, enabled, showOnDesktop, showOnMobile, isDropdown, order, children:[menuItem]}` (≤3 levels).
+`key (unique, kebab-case; storefront uses 'header' and optional 'mobile'), name, items[ menuItem ]` where `menuItem = {id, label, type('page'|'external'; 'category'|'product' added in Stage 6), ref? (page _id), url?, openInNewTab, enabled, showOnDesktop, showOnMobile, children:[menuItem]}` (≤3 levels, ≤100 items). Order = array order; a node with children is a dropdown (no separate `isDropdown`/`order` fields). Page links store the page id, so slug changes never break a menu. Timestamps used for optimistic concurrency.
 Embedded (a menu is always read whole). Index: `{key:1}` unique.
 
 ## footer (single doc)

@@ -60,7 +60,10 @@ Single document `{_id: "superadmin-guard", n}` written inside transactions that 
 `key ('main', unique), siteName, defaultTitle, defaultDescription, defaultOgImage, twitterHandle, logoUrl, homeTitle, homeDescription` (Stage 10, SEO only). Site URL comes from the `SITE_URL` env; shipping rules from env (Stage 9). Optimistic concurrency on `updatedAt`; first save create-only.
 
 ## auditLogs
-`actor (ref users), action, entity, entityId, before?, after?, ip, at`. Index `{entity:1, entityId:1, at:-1}`; TTL optional.
+`action ("user.create" | "user.update"), actor {id (ref users), name}, target {type, id}, fields [changed field names — never values], ip, createdAt`. Indexes `{target.type:1, target.id:1, createdAt:-1}`, `{createdAt:-1}`. Append-only; no TTL (Stage 11). Orders keep their own `history` with the actor.
+
+## rateLimits
+`_id ("<key>@<windowStart>"), n, expiresAt`. One document per limited key per fixed window, incremented with an atomic `$inc` upsert; TTL index on `expiresAt` removes it after the window (Stage 11). Used for login, registration, checkout and newsletter limits so they hold across instances.
 
 ## carts
 Not persisted in v1 (client state, server-validated at checkout).

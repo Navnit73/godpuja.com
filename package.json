@@ -11,6 +11,10 @@
     "typecheck": "tsc --noEmit",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "audit:browser": "node scripts/browser-audit.mjs",
+    "audit:a11y": "node scripts/a11y-audit.mjs",
+    "seed:bench": "tsx scripts/seed-bench.ts",
+    "bench": "node scripts/bench.mjs",
+    "bench:bundle": "node scripts/bundle-report.mjs",
     "test:unit": "vitest run"
   },
   "dependencies": {

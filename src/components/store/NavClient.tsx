@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { PublicMenuItem } from "@/server/services/menus";
-
-type Props = { desktop: PublicMenuItem[]; mobile: PublicMenuItem[] };
+import HeaderSearch from "./HeaderSearch";
+import { ChevronDown, CloseIcon, MenuIcon } from "./Icons";
 
 function NavLink({ item, className, onNavigate }: { item: PublicMenuItem; className: string; onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -24,7 +24,8 @@ function NavLink({ item, className, onNavigate }: { item: PublicMenuItem; classN
   );
 }
 
-const linkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-sandal-100 aria-[current=page]:text-primary";
+const linkCls = "rounded-full px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:bg-saffron-50 aria-[current=page]:text-primary";
+const subLinkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary";
 
 function DesktopItem({ item }: { item: PublicMenuItem }) {
   const [open, setOpen] = useState(false);
@@ -48,19 +49,19 @@ function DesktopItem({ item }: { item: PublicMenuItem }) {
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
       <div className="flex items-center">
         <NavLink item={item} className={`block ${linkCls} pr-1`} />
-        <button ref={toggleBtn} type="button" className="rounded-md px-1.5 py-2 text-sm hover:bg-sandal-100" aria-expanded={open} aria-controls={panelId}
+        <button ref={toggleBtn} type="button" className="rounded-full p-2 text-muted hover:bg-saffron-50 hover:text-primary" aria-expanded={open} aria-controls={panelId}
           aria-label={`${item.label} submenu`} onClick={() => setOpen((o) => !o)}>
-          <span aria-hidden="true">▾</span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
       </div>
       {open && (
-        <ul id={panelId} className="absolute left-0 top-full z-40 mt-1 min-w-56 rounded-lg border border-border bg-surface p-2 shadow-elev-3">
+        <ul id={panelId} className="absolute left-0 top-full z-40 mt-2 min-w-60 rounded-xl border border-sandal-200 bg-surface p-2 shadow-elev-4">
           {item.children.map((c) => (
             <li key={c.id}>
-              <NavLink item={c} className={`block ${linkCls}`} />
+              <NavLink item={c} className={`block ${subLinkCls}`} />
               {c.children.length > 0 && (
                 <ul className="ml-3 border-l border-border pl-2">
-                  {c.children.map((g) => <li key={g.id}><NavLink item={g} className={`block ${linkCls} text-muted`} /></li>)}
+                  {c.children.map((g) => <li key={g.id}><NavLink item={g} className={`block ${subLinkCls} text-muted`} /></li>)}
                 </ul>
               )}
             </li>
@@ -76,7 +77,7 @@ function MobileList({ items, onNavigate, depth = 0 }: { items: PublicMenuItem[];
     <ul className={depth ? "ml-3 border-l border-border pl-2" : "flex flex-col"}>
       {items.map((i) => (
         <li key={i.id}>
-          <NavLink item={i} onNavigate={onNavigate} className={`block py-2.5 text-base font-medium hover:text-primary aria-[current=page]:text-primary ${depth ? "text-muted" : ""}`} />
+          <NavLink item={i} onNavigate={onNavigate} className={`block rounded-md px-2 py-2.5 text-base font-medium hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary ${depth ? "text-muted" : ""}`} />
           {i.children.length > 0 && <MobileList items={i.children} onNavigate={onNavigate} depth={depth + 1} />}
         </li>
       ))}
@@ -84,7 +85,18 @@ function MobileList({ items, onNavigate, depth = 0 }: { items: PublicMenuItem[];
   );
 }
 
-export default function NavClient({ desktop, mobile }: Props) {
+/** Second header row on md+: the admin-managed header menu as a category bar. */
+export function DesktopNav({ items }: { items: PublicMenuItem[] }) {
+  if (!items.length) return null;
+  return (
+    <nav aria-label="Main" className="hidden border-t border-sandal-200 md:block">
+      <ul className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1 px-4 py-1.5 sm:px-6">{items.map((i) => <DesktopItem key={i.id} item={i} />)}</ul>
+    </nav>
+  );
+}
+
+/** Hamburger + drop-down drawer below md. */
+export function MobileNav({ items }: { items: PublicMenuItem[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const [seenPath, setSeenPath] = useState(pathname);
@@ -101,25 +113,18 @@ export default function NavClient({ desktop, mobile }: Props) {
     if (wasOpen.current) { wasOpen.current = false; btn.current?.focus(); }
   }, [open]);
 
+  if (!items.length) return null;
   return (
-    <>
-      {desktop.length > 0 && (
-        <nav aria-label="Main" className="hidden md:block">
-          <ul className="flex items-center gap-1">{desktop.map((i) => <DesktopItem key={i.id} item={i} />)}</ul>
+    <div className="md:hidden">
+      <button ref={btn} type="button" className="icon-btn -ml-2" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((o) => !o)}>
+        {open ? <CloseIcon /> : <MenuIcon />}<span className="sr-only">{open ? "Close" : "Open"} navigation</span>
+      </button>
+      {open && (
+        <nav id="mobile-nav" aria-label="Mobile" className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-sandal-200 bg-surface px-4 pb-5 pt-4 shadow-elev-4">
+          <HeaderSearch id="mobile-q" className="mb-4" />
+          <MobileList items={items} onNavigate={() => setOpen(false)} />
         </nav>
       )}
-      {mobile.length > 0 && (
-        <div className="md:hidden">
-          <button ref={btn} type="button" className="btn-outline btn-sm" aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen((o) => !o)}>
-            {open ? "Close" : "Menu"}<span className="sr-only"> navigation</span>
-          </button>
-          {open && (
-            <nav id="mobile-nav" aria-label="Mobile" className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-border bg-surface px-4 pb-4 shadow-elev-3">
-              <MobileList items={mobile} onNavigate={() => setOpen(false)} />
-            </nav>
-          )}
-        </div>
-      )}
-    </>
+    </div>
   );
 }

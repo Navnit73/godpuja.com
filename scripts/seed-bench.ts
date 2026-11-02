@@ -78,7 +78,7 @@ async function main() {
   });
 
   const email = process.env.SEED_ADMIN_EMAIL ?? "admin@godpuja.com";
-  await User.create({ name: "Bench Admin", email, passwordHash: await hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe!12345"), role: "superadmin" });
+  await User.create({ name: "Super Admin", email, passwordHash: await hashPassword(process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe!12345"), role: "superadmin" });
 
   console.log(`Seeded godpuja_bench: ${await Category.countDocuments()} categories, ${await Product.countDocuments()} products.`);
   console.log(`Sample category: /category/${leaves[0].path}  ·  sample product: /product/bench-product-1`);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import Breadcrumbs from "@/components/store/Breadcrumbs";
+import PageBand from "@/components/store/PageBand";
 import ProductListing from "@/components/store/ProductListing";
 import { parseListing } from "@/lib/listing";
 import { findPublicProducts } from "@/server/services/products";
@@ -33,20 +33,21 @@ async function Content({ searchParams }: Props) {
   const allowed = !query.q || searchAllowed(await headers());
   const result = query.q && allowed ? await findPublicProducts(query) : null;
   return (
-    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
-      <Breadcrumbs items={[{ name: "Home", href: "/" }, { name: "Search" }]} />
-      <h1 className="text-4xl font-semibold">Search</h1>
-      <form method="get" action="/search" role="search" aria-label="Search products" className="mt-4 flex max-w-xl gap-2">
-        <label htmlFor="q" className="sr-only">Search products</label>
-        <input id="q" name="q" type="search" defaultValue={q} maxLength={100} placeholder="Search puja items, idols, kits…" className="input flex-1" />
-        <button type="submit" className="btn-primary">Search</button>
-      </form>
-      <div className="divider-gold my-6" />
+    <main id="main" tabIndex={-1} className="w-full flex-1">
+      <PageBand title={query.q ? `Results for “${query.q}”` : "Search"} crumbs={[{ name: "Home", href: "/" }, { name: "Search" }]}>
+        <form method="get" action="/search" role="search" aria-label="Search products" className="mt-5 flex max-w-xl gap-2">
+          <label htmlFor="q" className="sr-only">Search products</label>
+          <input id="q" name="q" type="search" defaultValue={q} maxLength={100} placeholder="Search puja items, idols, kits…" className="input h-11 flex-1 rounded-full pl-5" />
+          <button type="submit" className="btn-primary">Search</button>
+        </form>
+      </PageBand>
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       {!allowed
         ? <p className="text-muted" role="status">Too many searches in a short time. Please wait a minute and try again.</p>
         : !query.q
         ? <p className="text-muted">{q.length === 1 ? "Type at least 2 characters to search." : "Enter a word to find products."}</p>
         : <ProductListing base="/search" query={query} result={result!} hiddenFields={{ q: query.q }} heading={`Results for ${query.q}`} />}
+      </div>
     </main>
   );
 }

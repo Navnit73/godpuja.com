@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
+// HTTPS-only directives (HSTS, upgrade-insecure-requests) are sent only when the site is served over https.
+// upgrade-insecure-requests on a plain-http origin rewrites same-origin navigations to https:// and breaks the site
+// (e.g. `next start` locally or a staging box without TLS). Headers are fixed at build time: build with the real SITE_URL.
+const httpsSite = !isDev && (process.env.SITE_URL ?? "").startsWith("https://");
 
 /**
  * Content Security Policy. Static (set here, not per request) because `cacheComponents` prerenders page shells,
@@ -26,7 +30,7 @@ const CSP = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+  ...(httpsSite ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -49,7 +53,7 @@ const nextConfig: NextConfig = {
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-          ...(!isDev ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
+          ...(httpsSite ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
         ],
       },
       {

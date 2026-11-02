@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { cart, MAX_QTY } from "@/lib/cart";
 import { formatPaise } from "@/lib/money";
+import { CartIcon } from "./Icons";
 
 type Variant = { sku: string; options: Record<string, string>; price: number; salePrice: number | null; inStock: boolean };
 type Props = { productId: string; price: number; salePrice: number | null; inStock: boolean; variants: Variant[] };
@@ -22,9 +23,10 @@ export default function AddToCart({ productId, price, salePrice, inStock, varian
 
   return (
     <div className="space-y-4">
-      <p className="flex items-baseline gap-3 text-3xl font-semibold">
-        <span>{formatPaise(unit)}</span>
+      <p className="flex flex-wrap items-baseline gap-3 text-3xl font-semibold">
+        <span className="text-primary">{formatPaise(unit)}</span>
         {was != null && <s className="text-lg font-normal text-muted"><span className="sr-only">Was </span>{formatPaise(was)}</s>}
+        {was != null && was > 0 && <span className="badge bg-kumkum-700 text-white">{Math.round((1 - unit / was) * 100)}% off</span>}
       </p>
       <p className="text-xs text-muted">Inclusive of all taxes</p>
 
@@ -43,7 +45,7 @@ export default function AddToCart({ productId, price, salePrice, inStock, varian
             <label htmlFor="qty" className="label">Quantity</label>
             <input id="qty" type="number" min={1} max={MAX_QTY} value={qty} className="input w-24" onChange={(e) => { setQty(Math.min(MAX_QTY, Math.max(1, Math.trunc(Number(e.target.value) || 1)))); setAdded(false); }} />
           </div>
-          <button type="button" className="btn-primary" onClick={() => { cart.add(productId, v ? v.sku : null, qty); setAdded(true); }}>Add to cart</button>
+          <button type="button" className="btn-primary h-10 gap-2 px-8" onClick={() => { cart.add(productId, v ? v.sku : null, qty); setAdded(true); }}><CartIcon className="h-4 w-4" />Add to cart</button>
         </div>
       ) : (
         <p className="font-medium text-danger">Out of stock</p>

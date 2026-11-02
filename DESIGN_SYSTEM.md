@@ -7,7 +7,7 @@
 1. Minimal, calm, premium, light theme only (no dark mode, `color-scheme: light`).
 2. Material-style depth: soft elevation shadows from tokens; **no glassmorphism** (no blur, no translucent frosted surfaces).
 3. Only token colors, spacing, radii, fonts. No hex values, arbitrary `px` values, or inline styles in components.
-4. No gradients (`divider-gold` is now a solid line).
+4. Gradients only on storefront hero/promo panels and title bands, via the tokens `bg-sacred`, `bg-dusk`, `bg-tulsi`, `bg-dawn` (owner request, storefront refresh). Never in admin, never on text, never on form controls.
 5. Same layout language across storefront and admin.
 6. WCAG AA contrast, visible focus ring, 44px minimum touch targets on mobile.
 
@@ -31,6 +31,27 @@
 | Scrim | `scrim` | maroon @ 45% | modal and mobile-drawer backdrop only (the single translucent token; no frosted/blurred surfaces) |
 
 Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50…400`, `tulsi-50…700`. Semantic aliases (Stage 1): `danger`/`danger-soft`, `success`/`success-soft`, `warning`/`warning-soft`.
+
+## Storefront refresh (spiritual theme)
+
+Layout follows the owner's e-commerce reference (top bar, search header, category nav row, rounded promo panels, circular categories, product tiles, trust strip, dark footer) in the GodPuja palette.
+
+| Token / utility | Use |
+|---|---|
+| `kumkum-950` (#26070a) | "temple night": top announcement bar, footer base |
+| `bg-sacred` | saffron-700 → kumkum-600 → kumkum-800; hero panel. White / `sandal-100` text only |
+| `bg-dusk` | kumkum-800 → kumkum-950; offer strip, footer |
+| `bg-tulsi` | tulsi-700 → deep green; optional promo panel |
+| `bg-dawn` | saffron-50 → sandal-50; page title bands (`PageBand`), alternate rails, testimonials |
+| `pattern-rangoli` | faint white dot lattice over dark panels |
+| `Mandala`, `LotusOrnament` (`components/store/Icons.tsx`) | decorative SVGs, `aria-hidden`; gold at low opacity on dark panels, `accent` under section titles |
+| `section-title`, `eyebrow` | storefront section headings (serif 3xl/4xl) and small uppercase labels |
+| `btn-light`, `btn-ghost-light` | buttons on dark/gradient panels |
+| `icon-btn` | 44px round header actions (search, account, cart) |
+| `product-tile` | product card: `rounded-2xl`, sandal border, image on `sandal-100` plate, lift on hover |
+| `chip` | subcategory / filter pills |
+
+Radius additions for the storefront: `rounded-2xl` (product tiles, banners, panels) and `rounded-3xl` (hero, offer). All new text/background pairs are covered in `tests/contrast.test.ts`.
 
 ## Typography
 

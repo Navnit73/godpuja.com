@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <radialGradient id="flameOuter" cx="50%" cy="70%" r="60%"><stop offset="0%" stop-color="#ffd166"/><stop offset="100%" stop-color="#f27a1a"/></radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#c19a2e"/><stop offset="55%" stop-color="#f5e08c"/><stop offset="100%" stop-color="#77591f"/></linearGradient>
+    <linearGradient id="clay" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c8693a"/><stop offset="100%" stop-color="#8f380f"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="#ffffff" stop-opacity=".9"/><stop offset="100%" stop-color="#faf0c4" stop-opacity="0"/></radialGradient>
+  </defs><rect width="800" height="800" fill="#fdf9e9"/>
+    <circle cx="400" cy="420" r="330" fill="#faf0c4" opacity=".7"/>
+    <circle cx="400" cy="400" r="250" fill="url(#glow)"/>
+    <ellipse cx="400" cy="690" rx="280" ry="30" fill="#000" opacity=".06"/>
+    
+    <ellipse cx="400" cy="520" rx="170" ry="150" fill="url(#metal)"/>
+    <path d="M290 410 Q400 440 510 410 L480 360 Q400 380 320 360 Z" fill="#77591f"/>
+    <ellipse cx="400" cy="355" rx="110" ry="22" fill="url(#metal)"/>
+    <ellipse cx="400" cy="300" rx="22" ry="80" fill="#4f7f55" transform="rotate(-60 400 360)"/><ellipse cx="400" cy="300" rx="22" ry="80" fill="#4f7f55" transform="rotate(-25 400 360)"/><ellipse cx="400" cy="300" rx="22" ry="80" fill="#4f7f55" transform="rotate(10 400 360)"/><ellipse cx="400" cy="300" rx="22" ry="80" fill="#4f7f55" transform="rotate(45 400 360)"/>
+    <circle cx="400" cy="275" r="62" fill="#8f5a2b"/><path d="M350 250 Q400 210 450 250" stroke="#c8a165" stroke-width="10" fill="none"/>
+    <path d="M250 520 Q400 560 550 520" stroke="#b44809" stroke-width="14" fill="none"/>
+    <circle cx="360" cy="590" r="12" fill="#b44809"/><circle cx="400" cy="590" r="12" fill="#b44809"/><circle cx="440" cy="590" r="12" fill="#b44809"/></svg>

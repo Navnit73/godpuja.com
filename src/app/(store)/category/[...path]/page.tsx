@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import Link from "next/link";
-import Breadcrumbs from "@/components/store/Breadcrumbs";
+import PageBand from "@/components/store/PageBand";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbLd } from "@/lib/jsonld";
 import ProductListing from "@/components/store/ProductListing";
@@ -50,18 +50,19 @@ async function Content({ params, searchParams }: Props) {
   const query = parseListing(await searchParams, { category: path, q: undefined });
   const result = await findPublicProducts(query);
   return (
-    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main id="main" tabIndex={-1} className="w-full flex-1">
       <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...cat.breadcrumbs.map((b) => ({ name: b.name, path: `/category/${b.path}` }))])} />
-      <Breadcrumbs items={[{ name: "Home", href: "/" }, ...cat.breadcrumbs.map((b, i, a) => ({ name: b.name, href: i < a.length - 1 ? `/category/${b.path}` : undefined }))]} />
-      <h1 className="text-4xl font-semibold">{cat.name}</h1>
-      {cat.description && <p className="mt-2 max-w-3xl text-muted">{cat.description}</p>}
-      {cat.children.length > 0 && (
-        <nav aria-label="Subcategories" className="mt-5"><ul className="flex flex-wrap gap-2">
-          {cat.children.map((c) => <li key={c.id}><Link href={`/category/${c.path}`} className="btn-outline btn-sm">{c.name}</Link></li>)}
-        </ul></nav>
-      )}
-      <div className="divider-gold my-6" />
-      <ProductListing base={`/category/${cat.path}`} query={query} result={result} />
+      <PageBand title={cat.name} description={cat.description || undefined}
+        crumbs={[{ name: "Home", href: "/" }, ...cat.breadcrumbs.map((b, i, a) => ({ name: b.name, href: i < a.length - 1 ? `/category/${b.path}` : undefined }))]}>
+        {cat.children.length > 0 && (
+          <nav aria-label="Subcategories" className="mt-5"><ul className="flex flex-wrap gap-2">
+            {cat.children.map((c) => <li key={c.id}><Link href={`/category/${c.path}`} className="chip">{c.name}</Link></li>)}
+          </ul></nav>
+        )}
+      </PageBand>
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+        <ProductListing base={`/category/${cat.path}`} query={query} result={result} />
+      </div>
     </main>
   );
 }

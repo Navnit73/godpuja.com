@@ -128,5 +128,25 @@ Env: `SHIPPING_FLAT_PAISE` (default 5000), `FREE_SHIPPING_OVER_PAISE` (default 9
 
 Settings beyond SEO (shipping/tax live in env for now), dashboard and customers APIs are not built yet.
 
-## Rate limits (initial)
-login 5/min/IP+email · register 5/min/IP · checkout 10/min/IP · search 60/min/IP · admin writes 120/min/user.
+## Rate limits (Stage 11)
+Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
+
+| Scope | Limit | Store |
+|---|---|---|
+| `POST /auth/login` | 5/min per IP+email · 30/min per IP · 20 failures/15 min per account (successes never count) | shared (MongoDB) |
+| `POST /auth/register` | 5/min per IP | shared |
+| `POST /checkout` | 10/min per IP | shared |
+| `POST /newsletter` | 5/min per IP | shared |
+| `GET /products`, `/products/:slug`, `/products/:slug/related`, `/menus/:key` | 120/min per IP | per instance |
+| `POST /cart/validate`, `GET /orders/:id` | 60/min per IP | per instance |
+| `/search` page | 30/min per IP (page shows a "too many searches" message) | per instance |
+| `POST /admin/media` | 30/min per user | per instance |
+| `POST /payments/webhook` | 120/min per IP | per instance |
+
+"Shared" limits hold across all server instances (atomic counters in the `rateLimits` collection); "per instance" limits dampen abuse of cheap, high-volume reads without a DB round trip per request.
+
+**Client IP:** never taken from a header the client controls. Default: the X-Forwarded-For entry appended by the single trusted proxy (`TRUSTED_PROXY_HOPS=1`, e.g. Vercel or one nginx); set `TRUSTED_PROXY_HOPS=2` behind CDN + load balancer, or `CLIENT_IP_HEADER` (e.g. `cf-connecting-ip`) when the edge overwrites a dedicated header. `X-Real-IP` is ignored unless configured that way.
+
+**Security headers (every response):** `Content-Security-Policy` (`default-src 'self'`; scripts self + inline (required by prerendered shells, no nonces with `cacheComponents`); images self/data/blob/https; `connect-src 'self'`; `object-src 'none'`; `base-uri 'self'`; `form-action 'self'`; `frame-ancestors 'none'`; plus `upgrade-insecure-requests` on https sites), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy: same-origin`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, and HSTS (1 year) when `SITE_URL` is https at build time. No `X-Powered-By`.
+
+**Audit log:** `POST /admin/users` and `PATCH /admin/users/:id` record actor, action, target, changed field names (never values) and IP in `auditLogs`. Order changes keep their own per-order history with the actor.

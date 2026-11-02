@@ -32,6 +32,7 @@
   --color-kumkum-700: #7f1d23;
   --color-kumkum-800: #5c1519;
   --color-kumkum-900: #3b0d10;
+  --color-kumkum-950: #26070a; /* temple night: top bar, footer */
 
   /* Gold */
   --color-gold-50: #fdf9e9;
@@ -74,6 +75,12 @@
   --shadow-elev-3: 0 1px 3px rgb(60 20 10 / 0.18), 0 4px 8px 3px rgb(60 20 10 / 0.12);
   --shadow-elev-4: 0 2px 3px rgb(60 20 10 / 0.18), 0 6px 10px 4px rgb(60 20 10 / 0.12);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Sacred gradients (hero / promo panels only). Every stop keeps white text >= 4.5:1. */
+  --gradient-sacred: linear-gradient(120deg, var(--color-saffron-700) 0%, var(--color-kumkum-600) 55%, var(--color-kumkum-800) 100%);
+  --gradient-dusk: linear-gradient(135deg, var(--color-kumkum-800) 0%, var(--color-kumkum-950) 100%);
+  --gradient-tulsi: linear-gradient(135deg, var(--color-tulsi-700) 0%, #1f3a24 100%);
+  --gradient-dawn: linear-gradient(180deg, var(--color-saffron-50) 0%, var(--color-sandal-50) 100%);
 
   /* Modal / drawer scrim (the only translucent token; not a frosted surface) */
   --color-scrim: rgb(59 13 16 / 0.45);
@@ -181,7 +188,7 @@
 }
 
 @utility btn-outline {
-  @apply btn border border-saffron-300 text-primary;
+  @apply btn border border-saffron-300 bg-surface text-primary;
 }
 
 /* Material card: tonal surface, elevation lifts on hover */
@@ -191,6 +198,49 @@
 
 @utility divider-gold {
   @apply h-px w-24 bg-accent;
+}
+
+/* ---- Storefront refresh: sacred panels, ornaments, product tiles ---- */
+@utility bg-sacred { background-image: var(--gradient-sacred); }
+@utility bg-dusk { background-image: var(--gradient-dusk); }
+@utility bg-tulsi { background-image: var(--gradient-tulsi); }
+@utility bg-dawn { background-image: var(--gradient-dawn); }
+
+/* Faint rangoli dot-lattice; layered over a sacred panel or the footer. */
+@utility pattern-rangoli {
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.12) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+/* Section heading: serif title with a small gold lotus ornament line beneath. */
+@utility section-title {
+  @apply font-serif text-3xl font-semibold text-foreground sm:text-4xl;
+}
+@utility eyebrow {
+  @apply font-sans text-xs font-semibold uppercase tracking-widest text-primary;
+}
+
+/* Light pill on dark panels */
+@utility btn-light {
+  @apply btn bg-surface text-kumkum-900 shadow-elev-2 hover:shadow-elev-3;
+}
+@utility btn-ghost-light {
+  @apply btn border border-white/60 text-white;
+}
+
+/* Round icon button (header actions, carousels) */
+@utility icon-btn {
+  @apply relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors duration-150 hover:bg-saffron-50 hover:text-primary;
+}
+
+/* Product tile: white card, image sits on a soft sandal plate */
+@utility product-tile {
+  @apply flex flex-col overflow-hidden rounded-2xl border border-sandal-200 bg-surface p-3 transition-all duration-200 ease-standard hover:-translate-y-0.5 hover:border-saffron-200 hover:shadow-elev-3;
+}
+
+@utility chip {
+  @apply inline-flex min-h-9 items-center rounded-full border border-sandal-300 bg-surface px-4 text-sm font-medium text-foreground transition-colors hover:border-saffron-300 hover:text-primary;
+  &[aria-current="page"] { @apply border-primary bg-primary text-primary-foreground; }
 }
 
 /* Form controls */

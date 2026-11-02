@@ -9,6 +9,7 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbLd, productLd } from "@/lib/jsonld";
 import ProductCard from "@/components/store/ProductCard";
 import ProductGallery from "@/components/store/ProductGallery";
+import { LotusOrnament, ShieldIcon, TruckIcon } from "@/components/store/Icons";
 import { env } from "@/server/env";
 import { getPublicProduct } from "@/server/public/catalog";
 import { findRelated } from "@/server/services/products";
@@ -42,9 +43,10 @@ async function Related({ slug }: { slug: string }) {
   const items = await findRelated(slug);
   if (!items.length) return null;
   return (
-    <section aria-labelledby="related" className="mt-12">
-      <h2 id="related" className="mb-4 text-3xl font-semibold">You may also like</h2>
-      <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">{items.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
+    <section aria-labelledby="related" className="mt-16">
+      <h2 id="related" className="section-title">You may also like</h2>
+      <LotusOrnament className="mb-6 mt-2 h-4 w-16 text-accent" />
+      <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-4">{items.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
     </section>
   );
 }
@@ -58,16 +60,23 @@ async function Content({ params }: Props) {
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <JsonLd data={[productLd(env().SITE_URL, p), breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, path: `/category/${c.path}` })), { name: p.name, path: `/product/${p.slug}` }])]} />
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/category/${c.path}` })), { name: p.name }]} />
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
         <ProductGallery images={p.images} name={p.name} />
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            {p.brand && <p className="text-sm font-medium uppercase tracking-wide text-muted">{p.brand}</p>}
-            <h1 className="text-4xl font-semibold">{p.name}</h1>
-            {p.shortDescription && <p className="mt-2 text-lg text-muted">{p.shortDescription}</p>}
+            {p.brand && <p className="eyebrow">{p.brand}</p>}
+            <h1 className="mt-1 text-4xl font-semibold sm:text-5xl">{p.name}</h1>
+            <LotusOrnament className="mt-3 h-4 w-20 text-accent" />
+            {p.shortDescription && <p className="mt-3 text-lg text-muted">{p.shortDescription}</p>}
           </div>
-          <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} variants={p.variants} />
-          <p className="text-sm text-muted">SKU: {p.sku}{p.freeShipping && <> · <span className="font-medium text-success">Free shipping</span></>}</p>
+          <div className="rounded-2xl border border-sandal-200 bg-dawn p-5 sm:p-6">
+            <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} variants={p.variants} />
+          </div>
+          <ul className="grid gap-3 text-sm sm:grid-cols-2">
+            <li className="flex items-center gap-2.5"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>
+            <li className="flex items-center gap-2.5"><TruckIcon className="h-5 w-5 shrink-0 text-primary" />{p.freeShipping ? <span className="font-medium text-success">Free shipping</span> : "Packed with care"}</li>
+          </ul>
+          <p className="text-sm text-muted">SKU: {p.sku}</p>
           {p.attributes.length > 0 && (
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 border-t border-border pt-4 text-sm">
               {p.attributes.map((a, i) => <div key={i} className="contents"><dt className="font-medium">{a.name}</dt><dd className="text-muted">{a.value}</dd></div>)}
@@ -76,8 +85,9 @@ async function Content({ params }: Props) {
         </div>
       </div>
       {p.descriptionHtml && (
-        <section aria-labelledby="about" className="mt-10 max-w-3xl">
-          <h2 id="about" className="mb-3 text-3xl font-semibold">About this product</h2>
+        <section aria-labelledby="about" className="mt-14 max-w-3xl">
+          <h2 id="about" className="section-title">About this product</h2>
+          <LotusOrnament className="mb-5 mt-2 h-4 w-16 text-accent" />
           <div className="content" dangerouslySetInnerHTML={{ __html: p.descriptionHtml }} />
         </section>
       )}

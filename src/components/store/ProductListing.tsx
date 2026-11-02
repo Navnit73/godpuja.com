@@ -12,7 +12,7 @@ export default function ProductListing({ base, query, result, hiddenFields = {},
   return (
     <section aria-labelledby="listing-heading">
       <h2 id="listing-heading" className="sr-only">{heading}</h2>
-      <form method="get" action={base} aria-label="Sort and filter products" className="mb-6 flex flex-wrap items-end gap-3">
+      <form method="get" action={base} aria-label="Sort and filter products" className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-sandal-200 bg-surface p-4 shadow-elev-1">
         {Object.entries(hiddenFields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
         <div><label htmlFor="sort" className="label">Sort by</label>
           <select id="sort" name="sort" defaultValue={query.sort} className="input">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
@@ -24,12 +24,12 @@ export default function ProductListing({ base, query, result, hiddenFields = {},
 
       <p role="status" className="mb-4 text-sm text-muted">{result.total} {result.total === 1 ? "product" : "products"}</p>
       {result.items.length === 0 ? (
-        <div className="card px-6 py-16 text-center hover:shadow-elev-1">
+        <div className="rounded-2xl border border-dashed border-sandal-300 bg-surface px-6 py-16 text-center">
           <p className="text-lg font-semibold">No products found</p>
           <p className="mt-1 text-sm text-muted">{filtered ? "Try widening the price range." : "Please check back soon."}</p>
         </div>
       ) : (
-        <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">{result.items.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
+        <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">{result.items.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
       )}
 
       {result.pages > 1 && (

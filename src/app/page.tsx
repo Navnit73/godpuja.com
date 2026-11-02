@@ -1,3 +1,5 @@
+import Logo from "@/components/Logo";
+
 const offerings = [
   { title: "Graha Shanti", text: "Planetary harmony rituals performed by learned pandits." },
   { title: "Satyanarayan Katha", text: "Bring prosperity and peace to your home." },
@@ -8,7 +10,7 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-surface"><div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-        <span className="font-serif text-2xl font-semibold text-primary">GodPuja</span>
+        <a href="/" aria-label="GodPuja home"><Logo /></a>
         <nav className="hidden gap-8 text-sm text-muted sm:flex">
           <a href="#pujas" className="hover:text-primary">Pujas</a>
           <a href="#about" className="hover:text-primary">About</a>

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import Logo from "@/components/Logo";
 import { getPublicMenu } from "@/server/public/menus";
 import type { PublicMenuItem } from "@/server/services/menus";
+import CartLink from "./CartLink";
 import NavClient from "./NavClient";
 
 /** Keep an item only where `flag` is on; a hidden parent hides its subtree. */
@@ -15,7 +16,11 @@ export function HeaderShell({ children }: { children?: React.ReactNode }) {
     <header className="sticky top-0 z-30 border-b border-border bg-surface">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" aria-label="GodPuja home" className="shrink-0"><Logo /></Link>
-        {children}
+        <div className="flex items-center gap-2">
+          {children}
+          <Link href="/search" className="rounded-md px-3 py-2 text-sm font-medium hover:bg-sandal-100">Search</Link>
+          <CartLink />
+        </div>
       </div>
     </header>
   );

@@ -24,6 +24,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Order confirmation URLs carry a secret access token: same protections as preview links.
+        source: "/order/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
+      {
         // Secret-token preview: never leak the URL via Referer, never index, never cache.
         source: "/preview/:path*",
         headers: [

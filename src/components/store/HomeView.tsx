@@ -1,8 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- remote CMS images; switch to next/image when media is served from Cloudinary in Stage 8 */
 import Link from "next/link";
-import { formatPaise } from "@/lib/money";
 import type { PublicHomeSection } from "@/server/services/homepage";
-import type { PublicProduct } from "@/server/services/products";
+import ProductCard from "./ProductCard";
 import { Section as PageSection } from "./PageView";
 
 const external = (u: string) => /^https?:\/\//i.test(u);
@@ -13,24 +12,6 @@ function Cta({ href, children, variant = "btn-primary" }: { href: string; childr
 }
 const Wrap = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => <div className={`mx-auto w-full max-w-7xl px-4 sm:px-6 ${className}`}>{children}</div>;
 const Html = ({ html, className = "" }: { html: string; className?: string }) => <div className={`content ${className}`} dangerouslySetInnerHTML={{ __html: html }} />; // sanitised in the service
-
-function ProductCard({ p }: { p: PublicProduct }) {
-  return (
-    <li className="card flex flex-col overflow-hidden p-0">
-      <Link href={`/product/${p.slug}`} className="group flex h-full flex-col">
-        {p.image ? <img src={p.image.url} alt={p.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full object-cover" /> : <div className="aspect-square w-full bg-sandal-100" aria-hidden="true" />}
-        <div className="flex flex-1 flex-col gap-1 p-3">
-          <h3 className="font-sans text-base font-medium group-hover:text-primary">{p.name}</h3>
-          <p className="mt-auto flex items-baseline gap-2">
-            <span className="font-semibold">{formatPaise(p.salePrice ?? p.price)}</span>
-            {p.salePrice != null && <s className="text-sm text-muted"><span className="sr-only">Was </span>{formatPaise(p.price)}</s>}
-          </p>
-          {!p.inStock && <p className="text-sm text-danger">Out of stock</p>}
-        </div>
-      </Link>
-    </li>
-  );
-}
 
 function Block({ s }: { s: PublicHomeSection }) {
   switch (s.type) {

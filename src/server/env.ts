@@ -8,6 +8,11 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // Checkout. Prices are tax-inclusive paise; shipping = flat fee, free at/above the threshold.
+  SHIPPING_FLAT_PAISE: z.coerce.number().int().min(0).default(5000),
+  FREE_SHIPPING_OVER_PAISE: z.coerce.number().int().min(0).default(99900),
+  // Shared secret for the generic signed payment webhook (HMAC-SHA256 of the raw body). Without it the webhook is disabled.
+  PAYMENT_WEBHOOK_SECRET: z.string().optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;

@@ -34,8 +34,15 @@ Embedded (a menu is always read whole). Index: `{key:1}` unique.
 `key ('main', unique), sections[{id,type,enabled,data}]` — order = array order; ≤30 sections, ≤6 product rails. Types and `data`: `hero{heading,subheading,imageUrl,imageAlt,ctaLabel,ctaUrl,secondaryCtaLabel,secondaryCtaUrl}`, `banner{items[{imageUrl,imageAlt,heading,text,linkUrl}] ≤4}`, `featuredCategories{heading,categoryIds[≤8]}`, `featuredProducts|latestProducts|bestSellers{heading,category(path|''),limit 1–12}`, `richText{markdown}`, `imageText{…as pages}`, `testimonials{heading,items[{quote,author,role}] ≤8}`, `offer{heading,text,code,ctaLabel,ctaUrl,expiresAt|''}`, `custom{markdown,tone}`. Optimistic concurrency on `updatedAt`; first save is create-only.
 
 ## orders
-`orderNumber (unique, human readable), idempotencyKey (unique), user? (ref), guestEmail?, items[{product,variantSku?,name,sku,image,unitPrice,qty,lineTotal}], pricing{subtotal,discount,shipping,tax,total}, shippingAddress, billingAddress, status, payment{provider,providerOrderId,providerPaymentId,status('pending'|'paid'|'failed'|'refunded'|'partially_refunded'),paidAt}, refunds[{amount,reason,at,by}], notes[{text,by,at}], history[{status,by,at,note}]`
-Indexes: `{orderNumber:1}` unique; `{idempotencyKey:1}` unique; `{user:1, createdAt:-1}`; `{status:1, createdAt:-1}`; `{'payment.providerPaymentId':1}` sparse unique.
+`orderNumber (unique, "GP-YYMM-NNNNNN"), idempotencyKey (unique), requestHash (sha256 of the normalised request; a reused key with a different request is rejected), accessToken (unique, 192-bit; the guest's only credential), email, phone, shippingAddress{name,line1,line2?,city,state,pincode,country}, billingAddress, customerNote, items[{product (ref), variantSku|null, name, slug, sku, image{url,alt}|null, options{}, unitPrice, qty, lineTotal}], pricing{subtotal,discount,shipping,tax,total}, status ('confirmed'|'processing'|'shipped'|'delivered'|'cancelled'|'returned'), payment{provider,method,providerOrderId?,providerPaymentId?,status('pending'|'paid'|'failed'|'refunded'|'partially_refunded'),paidAt?}, refunds[{amount,reason,at,by}], refundedTotal, notes[{text,by,at}], history[{kind('created'|'status'|'payment'|'refund'|'note'|'webhook'),status,note,by{id,name},at}]`
+Indexes: `{orderNumber}` unique; `{idempotencyKey}` unique; `{accessToken}` unique; `{status, createdAt:-1, _id:-1}`; `{payment.status, createdAt:-1, _id:-1}`; `{email, createdAt:-1}`; `{createdAt:-1, _id:-1}`; `{payment.providerPaymentId}` unique sparse; `{payment.providerOrderId}` sparse. (The list sorts are served from the indexes; verified with `explain()` in `tests/orders.test.ts`.) No user ref yet: accounts are deferred.
+
+## counters
+`_id ("order-YYMM"), n`. One atomic `$inc` upsert per order number; numbers may be skipped (a checkout that later fails) but are never reused.
+
+## webhookEvents
+`provider, eventId, type, order, createdAt`. Unique `{provider, eventId}` makes webhook handling idempotent; TTL 90 days.
+
 Snapshots of name/price/SKU keep orders correct after product edits.
 
 > Page `category` assignment is deferred to Stage 6 (categories do not exist yet). `publishedAt` is the go-live time (set on publish; equals `publishAt` for scheduled pages). `previewToken` is unique and rotatable. Edits use optimistic concurrency on `updatedAt`.

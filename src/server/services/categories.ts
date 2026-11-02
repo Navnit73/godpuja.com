@@ -188,3 +188,28 @@ export async function findCategoryTree(): Promise<PublicCategory[]> {
   }
   return roots;
 }
+
+export type PublicCategoryPage = {
+  id: string; name: string; slug: string; path: string; description: string; image: { url: string; alt: string };
+  seo: { title: string; description: string; canonical: string; ogImage: string; noindex: boolean };
+  breadcrumbs: { name: string; path: string }[];
+  children: { id: string; name: string; path: string; image: { url: string; alt: string } }[];
+};
+
+/** A category page is public only if it and every ancestor are active. Returns null otherwise. */
+export async function findPublicCategory(path: string): Promise<PublicCategoryPage | null> {
+  await connectDB();
+  const parts = path.split("/");
+  const chain = parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+  const rows = await Category.find({ path: { $in: chain } }).select("name slug path description image seo isActive").lean();
+  if (rows.length !== chain.length || rows.some((r) => r.isActive === false)) return null;
+  const self = rows.find((r) => r.path === path)!;
+  const kids = await Category.find({ parent: self._id, isActive: true }).sort({ order: 1, name: 1 }).select("name path image").lean();
+  const byPath = new Map(rows.map((r) => [r.path, r]));
+  return {
+    id: String(self._id), name: self.name, slug: self.slug, path: self.path, description: self.description ?? "", image: { url: self.image?.url ?? "", alt: self.image?.alt ?? "" },
+    seo: { title: self.seo?.title ?? "", description: self.seo?.description ?? "", canonical: self.seo?.canonical ?? "", ogImage: self.seo?.ogImage ?? "", noindex: !!self.seo?.noindex },
+    breadcrumbs: chain.map((p) => ({ name: byPath.get(p)!.name, path: p })),
+    children: kids.map((k) => ({ id: String(k._id), name: k.name, path: k.path, image: { url: k.image?.url ?? "", alt: k.image?.alt ?? "" } })),
+  };
+}

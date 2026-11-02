@@ -75,7 +75,9 @@ Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 | GET/POST | /admin/media | media:write (GET also products:write) | POST multipart `file`; JPEG/PNG/GIF/WebP by magic bytes, ≤5 MB; 503 `NOT_CONFIGURED` without Cloudinary credentials |
 | PATCH/DELETE | /admin/media/:id | media:write | PATCH `{alt}`; DELETE refused (409) while a product/category uses the image |
 
-Related products (`/products/:slug/related`) are built with the storefront in Stage 8.
+| GET | /products/:slug/related | — (rate limited 120/min/IP) | up to 4: same category by best sellers, topped up with featured; never the product itself, drafts or hidden categories |
+
+Storefront pages (Stage 8): `/category/<path>` (filters `sort`, `min`/`max` in rupees, `page`), `/search?q=`, `/product/<slug>`, `/cart`, `/checkout`, `/order/<id>/confirmation?token=` (no-referrer, noindex, no-store). Invalid query values are ignored rather than erroring.
 
 ## Homepage (Stage 7)
 | Method | Path | Perm | Notes |
@@ -87,19 +89,29 @@ Related products (`/products/:slug/related`) are built with the storefront in St
 Section types: `hero`, `banner` (≤4), `featuredCategories` (≤8), `featuredProducts` / `latestProducts` / `bestSellers` (heading, optional category path, 1–12 products; ≤6 rails total), `richText`, `imageText`, `testimonials` (≤8), `offer` (optional `expiresAt`), `custom` (markdown + tone). ≤30 sections. Visitors never see: disabled sections, expired offers, empty rails, inactive/deleted categories (or any under an inactive parent), empty text blocks. Rails run one indexed, limited query each (in parallel) and one query covers all category sections. `/` falls back to the CMS page `home`, then to a neutral placeholder, when no homepage sections are configured.
 
 ## Cart, checkout, orders (Stage 9)
-| Method | Path | Perm | Notes |
+Guest checkout only in this release (customer accounts / `/account/orders` are deferred). Money is integer paise, prices tax-inclusive.
+
+| Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | /cart/validate | — | recompute prices/stock server-side |
-| POST | /checkout | — | requires `Idempotency-Key`; transaction: validate → decrement stock → create order → create payment intent |
-| POST | /payments/webhook | signature | idempotent on provider event id |
-| GET | /orders/:id | owner or token | confirmation view |
-| GET | /account/orders | auth | |
-| GET | /admin/orders | orders:read | filters: status, payment, date, q |
-| GET | /admin/orders/:id | orders:read | |
-| PATCH | /admin/orders/:id/status | orders:write | validated transition |
-| POST | /admin/orders/:id/notes | orders:write | |
-| POST | /admin/orders/:id/refund | orders:refund | |
-| GET | /admin/orders/export | orders:read | CSV, streamed |
+| POST | /cart/validate | — (60/min/IP) | body `{items:[{productId, variantSku?, qty 1–20}]}` (≤30 lines). Recomputes everything from the database: `{items:[{productId, variantSku, sku, name, slug, image, options, unitPrice, qty, lineTotal, available, maxQty, freeShipping}], issues:[{productId, variantSku, code:'unavailable'\|'out_of_stock'\|'reduced', message}], pricing:{subtotal, shipping, total, freeShippingOver, flatShipping}}`. Draft/archived/missing products and products in hidden categories are `available:false` and excluded from pricing; qty is clamped to stock (`reduced`). Duplicate lines are merged |
+| POST | /checkout | — (10/min/IP) | header **`Idempotency-Key`** (8–80 chars `[A-Za-z0-9_-]`) required. Body `{items, email, phone, shippingAddress{name,line1,line2?,city,state,pincode(6 digits),country:'IN'}, billingSameAsShipping, billingAddress?, paymentMethod:'cod', notes?≤300}`. One transaction: re-price, atomic stock decrement (`stock >= qty` in the same update), create order. **201** `{orderId, orderNumber, accessToken, status:'confirmed', payment:{method, status}}`; **200** with the same body for a replay of the same key + same request; same key with a different request ⇒ 409. Stock short/unavailable ⇒ 409 and nothing is taken (all-or-nothing). Order number `GP-YYMM-NNNNNN` from an atomic monthly counter |
+| GET | /orders/:id?token= | secret token (60/min/IP) | confirmation view: items snapshot, pricing, status, payment status, addresses, `orderNumber`, `createdAt`. Wrong token and unknown order are both 404; no notes/history/refunds are exposed; `Cache-Control: private, no-store` |
+| POST | /payments/webhook | HMAC signature | generic signed webhook (see below). 120/min/IP |
+| GET | /admin/orders | orders:read | `q` (order no. / email prefix, name, phone digits), `status`, `payment`, `from`/`to` (IST days, `YYYY-MM-DD`), `page`, `limit` ≤50; newest first |
+| GET | /admin/orders/:id | orders:read | full order (no access token): history, notes, refunds, `allowedNext`, `refundable` |
+| PATCH | /admin/orders/:id/status | orders:write | `{status, note?}`. Table: `confirmed→processing\|cancelled`, `processing→shipped\|cancelled`, `shipped→delivered`, `delivered→returned`; anything else 409. Compare-and-set on the current status (double clicks / two admins cannot both apply). **Cancel restores stock in the same transaction, exactly once** |
+| PATCH | /admin/orders/:id/payment | orders:write | `{status:'paid'\|'failed'}` (COD: record cash received). `pending→paid\|failed`, `failed→paid`; not on cancelled orders; paid can only change through a refund |
+| POST | /admin/orders/:id/notes | orders:write | `{text}` internal note with author + time |
+| POST | /admin/orders/:id/refund | orders:refund (admin, superadmin) | `{amount (paise), reason}`; records the refund only (no gateway call). Compare-and-set on `refundedTotal`, so concurrent refunds can never exceed the total; sets `partially_refunded` / `refunded` |
+| GET | /admin/orders/export | orders:read | CSV of the filtered list, newest first, ≤5000 rows, streamed; cells starting with `= + - @` (or tab/CR) get a leading `'` (formula injection) |
+
+All admin writes append an entry (kind, status, note, actor, time) to the order's `history`.
+
+**Payment provider slot.** The owner has not chosen a gateway. `src/server/payments/provider.ts` defines `PaymentProvider`; only `cod` exists (order is `confirmed`, payment `pending` until an admin marks it paid). To add a gateway: implement the interface, register it, add its id to `PAYMENT_METHODS`, and map its webhook onto the generic event below (or add a provider-specific route that verifies its own signature and calls `applyPaymentEvent`).
+
+**Generic webhook** `POST /payments/webhook`: header `x-signature` = hex HMAC-SHA256 of the **raw body** with `PAYMENT_WEBHOOK_SECRET` (≥16 chars; 503 `NOT_CONFIGURED` when unset). Verified (constant time) before parsing; body ≤64 KB. Body `{eventId, type:'payment.succeeded'\|'payment.failed'\|'payment.refunded', timestamp (epoch s/ms or ISO), orderNumber \| providerOrderId \| providerPaymentId, amount? (paise)}`. The signed timestamp must be within ±5 min (replay window). Idempotent on `eventId` (unique index, committed in the same transaction as the order change): duplicates return 200 `{received:true, duplicate:true}`. `succeeded` is `pending/failed→paid` (amount, if sent, must equal the order total), `failed` is `pending→failed` only (never undoes a payment), `refunded` records a guarded refund (default: the remainder). Unknown order ⇒ 404; the same `providerPaymentId` on two orders ⇒ 409.
+
+Env: `SHIPPING_FLAT_PAISE` (default 5000), `FREE_SHIPPING_OVER_PAISE` (default 99900), `PAYMENT_WEBHOOK_SECRET`. Shipping is free at/above the threshold, or if any product in the order has `freeShipping`.
 
 ## SEO & settings (Stages 5/10)
 GET `/sitemap.xml`, `/robots.txt` (Next metadata routes); GET/POST `/admin/redirects`; GET/PUT `/admin/settings` — `settings:write`; GET `/admin/dashboard` — `dashboard:read`; GET `/admin/customers` — `customers:read`.

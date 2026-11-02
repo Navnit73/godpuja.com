@@ -3,7 +3,7 @@
 Statuses: `NOT_STARTED` · `IN_PROGRESS` · `IMPLEMENTATION_COMPLETE` · `AUDIT_IN_PROGRESS` · `AUDIT_COMPLETE` · `BLOCKED`
 A task is complete only after implementation works **and** audit verification passes.
 
-**Current stage: 8 (not started)** · Last updated: 2026-11-02
+**Current stage: 8 + 9 (implemented; independent audit pending)** · Last updated: 2026-11-02
 
 | Stage | Task | Implementation | Audit | Status |
 |---|---|---|---|---|
@@ -47,12 +47,16 @@ A task is complete only after implementation works **and** audit verification pa
 | 7 | Homepage model, service, admin API (concurrency-safe) | Complete | Complete | AUDIT_COMPLETE |
 | 7 | Section builder UI (11 section types, reorder, toggle) | Complete | Complete (browser/axe pending) | AUDIT_COMPLETE |
 | 7 | Storefront homepage rendering + batched product rails + cache tags | Complete | Complete | AUDIT_COMPLETE |
-| 8 | Storefront + product pages | Pending | Pending | NOT_STARTED |
-| 9 | Cart, checkout, orders | Pending | Pending | BLOCKED (payment gateway deferred by owner) |
+| 8 | Category pages (breadcrumbs, subcategories, filter/sort/pagination), search page, product detail (gallery, variants, related) | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 8 | Cart (browser, server-validated), checkout (guest, COD), order confirmation (token) UI | Complete | Self-verified (browser/axe pending) | IMPLEMENTATION_COMPLETE |
+| 9 | Cart validation, guest checkout (idempotent, transactional stock), order numbers | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 9 | Order lifecycle (transition table, cancel restores stock once), payment status, notes, refunds (record-only), CSV export | Complete | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 9 | Admin orders UI (list, filters, detail, actions, history) | Complete | Self-verified (browser/axe pending) | IMPLEMENTATION_COMPLETE |
+| 9 | Payment gateway adapter | **BLOCKED — owner has not chosen a gateway.** COD provider + generic signed webhook only (adapter slot documented) | — | BLOCKED |
 | 10 | SEO | Pending | Pending | NOT_STARTED |
 | 11 | Performance, security, accessibility | Pending | Pending | NOT_STARTED |
 | 12 | E2E, final audit, release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md).
+Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md) · [Stage 9](docs/audits/STAGE_09_AUDIT.md).
 
-Carried forward: Cloudinary live upload/delete test once credentials exist; homepage product cards and category tiles link to `/product/<slug>` and `/category/<path>`, which return 404 until the storefront pages ship in Stage 8; newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP handling and body-size check (Stage 11); soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.
+Carried forward: Stage 9 — payment gateway adapter pending owner decision (COD + generic webhook only); customer accounts / order history deferred (guest token only); no order emails yet (provider Resend, Stage 9 follow-up); Cloudinary live upload/delete test once credentials exist; homepage product cards and category tiles link to `/product/<slug>` and `/category/<path>`, which return 404 until the storefront pages ship in Stage 8; newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP handling and body-size check (Stage 11); soft-404 status + slug-change 301s + malformed-URL 400 (Stage 10 proxy); single-instance vs shared cache decision (Stage 11); browser + axe accessibility pass of the admin UI (Stage 11/12; Playwright to be added). Stage 11: shared rate-limit store, search index review. Stage 12: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

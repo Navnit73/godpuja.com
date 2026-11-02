@@ -224,7 +224,7 @@ export type PublicProductDetail = Omit<PublicProduct, "image"> & {
   sku: string; descriptionHtml: string; images: { url: string; alt: string }[]; brand: string;
   attributes: { name: string; value: string }[]; categoryPath: string | null;
   variants: { sku: string; options: Record<string, string>; price: number; salePrice: number | null; inStock: boolean }[];
-  seo: ProductInput["seo"]; freeShipping: boolean;
+  seo: ProductInput["seo"]; freeShipping: boolean; breadcrumbs: { name: string; path: string }[];
 };
 
 export const sortedImages = (p: ProductDoc) => [...(p.images ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((i) => ({ url: i.url!, alt: i.alt ?? "" }));
@@ -293,7 +293,12 @@ export async function findPublicProduct(slug: string): Promise<PublicProductDeta
     const { hidden } = await loadCategoryIndex();
     if (hidden.some((h) => String(h) === String(p.category))) return null; // its category (or an ancestor) is hidden
   }
+  const parts = cat?.path ? cat.path.split("/") : [];
+  const chain = parts.map((_, i) => parts.slice(0, i + 1).join("/"));
+  const named = chain.length ? await Category.find({ path: { $in: chain } }).select("name path").lean() : [];
+  const nameOf = new Map(named.map((c) => [c.path, c.name]));
   return {
+    breadcrumbs: chain.map((c) => ({ name: nameOf.get(c) ?? c.split("/").pop()!, path: c })),
     id: String(p._id), name: p.name, slug: p.slug, sku: p.sku, shortDescription: p.shortDescription ?? "", descriptionHtml: renderMarkdown(p.description ?? ""),
     images: sortedImages(p), brand: p.brand ?? "", price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), isFeatured: !!p.isFeatured,
     category: cat?.path ?? null, categoryPath: cat?.path ?? null, attributes: (p.attributes ?? []).map((a) => ({ name: a.name!, value: a.value! })),
@@ -327,4 +332,23 @@ export async function findRail(spec: RailSpec, catPath: Map<string, string>, hid
   const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
   const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).limit(spec.limit).lean();
   return rows.map((p) => toPublicProduct(p as ProductDoc, catPath));
+}
+
+/** Up to `limit` other active products from the same category (best sellers first), topped up with featured ones. */
+export async function findRelated(slug: string, limit = 4): Promise<PublicProduct[]> {
+  await connectDB();
+  const base = await Product.findOne({ slug, status: "active" }).select("category").lean();
+  if (!base) return [];
+  const { catPath, hidden } = await loadCategoryIndex();
+  const notHidden = hidden.length ? { category: { $nin: hidden } } : {};
+  const pick = "name slug shortDescription images price salePrice stock variants isFeatured category";
+  const out: ProductDoc[] = [];
+  if (base.category) {
+    out.push(...((await Product.find({ status: "active", category: base.category, slug: { $ne: slug } }).select(pick).sort({ soldCount: -1, _id: -1 }).limit(limit).lean()) as ProductDoc[]));
+  }
+  if (out.length < limit) {
+    const have = [slug, ...out.map((p) => p.slug)];
+    out.push(...((await Product.find({ status: "active", isFeatured: true, slug: { $nin: have }, ...notHidden }).select(pick).sort({ createdAt: -1, _id: -1 }).limit(limit - out.length).lean()) as ProductDoc[]));
+  }
+  return out.map((p) => toPublicProduct(p, catPath));
 }

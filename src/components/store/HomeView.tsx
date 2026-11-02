@@ -87,7 +87,7 @@ function Block({ s }: { s: PublicHomeSection }) {
             {s.heading && <h2 className="text-3xl font-semibold">{s.heading}</h2>}
             {s.viewAll && <Link href={s.viewAll} className="text-sm font-medium text-primary underline">View all<span className="sr-only"> {s.heading}</span></Link>}
           </div>
-          <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">{s.products.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
+          <ul aria-label={s.heading || "Products"} className="grid grid-cols-2 gap-4 md:grid-cols-4">{s.products.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
         </Wrap>
       );
     case "richText":

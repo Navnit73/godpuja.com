@@ -51,19 +51,20 @@ const mini = "btn-ghost btn-sm px-2 disabled:opacity-40";
 function FieldInput({ f, data, set, err, idp, cats, pick }: { f: Field; data: Data; set: (patch: Data) => void; err?: string; idp: string; cats: Cat[]; pick: (altKey: string, key: string) => void }) {
   const v = data[f.key];
   const id = `${idp}-${f.key}`;
+  const [now] = useState(() => Date.now()); // "has this time passed" is evaluated when the editor opens
   switch (f.kind) {
     case "textarea": case "markdown":
       return (
         <div className="sm:col-span-2">
           <label htmlFor={id} className="label">{f.label}</label>
-          <textarea id={id} rows={f.kind === "markdown" ? 6 : 3} maxLength={f.max} className={`input h-auto py-2 ${f.kind === "markdown" ? "font-mono text-sm" : ""}`} aria-invalid={!!err} value={String(v ?? "")} onChange={(e) => set({ [f.key]: e.target.value })} />
-          {err && <p className="field-error">{err}</p>}
+          <textarea id={id} rows={f.kind === "markdown" ? 6 : 3} maxLength={f.max} className={`input h-auto py-2 ${f.kind === "markdown" ? "font-mono text-sm" : ""}`} aria-invalid={!!err} aria-describedby={err ? `${id}-err` : undefined} value={String(v ?? "")} onChange={(e) => set({ [f.key]: e.target.value })} />
+          {err && <p id={`${id}-err`} className="field-error">{err}</p>}
         </div>
       );
     case "number":
       return <Input label={f.label} type="number" min={1} max={12} value={String(v ?? "")} error={err} onChange={(e) => set({ [f.key]: Math.trunc(Number(e.target.value) || 0) })} />;
     case "datetime":
-      return <Input label={f.label} type="datetime-local" hint={f.hint} value={v ? isoToIstInput(String(v)) : ""} error={err} onChange={(e) => set({ [f.key]: e.target.value ? istInputToIso(e.target.value) : "" })} />;
+      return <Input label={f.label} type="datetime-local" hint={v && new Date(String(v)).getTime() <= now ? "This time has passed, so the offer is currently hidden." : f.hint} value={v ? isoToIstInput(String(v)) : ""} error={err} onChange={(e) => set({ [f.key]: e.target.value ? istInputToIso(e.target.value) : "" })} />;
     case "select":
       return <Select label={f.label} value={String(v ?? "")} error={err} onChange={(e) => set({ [f.key]: e.target.value })}>{f.options.map(([val, l]) => <option key={val} value={val}>{l}</option>)}</Select>;
     case "categoryPath":
@@ -110,12 +111,13 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const commit = (next: HomeSection[]) => { setSections(next); setDirty(true); };
+  const commit = (next: HomeSection[]) => { setSections(next); setDirty(true); setErrs({}); setGeneral(null); }; // errors are keyed by position, so they are cleared whenever the list changes
   const patchData = (i: number, patch: Data) => commit(sections.map((s, n) => (n === i ? ({ ...s, data: { ...s.data, ...patch } } as HomeSection) : s)));
   const patchSection = (i: number, patch: Partial<HomeSection>) => commit(sections.map((s, n) => (n === i ? ({ ...s, ...patch } as HomeSection) : s)));
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const rails = sections.filter((s) => ["featuredProducts", "latestProducts", "bestSellers"].includes(s.type)).length;
   const railFull = ["featuredProducts", "latestProducts", "bestSellers"].includes(addType) && rails >= MAX_RAILS;
+  const heroFull = addType === "hero" && sections.some((s) => s.type === "hero");
 
   function add() {
     const s = { id: newId(), type: addType, enabled: true, data: structuredClone(defaultData[addType]) } as HomeSection;
@@ -136,6 +138,8 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
       const m: Errs = {};
       for (const iss of parsed.error.issues) m[iss.path.join(".")] ??= iss.message;
       setErrs(m);
+      // Open every section that has an error (they can still be collapsed afterwards).
+      setOpen((o) => { const n = new Set(o); sections.forEach((sec, idx) => { if (Object.keys(m).some((k) => k.startsWith(`sections.${idx}.`))) n.add(sec.id); }); return n; });
       const flat = Object.keys(m).find((k) => !/^sections\.\d+\./.test(k));
       setGeneral(flat ? m[flat] : "Fix the highlighted fields.");
       return;
@@ -151,7 +155,6 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
   }
 
   const sectionErr = (i: number, path: string) => errs[`sections.${i}.data.${path}`];
-  const hasErr = (i: number) => Object.keys(errs).some((k) => k.startsWith(`sections.${i}.`));
   const summary = (s: HomeSection) => { const d = s.data as Data; return String(d.heading ?? d.markdown ?? "").slice(0, 60) || "No heading yet"; };
 
   return (
@@ -171,7 +174,7 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
       {sections.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted hover:shadow-elev-1">No sections yet. Add a hero to get started; until then visitors see the default placeholder.</div>}
       <ol className="space-y-3">
         {sections.map((s, i) => {
-          const isOpen = open.has(s.id) || hasErr(i);
+          const isOpen = open.has(s.id);
           const spec = SPECS[s.type];
           const data = s.data as Data;
           const idp = `s-${s.id}`;
@@ -184,11 +187,11 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
                   <p className="truncate text-xs text-muted">{summary(s)}</p>
                 </div>
                 {!s.enabled && <span className="badge-muted">Hidden</span>}
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.enabled} onChange={(e) => patchSection(i, { enabled: e.target.checked })} aria-label={`Show ${SECTION_LABEL[s.type]} section`} /> Visible</label>
-                <button type="button" className={mini} disabled={i === 0} aria-label={`Move ${SECTION_LABEL[s.type]} up`} onClick={() => move(i, -1)}>↑</button>
-                <button type="button" className={mini} disabled={i === sections.length - 1} aria-label={`Move ${SECTION_LABEL[s.type]} down`} onClick={() => move(i, 1)}>↓</button>
-                <button type="button" className="btn-outline btn-sm" aria-expanded={isOpen} aria-controls={`${idp}-body`} onClick={() => toggle(s.id)}>{isOpen ? "Done" : "Edit"}</button>
-                <button type="button" className="btn-danger btn-sm" aria-label={`Remove ${SECTION_LABEL[s.type]} section`} onClick={() => { commit(sections.filter((_, n) => n !== i)); setAnnounce(`${SECTION_LABEL[s.type]} section removed`); }}>Remove</button>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.enabled} onChange={(e) => patchSection(i, { enabled: e.target.checked })} aria-label={`Visible: ${SECTION_LABEL[s.type]} section ${i + 1}`} /> Visible</label>
+                <button type="button" className={mini} disabled={i === 0} aria-label={`Move ${SECTION_LABEL[s.type]} (section ${i + 1}) up`} onClick={() => move(i, -1)}>↑</button>
+                <button type="button" className={mini} disabled={i === sections.length - 1} aria-label={`Move ${SECTION_LABEL[s.type]} (section ${i + 1}) down`} onClick={() => move(i, 1)}>↓</button>
+                <button type="button" className="btn-outline btn-sm" aria-expanded={isOpen} aria-controls={isOpen ? `${idp}-body` : undefined} onClick={() => toggle(s.id)}>{isOpen ? "Done" : "Edit"}</button>
+                <button type="button" className="btn-danger btn-sm" aria-label={`Remove ${SECTION_LABEL[s.type]} (section ${i + 1})`} onClick={() => { commit(sections.filter((_, n) => n !== i)); setAnnounce(`${SECTION_LABEL[s.type]} section removed`); }}>Remove</button>
               </div>
               {isOpen && (
                 <div id={`${idp}-body`} className="space-y-4 border-t border-border p-4">
@@ -262,17 +265,18 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
             {SECTION_TYPES.map((t) => <option key={t} value={t}>{SECTION_LABEL[t]}</option>)}
           </Select>
         </div>
-        <Button onClick={add} disabled={sections.length >= MAX_SECTIONS || railFull}>Add section</Button>
+        <Button onClick={add} disabled={sections.length >= MAX_SECTIONS || railFull || heroFull}>Add section</Button>
         {railFull && <p className="text-sm text-muted">At most {MAX_RAILS} product sections.</p>}
+        {heroFull && <p className="text-sm text-muted">There can be only one hero section.</p>}
       </div>
 
       <ImagePicker open={!!picker} onClose={() => setPicker(null)} onPick={(url, alt) => {
         if (!picker) return;
         const { i, list, key, altKey } = picker;
         if (list) {
-          const items = ((sections[i].data as Data)[list[0]] as Data[]).map((x, m) => (m === list[1] ? { ...x, [key]: url, [altKey]: x[altKey] || alt } : x));
+          const items = ((sections[i].data as Data)[list[0]] as Data[]).map((x, m) => (m === list[1] ? { ...x, [key]: url, [altKey]: alt } : x));
           patchData(i, { [list[0]]: items });
-        } else patchData(i, { [key]: url, [altKey]: (sections[i].data as Data)[altKey] || alt });
+        } else patchData(i, { [key]: url, [altKey]: alt });
       }} />
     </div>
   );

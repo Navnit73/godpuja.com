@@ -4,6 +4,8 @@ import { destroyImage, uploadImage } from "../cloudinary";
 import { connectDB } from "../db";
 import { Category } from "../models/Category";
 import { Media, type MediaDoc } from "../models/Media";
+import { Homepage } from "../models/Homepage";
+import { Page } from "../models/Page";
 import { Product } from "../models/Product";
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -65,8 +67,15 @@ export async function deleteMedia(id: string) {
   await connectDB();
   const m = await Media.findById(id).lean();
   if (!m) throw new ApiError("NOT_FOUND", "Image not found");
-  const [inProduct, inCategory] = await Promise.all([Product.exists({ "images.url": m.url }), Category.exists({ "image.url": m.url })]);
-  if (inProduct || inCategory) throw new ApiError("CONFLICT", "This image is used by a product or category. Remove it there first.");
+  const url = m.url;
+  const [product, category, page, home] = await Promise.all([
+    Product.exists({ $or: [{ "images.url": url }, { "seo.ogImage": url }] }),
+    Category.exists({ $or: [{ "image.url": url }, { "seo.ogImage": url }] }),
+    Page.exists({ $or: [{ "sections.data.imageUrl": url }, { "seo.ogImage": url }] }),
+    Homepage.findOne({ key: "main" }).select("sections").lean(),
+  ]);
+  const inHome = !!home && JSON.stringify(home.sections ?? []).includes(JSON.stringify(url).slice(1, -1));
+  if (product || category || page || inHome) throw new ApiError("CONFLICT", "This image is used by a product, category, page or the homepage. Remove it there first.");
   await destroyImage(m.publicId);
   await Media.deleteOne({ _id: id });
 }

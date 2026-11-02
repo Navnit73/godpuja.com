@@ -2,14 +2,13 @@ import { z } from "zod";
 import { validateSlug } from "@/lib/slug";
 
 // "" is allowed for optional fields (empty form inputs); services normalise "" to undefined.
-export const httpUrl = z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" });
-export const optionalUrl = z.union([z.literal(""), httpUrl]);
-/** Internal path ("/about") or absolute http(s) URL. */
-export const linkUrl = z.union([
-  z.literal(""),
-  httpUrl,
-  z.string().regex(/^\/(?!\/)[^\s\\]*$/, "Use a path like /about or a full URL"),
-]);
+export const httpUrl = z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" }).max(2000);
+const isHttp = (v: string) => z.url({ protocol: /^https?$/ }).safeParse(v).success;
+const isPath = (v: string) => /^\/(?!\/)[^\s\\]*$/.test(v);
+/** One schema (not a union) so the editor shows a helpful message instead of "Invalid input". "" = not set. */
+export const optionalUrl = z.string().max(2000).refine((v) => v === "" || isHttp(v), "Enter a full http(s) URL, or leave empty");
+/** Internal path ("/about") or absolute http(s) URL; "" = not set. */
+export const linkUrl = z.string().max(2000).refine((v) => v === "" || isHttp(v) || isPath(v), "Use a path like /about or a full https:// URL");
 
 export const sectionSchema = z.discriminatedUnion("type", [
   z.object({

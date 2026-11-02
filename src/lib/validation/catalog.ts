@@ -28,9 +28,14 @@ export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 const paise = z.number().int("Whole paise only").min(0).max(100_000_000_00);
 const sku = z.string().trim().toUpperCase().min(2, "Enter a SKU").max(40).regex(/^[A-Z0-9][A-Z0-9._-]*$/, "Use letters, numbers, . _ -");
 
+// Option names become MongoDB Map keys: no dots, no leading $, no NUL, no prototype names.
+const optionKey = z.string().trim().min(1).max(40)
+  .regex(/^[^.$\0][^.\0]*$/, "Option names cannot contain dots or start with $")
+  .refine((k) => !["__proto__", "constructor", "prototype"].includes(k), "Reserved name");
+
 const variant = z.object({
   sku,
-  options: z.record(z.string().trim().min(1).max(40), z.string().trim().min(1).max(60))
+  options: z.record(optionKey, z.string().trim().min(1).max(60))
     .refine((o) => { const n = Object.keys(o).length; return n >= 1 && n <= 4; }, "1–4 options (e.g. Size, Weight)"),
   price: paise.nullable().optional(),
   salePrice: paise.nullable().optional(),
@@ -61,6 +66,10 @@ export const productInputSchema = z.object({
   seo: seoSchema,
 }).superRefine((p, ctx) => {
   if (p.salePrice != null && p.salePrice >= p.price) ctx.addIssue({ code: "custom", path: ["salePrice"], message: "Sale price must be below the price" });
+  p.variants.forEach((v, i) => {
+    const base = v.price ?? p.price; // a variant without its own price sells at the product price
+    if (v.salePrice != null && v.salePrice >= base) ctx.addIssue({ code: "custom", path: ["variants", i, "salePrice"], message: "Sale price must be below the price" });
+  });
   const skus = [p.sku, ...p.variants.map((v) => v.sku)];
   if (new Set(skus).size !== skus.length) ctx.addIssue({ code: "custom", path: ["variants"], message: "SKUs must be unique (including the product SKU)" });
   if (p.status === "active" && !p.category) ctx.addIssue({ code: "custom", path: ["category"], message: "Choose a category before activating" });

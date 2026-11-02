@@ -6,9 +6,9 @@ export type SectionType = (typeof SECTION_TYPES)[number];
 export const MAX_SECTIONS = 30;
 export const MAX_RAILS = 6; // each product rail is one indexed query
 
-const id = z.string().min(1).max(40);
+const id = z.string().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/, "Invalid id");
 const text = (max: number) => z.string().trim().max(max);
-const link = z.union([z.literal(""), linkUrl]);
+const link = linkUrl;
 const objectId = z.string().regex(/^[a-f0-9]{24}$/, "Invalid id");
 const categoryPath = z.union([z.literal(""), z.string().trim().max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$/, "Use a category URL like puja-kits/diwali")]);
 
@@ -37,7 +37,8 @@ export const homeSectionSchema = z.discriminatedUnion("type", [
   z.object({ ...base, type: z.literal("richText"), data: z.object({ markdown: z.string().max(20_000) }) }),
   z.object({ ...base, type: z.literal("imageText"), data: z.object({
     heading: text(120), markdown: z.string().max(5_000), imageUrl: optionalUrl, imageAlt: text(200), imagePosition: z.enum(["left", "right"]), ctaLabel: text(40), ctaUrl: link,
-  }).refine(needAlt, altMsg).refine(needLabelLink<Record<string, string>>("ctaLabel", "ctaUrl"), { path: ["ctaUrl"], message: "Add a link for the button" }) }),
+  }).refine(needAlt, altMsg).refine(needLabelLink<Record<string, string>>("ctaLabel", "ctaUrl"), { path: ["ctaUrl"], message: "Add a link for the button" })
+    .refine((d) => !!(d.heading || d.markdown.trim() || d.imageUrl), { path: ["heading"], message: "Add a heading, text or an image" }) }),
   z.object({ ...base, type: z.literal("testimonials"), data: z.object({
     heading: text(80), items: z.array(z.object({ quote: text(400).min(1, "Enter the quote"), author: text(80).min(1, "Enter a name"), role: text(80) })).min(1, "Add at least one testimonial").max(8, "At most 8 testimonials"),
   }) }),
@@ -51,6 +52,7 @@ export const homeSectionSchema = z.discriminatedUnion("type", [
 export const homepageInputSchema = z.object({
   sections: z.array(homeSectionSchema).max(MAX_SECTIONS, `At most ${MAX_SECTIONS} sections`)
     .refine((a) => new Set(a.map((s) => s.id)).size === a.length, "Section ids must be unique")
+    .refine((a) => a.filter((s) => s.type === "hero").length <= 1, "Only one hero section (it holds the page's main heading)")
     .refine((a) => a.filter((s) => ["featuredProducts", "latestProducts", "bestSellers"].includes(s.type)).length <= MAX_RAILS, `At most ${MAX_RAILS} product sections`),
 });
 /** `baseUpdatedAt` is null only for the very first save. */

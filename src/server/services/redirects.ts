@@ -14,3 +14,12 @@ export async function recordRedirects(moves: { from: string; to: string }[], ses
     await Redirect.updateOne({ from: m.from }, { $set: { to: m.to, code: 301 } }, { upsert: true, session });
   }
 }
+
+/** A URL that is (again) a real page must not keep an old redirect pointing away from it. */
+export async function clearRedirectsFrom(urls: string[], session?: ClientSession) {
+  if (urls.length) await Redirect.deleteMany({ from: { $in: urls } }, { session });
+}
+/** When a page is deleted, redirects that led to it would dangle. */
+export async function dropRedirectsTo(urls: string[], session?: ClientSession) {
+  if (urls.length) await Redirect.deleteMany({ to: { $in: urls } }, { session });
+}

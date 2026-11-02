@@ -9,7 +9,7 @@ Indexes: `{email:1}` unique; `{role:1}`.
 ## categories
 `name, slug (single kebab segment), parent (ref categories|null), path (e.g. "puja-kits/diwali"), level (1–3), description, image{url,alt}, order, isActive, seo{title,description,canonical,ogImage,noindex}`
 Indexes: `{path:1}` unique; `{parent:1, order:1}`; `{isActive:1}`.
-`path` is recomputed (with the whole subtree) when slug/parent changes, in one transaction, and a 301 is recorded for every moved URL (`/category/<path>`). Moving under own descendant or beyond 3 levels is rejected. Delete is refused while it has subcategories or products. Inactive categories hide their subtree and products.
+`path` is recomputed (with the whole subtree) when slug/parent changes, in one transaction, and a 301 is recorded for every moved URL (`/category/<path>`). Moving under own descendant or beyond 3 levels is rejected. Delete is refused while it has subcategories or products. Structural writes run in transactions and bump `treeVersion` on the parents involved so concurrent moves/creates/deletes conflict and retry (no cycles/orphans). Inactive categories hide their subtree and products.
 
 ## products
 `name, slug (unique), sku (unique, upper-case), shortDescription, description (Markdown, sanitised when rendered), images[{url,alt,order}], category (ref), brand, price, salePrice?, effectivePrice (= salePrice ?? price, denormalised for filter/sort), stock, lowStockThreshold, status ('draft'|'active'|'archived'), isFeatured, attributes[{name,value}], variants[{sku,options{},price?,salePrice?,stock}], shipping{weightGrams,length,width,height,freeShipping}, soldCount, seo{title,description,canonical,ogImage,noindex}, schemaOverrides?`

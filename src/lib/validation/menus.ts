@@ -4,10 +4,10 @@ export const MAX_MENU_ITEMS = 100;
 export const MENU_DEPTH = 3;
 
 /** Internal path ("/about") or absolute http(s) URL. Same rule as page CTA links. */
-export const linkUrl = z.union([
-  z.url({ protocol: /^https?$/, message: "Enter a full http(s) URL" }),
-  z.string().regex(/^\/(?!\/)[^\s\\]*$/, "Use a path like /about or a full URL"),
-]);
+export const linkUrl = z.string().max(2000).refine(
+  (v) => z.url({ protocol: /^https?$/ }).safeParse(v).success || /^\/(?!\/)[^\s\\]*$/.test(v),
+  "Use a path like /about or a full https:// URL",
+);
 
 // Catalog link types (category | product) are in the stored schema but only become selectable in Stage 6,
 // once those collections exist. Until then they are rejected here rather than producing dead links.

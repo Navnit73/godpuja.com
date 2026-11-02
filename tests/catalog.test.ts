@@ -73,7 +73,7 @@ describe("catalog (godpuja_test)", () => {
     await Promise.all([Category.syncIndexes(), Product.syncIndexes(), Redirect.syncIndexes()]);
   });
   beforeEach(wipe);
-  afterAll(async () => { await wipe(); await mongoose.disconnect(); });
+  afterAll(async () => { await wipe(); }); // connection is closed by the last DB describe in this file
 
   it("builds nested paths, enforces depth 3 and unique sibling slugs", async () => {
     const a = await createCategory(cat({ name: "Kits", slug: "kits" }));
@@ -264,6 +264,123 @@ describe("catalog (godpuja_test)", () => {
       expect(st.some((x) => /IXSCAN|TEXT_MATCH/.test(x)), `${name}: ${st.join(">")}`).toBe(true);
       expect(st, name).not.toContain("COLLSCAN");
     }
+  });
+});
+
+describe("catalog audit regressions (godpuja_test)", () => {
+  const wipe = () => Promise.all([Category.deleteMany({}), Product.deleteMany({}), Redirect.deleteMany({})]);
+  beforeAll(async () => { await connectDB(); if (mongoose.connection.name !== "godpuja_test") throw new Error("wrong db"); await Promise.all([Category.syncIndexes(), Product.syncIndexes(), Redirect.syncIndexes()]); });
+  beforeEach(wipe);
+  afterAll(async () => { await wipe(); await mongoose.disconnect(); });
+  const list = (o = {}) => findPublicProducts(publicProductsSchema.parse(o));
+
+  it("a sale price can be cleared on update (and effective price follows)", async () => {
+    const p = await createProduct(prod({ salePrice: 8000 }));
+    const cleared = await updateProduct(p.id, { ...prod({ salePrice: null }), baseUpdatedAt: p.updatedAt });
+    expect(cleared.product.salePrice).toBeNull();
+    expect((await getProduct(p.id)).salePrice).toBeNull();
+    expect((await Product.findById(p.id).lean())!.effectivePrice).toBe(10000);
+  });
+
+  it("hiding a category hides its products everywhere: list, search, featured, detail, rails", async () => {
+    const hidden = await createCategory(cat({ name: "Secret", slug: "secret" }));
+    const kid = await createCategory(cat({ name: "Kid", slug: "kid", parent: hidden.id }));
+    const open = await createCategory(cat({ name: "Open", slug: "open" }));
+    const act = (o: Partial<ProductInput>) => prod({ status: "active", isFeatured: true, ...o });
+    await createProduct(act({ name: "Brass lamp", slug: "in-secret", sku: "S1", category: hidden.id }));
+    await createProduct(act({ name: "Brass bell", slug: "in-kid", sku: "S2", category: kid.id }));
+    await createProduct(act({ name: "Brass tray", slug: "in-open", sku: "S3", category: open.id }));
+    expect((await list()).total).toBe(3);
+    await updateCategory(hidden.id, { ...cat({ name: "Secret", slug: "secret", isActive: false }), baseUpdatedAt: hidden.updatedAt });
+    expect((await list()).items.map((i) => i.slug)).toEqual(["in-open"]);
+    expect((await list({ q: "brass" })).items.map((i) => i.slug)).toEqual(["in-open"]);
+    expect((await list({ featured: "1" })).items.map((i) => i.slug)).toEqual(["in-open"]);
+    expect(await findPublicProduct("in-secret")).toBeNull();
+    expect(await findPublicProduct("in-kid")).toBeNull(); // hidden through its parent
+    expect((await findPublicProduct("in-open"))?.slug).toBe("in-open");
+    const { findRail, loadCategoryIndex } = await import("@/server/services/products");
+    const idx = await loadCategoryIndex();
+    expect((await findRail({ kind: "latestProducts", category: "", limit: 10 }, idx.catPath, idx.hidden)).map((p) => p.slug)).toEqual(["in-open"]);
+  });
+
+  it("variant option names that Mongo cannot store are a 400-class validation error, not a crash", () => {
+    const v = (k: string) => ({ sku: "V9", options: { [k]: "x" }, stock: 1 });
+    for (const k of ["a.b", "$x", "__proto__", "constructor"]) expect(productInputSchema.safeParse(prod({ variants: [v(k)] })).success, k).toBe(false);
+    expect(productInputSchema.safeParse(prod({ variants: [v("Size")] })).success).toBe(true);
+  });
+
+  it("variant sale price must be below the price it would sell at (own price or the product's)", () => {
+    const v = (over: object) => ({ sku: "V9", options: { Size: "L" }, stock: 1, ...over });
+    expect(productInputSchema.safeParse(prod({ price: 10000, variants: [v({ salePrice: 99999 })] })).success).toBe(false); // no own price
+    expect(productInputSchema.safeParse(prod({ price: 10000, variants: [v({ price: 200000, salePrice: 150000 })] })).success).toBe(true);
+    expect(productInputSchema.safeParse(prod({ price: 10000, variants: [v({ salePrice: 9000 })] })).success).toBe(true);
+  });
+
+  it("SKUs are one namespace across products and variants", async () => {
+    await createProduct(prod({ sku: "AAA", slug: "a", variants: [{ sku: "A-V1", options: { S: "1" }, stock: 1 }] }));
+    await fails(createProduct(prod({ sku: "A-V1", slug: "b" })), "CONFLICT"); // product sku == other's variant sku
+    await fails(createProduct(prod({ sku: "BBB", slug: "c", variants: [{ sku: "AAA", options: { S: "1" }, stock: 1 }] })), "CONFLICT"); // variant sku == other's product sku
+    await createProduct(prod({ sku: "BBB", slug: "d" }));
+  });
+
+  it("stock can neither go below zero nor above the cap", async () => {
+    const p = await createProduct(prod({ stock: 9_999_999 }));
+    await fails(adjustStock(p.id, { delta: 2 }), "CONFLICT");
+    expect((await adjustStock(p.id, { delta: 1 })).stock).toBe(10_000_000);
+    await fails(adjustStock(p.id, { delta: 1 }), "CONFLICT");
+    expect((await adjustStock(p.id, { delta: -1 })).slug).toBe("diya"); // result carries the slug for cache invalidation
+  });
+
+  it("creating a URL that has an old redirect removes that redirect; deleting removes redirects that led to it", async () => {
+    const p = await createProduct(prod());
+    await updateProduct(p.id, { ...prod({ slug: "diya-new" }), baseUpdatedAt: p.updatedAt });
+    expect(await Redirect.countDocuments({ from: "/product/diya" })).toBe(1);
+    await createProduct(prod({ slug: "diya", sku: "OTHER" })); // the old URL is a real product again
+    expect(await Redirect.countDocuments({ from: "/product/diya" })).toBe(0);
+    await deleteProduct(p.id);
+    expect(await Redirect.countDocuments({ to: "/product/diya-new" })).toBe(0);
+    // same for categories
+    const c = await createCategory(cat({ slug: "old" }));
+    await updateCategory(c.id, { ...cat({ slug: "new" }), baseUpdatedAt: c.updatedAt });
+    await createCategory(cat({ slug: "old" }));
+    expect(await Redirect.countDocuments({ from: "/category/old" })).toBe(0);
+    await deleteCategory((await Category.findOne({ path: "new" }).lean())!._id.toString());
+    expect(await Redirect.countDocuments({ to: "/category/new" })).toBe(0);
+  });
+
+  it("concurrent opposite moves never create a cycle", async () => {
+    for (let round = 0; round < 4; round++) {
+      await Category.deleteMany({});
+      const a = await createCategory(cat({ name: "A", slug: "a" }));
+      const b = await createCategory(cat({ name: "B", slug: "b" }));
+      await Promise.allSettled([
+        updateCategory(a.id, { ...cat({ name: "A", slug: "a", parent: b.id }), baseUpdatedAt: a.updatedAt }),
+        updateCategory(b.id, { ...cat({ name: "B", slug: "b", parent: a.id }), baseUpdatedAt: b.updatedAt }),
+      ]);
+      const rows = await Category.find().lean();
+      const roots = rows.filter((r) => !r.parent);
+      expect(roots.length, `round ${round}: someone must remain a root`).toBeGreaterThanOrEqual(1);
+      for (const r of rows) expect(r.path.split("/").length).toBe(r.level); // paths and levels stay consistent
+    }
+  });
+
+  it("creating under a parent that is being deleted/moved cannot orphan the child", async () => {
+    const parent = await createCategory(cat({ name: "P", slug: "p" }));
+    const r = await Promise.allSettled([createCategory(cat({ name: "K", slug: "k", parent: parent.id })), deleteCategory(parent.id)]);
+    const kids = await Category.countDocuments({ parent: parent.id });
+    const parentExists = await Category.exists({ _id: parent.id });
+    expect(!(kids > 0 && !parentExists), JSON.stringify(r.map((x) => x.status))).toBe(true); // never a child without its parent
+  });
+});
+
+describe("request body limits", () => {
+  it("readLimited stops chunked bodies that exceed the limit (no Content-Length)", async () => {
+    const { readLimited } = await import("@/server/api");
+    const big = new ReadableStream<Uint8Array>({ start(c) { for (let i = 0; i < 10; i++) c.enqueue(new Uint8Array(1000)); c.close(); } });
+    const req = new Request("http://x/", { method: "POST", body: big, duplex: "half" } as RequestInit);
+    await expect(readLimited(req, 5000)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const ok = new Request("http://x/", { method: "POST", body: new Uint8Array(100) });
+    expect((await readLimited(ok, 5000)).byteLength).toBe(100);
   });
 });
 

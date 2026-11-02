@@ -34,7 +34,7 @@ describe("homepage validation", () => {
     expect(ok(sec("featuredCategories", { categoryIds: ["a".repeat(24)] }))).toBe(true);
     for (const t of ["featuredProducts", "latestProducts", "bestSellers"] as const) expect(ok(sec(t))).toBe(true);
     expect(ok(sec("richText", { markdown: "hi" }))).toBe(true);
-    expect(ok(sec("imageText"))).toBe(true);
+    expect(ok(sec("imageText", { heading: "Hi" }))).toBe(true);
     expect(ok(sec("testimonials", { items: [{ quote: "Great", author: "Asha", role: "" }] }))).toBe(true);
     expect(ok(sec("offer", { heading: "Diwali sale" }))).toBe(true);
     expect(ok(sec("custom"))).toBe(true);
@@ -68,6 +68,16 @@ describe("homepage validation", () => {
     const parsed = homeSectionSchema.parse({ ...sec("richText"), evil: 1, data: { markdown: "x", evil: 2 } }) as Record<string, unknown>;
     expect(parsed).not.toHaveProperty("evil");
     expect(parsed.data).not.toHaveProperty("evil");
+  });
+  it("URL errors carry a helpful message (not 'Invalid input'); ids are restricted; one hero; imageText not empty", () => {
+    const msg = (s: HomeSection) => { const r = homeSectionSchema.safeParse(s); return r.success ? "" : r.error.issues[0].message; };
+    expect(msg(sec("hero", { heading: "x", ctaLabel: "Go", ctaUrl: "javascript:alert(1)" }))).toMatch(/path like \/about/);
+    expect(msg(sec("hero", { heading: "x", imageUrl: "//evil.com", imageAlt: "a" }))).toMatch(/http\(s\) URL/);
+    expect(msg(sec("hero", { heading: "x", ctaLabel: "Go", ctaUrl: "/" + "a".repeat(2100) }))).not.toBe("");
+    expect(homeSectionSchema.safeParse({ ...sec("richText"), id: "has space" }).success).toBe(false);
+    expect(homepageInputSchema.safeParse({ sections: [sec("hero", { heading: "a" }), sec("hero", { heading: "b" })] }).success).toBe(false);
+    expect(ok(sec("imageText"))).toBe(false); // empty block
+    expect(ok(sec("imageText", { heading: "Hi" }))).toBe(true);
   });
   it("update schema needs baseUpdatedAt (null allowed for the first save)", () => {
     expect(updateHomepageSchema.safeParse({ sections: [] }).success).toBe(false);
@@ -114,6 +124,22 @@ describe("homepage service (godpuja_test)", () => {
     expect(html).toContain("<strong>ok</strong>");
     expect(html).not.toContain("<script");
     expect(html).not.toContain("javascript:");
+  });
+
+  it("a malformed stored section is skipped instead of breaking the page", async () => {
+    await Homepage.create({ key: "main", sections: [{ id: "bad", type: "banner", enabled: true, data: {} }, sec("richText", { markdown: "still here" })] });
+    const s = (await findPublicHomepage())!.sections;
+    expect(s).toHaveLength(1);
+    expect(s[0].type).toBe("richText");
+  });
+
+  it("rails keep a stable order when many products tie", async () => {
+    for (let i = 0; i < 6; i++) await createProduct(prod({ name: `P${i}`, slug: `p${i}`, sku: `T${i}` }));
+    await Product.updateMany({}, { $set: { soldCount: 0, createdAt: new Date("2026-01-01") } });
+    await updateHomepage({ sections: [sec("bestSellers", { limit: 4 }), sec("latestProducts", { limit: 4 })], baseUpdatedAt: null });
+    const names = async () => ((await findPublicHomepage())!.sections as unknown as { products: { name: string }[] }[]).map((r) => r.products.map((p) => p.name).join(","));
+    const first = await names();
+    for (let i = 0; i < 3; i++) expect(await names()).toEqual(first);
   });
 
   it("offers disappear after expiry without an edit", async () => {
@@ -170,9 +196,9 @@ describe("homepage service (godpuja_test)", () => {
     await createProduct(prod());
     const stages = (plan: unknown): string[] => { const s: string[] = []; const walk = (x: unknown) => { if (x && typeof x === "object") { const o = x as Record<string, unknown>; if (typeof o.stage === "string") s.push(o.stage); Object.values(o).forEach(walk); } }; walk(plan); return s; };
     const qs: Record<string, mongoose.Query<unknown[], unknown>> = {
-      featured: Product.find({ status: "active", isFeatured: true }).sort({ createdAt: -1 }).limit(8),
-      latest: Product.find({ status: "active" }).sort({ createdAt: -1 }).limit(8),
-      best: Product.find({ status: "active" }).sort({ soldCount: -1 }).limit(8),
+      featured: Product.find({ status: "active", isFeatured: true }).sort({ createdAt: -1, _id: -1 }).limit(8),
+      latest: Product.find({ status: "active" }).sort({ createdAt: -1, _id: -1 }).limit(8),
+      best: Product.find({ status: "active" }).sort({ soldCount: -1, _id: -1 }).limit(8),
     };
     for (const [name, q] of Object.entries(qs)) {
       const st = stages(((await q.explain("queryPlanner")) as unknown as { queryPlanner: { winningPlan: unknown } }).queryPlanner.winningPlan);

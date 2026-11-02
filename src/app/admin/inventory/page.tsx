@@ -33,7 +33,7 @@ export default async function InventoryPage({ searchParams }: PageProps<"/admin/
         <button type="submit" className="btn-outline h-10">Filter</button>
         {(query.q || query.lowStock) && <Link href="/admin/inventory" className="btn-ghost h-10">Clear</Link>}
       </form>
-      <InventoryClient key={JSON.stringify(result.items.map((i) => [i.id, i.stock]))} items={result.items} />
+      <InventoryClient key={JSON.stringify(result.items.map((i) => [i.id, i.stock, i.variants.map((v) => v.stock)]))} items={result.items} />
       {result.pages > 1 && (
         <nav aria-label="Pagination" className="mt-4 flex items-center justify-between text-sm">
           <p className="text-muted">Page {result.page} of {result.pages} · {result.total} products</p>

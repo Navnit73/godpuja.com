@@ -11,6 +11,7 @@ export const istInputToIso = (v: string) => new Date(`${v}:00+05:30`).toISOStrin
 
 /** ISO instant -> "YYYY-MM-DDTHH:mm" in India Standard Time, for a datetime-local input. */
 export const isoToIstInput = (iso: string) => {
+  if (Number.isNaN(new Date(iso).getTime())) return "";
   const d = new Date(new Date(iso).getTime() + 5.5 * 3600_000);
   return d.toISOString().slice(0, 16);
 };

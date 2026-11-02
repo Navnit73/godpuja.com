@@ -11,6 +11,7 @@ const categorySchema = new mongoose.Schema(
     image: { url: { type: String, default: "" }, alt: { type: String, default: "" } },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    treeVersion: { type: Number, default: 0 }, // bumped on structural changes below/around a node; see services/categories.ts
     seo: {
       title: { type: String, default: "" },
       description: { type: String, default: "" },

@@ -4,7 +4,7 @@ import { connectDB } from "../db";
 import { renderMarkdown } from "../markdown";
 import { Category } from "../models/Category";
 import { Product, type ProductDoc } from "../models/Product";
-import { recordRedirects } from "./redirects";
+import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 import type { InventoryInput, ListProductsInput, ProductInput, PublicProductsInput, UpdateProductInput } from "@/lib/validation/catalog";
 
 type Variant = ProductDoc["variants"][number];
@@ -40,7 +40,7 @@ function writable(i: ProductInput) {
   return {
     name: i.name, slug: i.slug, sku: i.sku, shortDescription: i.shortDescription, description: i.description,
     images: i.images.map((x, n) => ({ ...x, order: n })), category: i.category ? new mongoose.Types.ObjectId(i.category) : null, brand: i.brand,
-    price: i.price, salePrice: i.salePrice ?? undefined, effectivePrice: i.salePrice ?? i.price, lowStockThreshold: i.lowStockThreshold,
+    price: i.price, salePrice: i.salePrice ?? null, effectivePrice: i.salePrice ?? i.price, lowStockThreshold: i.lowStockThreshold,
     status: i.status, isFeatured: i.isFeatured, attributes: i.attributes, shipping: i.shipping, seo: i.seo,
   };
 }
@@ -52,6 +52,16 @@ function dup(err: unknown): never {
     throw new ApiError("CONFLICT", "This SKU is already used by another product", key.includes("variants") ? { variants: "A variant SKU is already in use" } : { sku: "Already in use" });
   }
   throw err;
+}
+
+/** SKUs are one namespace: a product SKU may not equal another product's SKU or variant SKU (and vice versa). */
+async function assertSkusFree(input: ProductInput, selfId?: string) {
+  const skus = [input.sku, ...input.variants.map((v) => v.sku)];
+  const clash = await Product.findOne({ ...(selfId ? { _id: { $ne: selfId } } : {}), $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).select("sku variants.sku").lean();
+  if (clash) {
+    const taken = skus.find((k) => clash.sku === k || clash.variants?.some((v) => v.sku === k)) ?? input.sku;
+    throw new ApiError("CONFLICT", `SKU ${taken} is already used by another product`, taken === input.sku ? { sku: "Already in use" } : { variants: `SKU ${taken} is already in use` });
+  }
 }
 
 async function assertCategory(id: string | null) {
@@ -114,7 +124,9 @@ export async function getProduct(id: string): Promise<AdminProduct> {
 export async function createProduct(input: ProductInput) {
   await connectDB();
   await assertCategory(input.category);
+  await assertSkusFree(input);
   try {
+    await clearRedirectsFrom([`/product/${input.slug}`]);
     const p = await Product.create({ ...writable(input), stock: input.stock, variants: input.variants });
     const obj = p.toObject() as unknown as ProductDoc;
     return toAdmin(obj);
@@ -133,6 +145,7 @@ export async function updateProduct(id: string, { baseUpdatedAt, ...input }: Upd
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Product not found");
   await connectDB();
   await assertCategory(input.category);
+  await assertSkusFree(input, id);
   const session = await mongoose.startSession();
   try {
     let out!: { product: AdminProduct; previousSlug: string };
@@ -145,6 +158,7 @@ export async function updateProduct(id: string, { baseUpdatedAt, ...input }: Upd
       const stockBySku = new Map((cur.variants ?? []).map((v) => [v.sku, v.stock]));
       const variants = input.variants.map((v) => ({ ...v, stock: stockBySku.get(v.sku) ?? v.stock }));
       const updated = await Product.findByIdAndUpdate(id, { $set: { ...writable(input), variants } }, { returnDocument: "after", session }).lean();
+      if (cur.slug !== input.slug) await clearRedirectsFrom([`/product/${input.slug}`], session);
       if (cur.slug !== input.slug) await recordRedirects([{ from: `/product/${cur.slug}`, to: `/product/${input.slug}` }], session);
       out = { product: toAdmin(updated!), previousSlug: cur.slug };
     });
@@ -161,6 +175,7 @@ export async function deleteProduct(id: string) {
   await connectDB();
   const p = await Product.findByIdAndDelete(id).select("slug").lean();
   if (!p) throw new ApiError("NOT_FOUND", "Product not found");
+  await dropRedirectsTo([`/product/${p.slug}`]); // do not leave redirects that lead to a deleted page
   return { slug: p.slug };
 }
 
@@ -169,12 +184,13 @@ export async function deleteProduct(id: string) {
  * decrements can never drive stock below zero; there is no read-modify-write. `timestamps: false` keeps an
  * inventory change from invalidating an editor's `baseUpdatedAt`.
  */
+const MAX_STOCK = 10_000_000;
 export async function adjustStock(id: string, input: InventoryInput) {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Product not found");
   await connectDB();
   const sku = input.sku;
   const rel = "delta" in input;
-  const cur = await Product.findById(id).select("variants sku").lean();
+  const cur = await Product.findById(id).select("variants sku slug").lean();
   if (!cur) throw new ApiError("NOT_FOUND", "Product not found");
   const hasVariants = (cur.variants ?? []).length > 0;
   if (hasVariants && !sku) throw new ApiError("VALIDATION_ERROR", "This product has variants; choose a variant SKU", { sku: "Required" });
@@ -182,20 +198,20 @@ export async function adjustStock(id: string, input: InventoryInput) {
 
   let res;
   if (hasVariants) {
-    const guard = rel && input.delta < 0 ? { $elemMatch: { sku, stock: { $gte: -input.delta } } } : { $elemMatch: { sku } };
+    const guard = rel ? { $elemMatch: { sku, stock: input.delta < 0 ? { $gte: -input.delta } : { $lte: MAX_STOCK - input.delta } } } : { $elemMatch: { sku } };
     res = await Product.updateOne({ _id: id, variants: guard }, rel ? { $inc: { "variants.$.stock": input.delta } } : { $set: { "variants.$.stock": input.set } }, { timestamps: false });
   } else {
     const filter: Record<string, unknown> = { _id: id };
-    if (rel && input.delta < 0) filter.stock = { $gte: -input.delta };
+    if (rel) filter.stock = input.delta < 0 ? { $gte: -input.delta } : { $lte: MAX_STOCK - input.delta }; // never below 0 or above the cap
     res = await Product.updateOne(filter, rel ? { $inc: { stock: input.delta } } : { $set: { stock: input.set } }, { timestamps: false });
   }
   if (res.matchedCount === 0) {
     const exists = hasVariants ? await Product.exists({ _id: id, "variants.sku": sku }) : true;
     if (!exists) throw new ApiError("NOT_FOUND", "SKU not found on this product", { sku: "Unknown SKU" });
-    throw new ApiError("CONFLICT", "Not enough stock for that change");
+    throw new ApiError("CONFLICT", "Not enough stock for that change, or it would exceed the maximum");
   }
   const p = await Product.findById(id).select("stock variants lowStockThreshold").lean();
-  return { stock: totalStock(p!), variants: (p!.variants ?? []).map((v) => ({ sku: v.sku, stock: v.stock })), lowStock: isLow(p!) };
+  return { slug: cur.slug, stock: totalStock(p!), variants: (p!.variants ?? []).map((v) => ({ sku: v.sku, stock: v.stock })), lowStock: isLow(p!) };
 }
 
 // ---------- Public (storefront) ----------
@@ -213,6 +229,18 @@ export type PublicProductDetail = Omit<PublicProduct, "image"> & {
 
 export const sortedImages = (p: ProductDoc) => [...(p.images ?? [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((i) => ({ url: i.url!, alt: i.alt ?? "" }));
 export const inStock = (p: ProductDoc) => (p.variants?.length ? p.variants.some((v) => v.stock > 0) : p.stock > 0);
+
+/**
+ * Path + visibility index of all categories (one small query). `hidden` = ids of inactive categories and everything
+ * beneath them; public product queries exclude these so hiding a category really hides its products everywhere.
+ */
+export async function loadCategoryIndex() {
+  await connectDB();
+  const rows = await Category.find().select("path isActive").lean();
+  const inactive = rows.filter((r) => r.isActive === false).map((r) => r.path);
+  const hidden = rows.filter((r) => inactive.some((p) => r.path === p || r.path.startsWith(p + "/"))).map((r) => r._id);
+  return { catPath: new Map(rows.map((c) => [String(c._id), c.path])), hidden };
+}
 
 /** Category path -> ids of that category and its active descendants (whole chain must be active). null = unknown/inactive. */
 export async function activeCategoryIds(path: string): Promise<mongoose.Types.ObjectId[] | null> {
@@ -243,12 +271,12 @@ export async function findPublicProducts(q: PublicProductsInput) {
   const sort: Record<string, 1 | -1> =
     q.sort === "price-asc" ? { effectivePrice: 1, _id: 1 } : q.sort === "price-desc" ? { effectivePrice: -1, _id: -1 }
     : q.sort === "popular" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
-  const [rows, total, cats] = await Promise.all([
+  const { catPath: path, hidden } = await loadCategoryIndex();
+  if (hidden.length && !q.category) filter.category = { $nin: hidden };
+  const [rows, total] = await Promise.all([
     Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
     Product.countDocuments(filter),
-    Category.find().select("path").lean(),
   ]);
-  const path = new Map(cats.map((c) => [String(c._id), c.path]));
   const items: PublicProduct[] = rows.map((p) => ({
     id: String(p._id), name: p.name, slug: p.slug, shortDescription: p.shortDescription ?? "", image: sortedImages(p as ProductDoc)[0] ?? null,
     price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p as ProductDoc), isFeatured: !!p.isFeatured, category: p.category ? path.get(String(p.category)) ?? null : null,
@@ -261,6 +289,10 @@ export async function findPublicProduct(slug: string): Promise<PublicProductDeta
   const p = await Product.findOne({ slug, status: "active" }).lean();
   if (!p) return null;
   const cat = p.category ? await Category.findById(p.category).select("path isActive").lean() : null;
+  if (p.category) {
+    const { hidden } = await loadCategoryIndex();
+    if (hidden.some((h) => String(h) === String(p.category))) return null; // its category (or an ancestor) is hidden
+  }
   return {
     id: String(p._id), name: p.name, slug: p.slug, sku: p.sku, shortDescription: p.shortDescription ?? "", descriptionHtml: renderMarkdown(p.description ?? ""),
     images: sortedImages(p), brand: p.brand ?? "", price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), isFeatured: !!p.isFeatured,
@@ -281,7 +313,7 @@ const toPublicProduct = (p: ProductDoc, catPath: Map<string, string>): PublicPro
 });
 
 /** One indexed, limited query for a homepage product rail. Callers run all rails in parallel (never per product). */
-export async function findRail(spec: RailSpec, catPath: Map<string, string>): Promise<PublicProduct[]> {
+export async function findRail(spec: RailSpec, catPath: Map<string, string>, hidden: mongoose.Types.ObjectId[] = []): Promise<PublicProduct[]> {
   await connectDB();
   const filter: Record<string, unknown> = { status: "active" };
   if (spec.kind === "featuredProducts") filter.isFeatured = true;
@@ -289,9 +321,10 @@ export async function findRail(spec: RailSpec, catPath: Map<string, string>): Pr
     const ids = await activeCategoryIds(spec.category);
     if (!ids) return [];
     filter.category = { $in: ids };
-  }
-  // No _id tiebreaker: rails are not paginated, and without it the sort is served straight from the index.
-  const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1 } : { createdAt: -1 };
+  } else if (hidden.length) filter.category = { $nin: hidden };
+  // _id tiebreaker keeps the order stable between cache refreshes when many products tie (e.g. all unsold); the
+  // compound indexes end in _id so the sort is still served from the index.
+  const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
   const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).limit(spec.limit).lean();
   return rows.map((p) => toPublicProduct(p as ProductDoc, catPath));
 }

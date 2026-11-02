@@ -43,9 +43,9 @@ const productSchema = new mongoose.Schema(
   { timestamps: true },
 );
 productSchema.index({ status: 1, category: 1, createdAt: -1 });
-productSchema.index({ status: 1, isFeatured: 1, createdAt: -1 });
-productSchema.index({ status: 1, createdAt: -1 });
-productSchema.index({ status: 1, soldCount: -1 });
+productSchema.index({ status: 1, isFeatured: 1, createdAt: -1, _id: -1 });
+productSchema.index({ status: 1, createdAt: -1, _id: -1 });
+productSchema.index({ status: 1, soldCount: -1, _id: -1 });
 productSchema.index({ status: 1, effectivePrice: 1 });
 productSchema.index({ "variants.sku": 1 }, { unique: true, partialFilterExpression: { "variants.sku": { $type: "string" } } });
 productSchema.index({ name: "text", shortDescription: "text", brand: "text" }, { weights: { name: 5, brand: 2, shortDescription: 1 } });

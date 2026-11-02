@@ -1,4 +1,4 @@
-import { ApiError, handle, ok } from "@/server/api";
+import { ApiError, handle, ok, readLimited } from "@/server/api";
 import { requireUser } from "@/server/auth/guard";
 import { can } from "@/server/auth/permissions";
 import { rateLimit } from "@/server/rate-limit";
@@ -19,9 +19,11 @@ export const GET = handle(async (req) => {
 export const POST = handle(async (req) => {
   const user = await requireUser("media:write");
   rateLimit(`upload:${String(user._id)}`, 30, 60_000);
-  if (Number(req.headers.get("content-length") ?? 0) > MAX_UPLOAD_BYTES + 100_000) throw new ApiError("VALIDATION_ERROR", "Image is larger than 5 MB", { file: "Max 5 MB" });
-  if (!(req.headers.get("content-type") ?? "").toLowerCase().startsWith("multipart/form-data")) throw new ApiError("VALIDATION_ERROR", "Send the image as multipart/form-data");
-  const file = (await req.formData().catch(() => null))?.get("file");
+  const type = req.headers.get("content-type") ?? "";
+  if (!type.toLowerCase().startsWith("multipart/form-data")) throw new ApiError("VALIDATION_ERROR", "Send the image as multipart/form-data");
+  // Bounded read (works for chunked bodies too) before the multipart parser sees anything.
+  const bytes = await readLimited(req, MAX_UPLOAD_BYTES + 100_000).catch(() => { throw new ApiError("VALIDATION_ERROR", "Image is larger than 5 MB", { file: "Max 5 MB" }); });
+  const file = (await new Response(bytes as BodyInit, { headers: { "content-type": type } }).formData().catch(() => null))?.get("file");
   if (!(file instanceof File)) throw new ApiError("VALIDATION_ERROR", "Choose an image to upload", { file: "Required" });
   return ok(await uploadMedia(file, String(user._id)), { status: 201 });
 });

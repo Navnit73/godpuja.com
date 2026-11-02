@@ -4,8 +4,8 @@ import { connectDB } from "../db";
 import { renderMarkdown } from "../markdown";
 import { Category } from "../models/Category";
 import { Homepage, type HomepageDoc } from "../models/Homepage";
-import { findRail, type PublicProduct } from "./products";
-import type { HomepageInput, HomeSection, UpdateHomepageInput } from "@/lib/validation/homepage";
+import { findRail, loadCategoryIndex, type PublicProduct } from "./products";
+import { homeSectionSchema, type HomepageInput, type HomeSection, type UpdateHomepageInput } from "@/lib/validation/homepage";
 
 export type AdminHomepage = HomepageInput & { updatedAt: string | null };
 
@@ -61,13 +61,19 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
   await connectDB();
   const doc = await Homepage.findOne({ key: "main" }).lean();
   if (!doc) return null;
-  const sections = (doc.sections ?? []).filter((s) => s.enabled);
+  // Stored data is re-validated: a hand-edited or older-shaped section is skipped instead of breaking the whole page.
+  const sections: HomeSection[] = [];
+  for (const raw of doc.sections ?? []) {
+    const r = homeSectionSchema.safeParse(raw);
+    if (!r.success) { console.error("[homepage] skipping invalid stored section", (raw as { id?: string })?.id); continue; }
+    if (r.data.enabled) sections.push(r.data);
+  }
 
   const wantedIds = [...new Set(sections.flatMap((s) => (s.type === "featuredCategories" ? s.data.categoryIds : [])))].filter((i) => mongoose.isValidObjectId(i));
   const hasRails = sections.some(isRail);
-  const [cats, allCats] = await Promise.all([
+  const [cats, index] = await Promise.all([
     wantedIds.length ? Category.find({ _id: { $in: wantedIds }, isActive: true }).select("name path parent image").lean() : [],
-    hasRails ? Category.find().select("path").lean() : [],
+    hasRails ? loadCategoryIndex() : null,
   ]);
   // A category is shown only if its whole ancestor chain is active.
   const activeAncestors = async () => {
@@ -77,10 +83,10 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
   };
   const blocked = cats.length ? await activeAncestors() : new Set<string>();
   const catById = new Map(cats.filter((c) => ![...blocked].some((b) => c.path.startsWith(b + "/"))).map((c) => [String(c._id), c]));
-  const catPath = new Map(allCats.map((c) => [String(c._id), c.path]));
+  const catPath = index?.catPath ?? new Map<string, string>();
 
   const railResults = new Map<string, PublicProduct[]>();
-  await Promise.all(sections.filter(isRail).map(async (s) => railResults.set(s.id, await findRail({ kind: s.type, category: s.data.category, limit: s.data.limit }, catPath))));
+  await Promise.all(sections.filter(isRail).map(async (s) => railResults.set(s.id, await findRail({ kind: s.type, category: s.data.category, limit: s.data.limit }, catPath, index?.hidden))));
 
   const out: PublicHomeSection[] = [];
   for (const s of sections) {

@@ -64,7 +64,7 @@ Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 ## Catalog & media (Stage 6)
 | Method | Path | Perm | Notes |
 |---|---|---|---|
-| GET | /categories | — (tree, cached, tag `categories`) | active only; an inactive category hides its subtree |
+| GET | /categories | — (tree, cached, tag `categories`) | active only; an inactive category hides its subtree **and its products** (list, search, detail, homepage rails) |
 | GET | /products | — (rate limited 120/min/IP, uncached, index-backed) | `category` (path, includes active descendants), `q` (text search), `sort` (`newest`\|`price-asc`\|`price-desc`\|`popular`), `minPrice`/`maxPrice` (paise, on sale-or-list price), `featured=1`, `page`, `limit` (≤50). Never exposes stock counts (`inStock` only) |
 | GET | /products/:slug | — (cached, tag `product:<slug>`) | active products only; description sanitised; variants with `inStock` |
 | GET/POST | /admin/categories | categories:write | list is flat in tree order with product counts |

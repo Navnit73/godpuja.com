@@ -3,7 +3,7 @@ import { ApiError } from "../api";
 import { connectDB } from "../db";
 import { Category, type CategoryDoc } from "../models/Category";
 import { Product } from "../models/Product";
-import { recordRedirects } from "./redirects";
+import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 import { MAX_CATEGORY_DEPTH, type CategoryInput, type UpdateCategoryInput } from "@/lib/validation/catalog";
 
 export type AdminCategory = CategoryInput & { id: string; path: string; level: number; createdAt: string; updatedAt: string };
@@ -19,6 +19,17 @@ function toAdmin(c: CategoryDoc): AdminCategory {
     seo: { title: c.seo?.title ?? "", description: c.seo?.description ?? "", canonical: c.seo?.canonical ?? "", ogImage: c.seo?.ogImage ?? "", noindex: !!c.seo?.noindex },
     createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString(),
   };
+}
+
+/**
+ * Structural writes (create/move/delete) "touch" the parent nodes they depend on. Two transactions that rely on the
+ * same node then write the same document, so MongoDB reports a write conflict and one retries against fresh data;
+ * without this, two moves with disjoint write sets (A under B and B under A) could both commit and form a cycle.
+ * `timestamps:false` so editors' `baseUpdatedAt` is unaffected.
+ */
+async function touch(ids: (string | mongoose.Types.ObjectId | null | undefined)[], session: mongoose.ClientSession) {
+  const real = ids.filter(Boolean) as (string | mongoose.Types.ObjectId)[];
+  if (real.length) await Category.updateMany({ _id: { $in: real } }, { $inc: { treeVersion: 1 } }, { session, timestamps: false });
 }
 
 const dupPath = (err: unknown): never => {
@@ -48,23 +59,31 @@ export async function getCategory(id: string): Promise<AdminCategory> {
   return toAdmin(c);
 }
 
-async function parentInfo(parent: string | null) {
-  if (!parent) return { path: "", level: 0 };
-  if (!isId(parent)) throw new ApiError("VALIDATION_ERROR", "Parent not found", { parent: "Choose an existing category" });
-  const p = await Category.findById(parent).select("path level").lean();
-  if (!p) throw new ApiError("VALIDATION_ERROR", "Parent not found", { parent: "Choose an existing category" });
-  return { path: p.path, level: p.level };
-}
-
 export async function createCategory(input: CategoryInput) {
   await connectDB();
-  const p = await parentInfo(input.parent);
-  if (p.level + 1 > MAX_CATEGORY_DEPTH) throw new ApiError("VALIDATION_ERROR", `Categories can be at most ${MAX_CATEGORY_DEPTH} levels deep`, { parent: "Too deep" });
+  const session = await mongoose.startSession();
   try {
-    const c = await Category.create({ ...input, path: p.path ? `${p.path}/${input.slug}` : input.slug, level: p.level + 1 });
-    return toAdmin(c.toObject() as CategoryDoc);
+    let out!: AdminCategory;
+    await session.withTransaction(async () => {
+      let p = { path: "", level: 0 };
+      if (input.parent) {
+        if (!isId(input.parent)) throw new ApiError("VALIDATION_ERROR", "Parent not found", { parent: "Choose an existing category" });
+        const found = await Category.findById(input.parent).session(session).select("path level").lean();
+        if (!found) throw new ApiError("VALIDATION_ERROR", "Parent not found", { parent: "Choose an existing category" });
+        p = found;
+      }
+      if (p.level + 1 > MAX_CATEGORY_DEPTH) throw new ApiError("VALIDATION_ERROR", `Categories can be at most ${MAX_CATEGORY_DEPTH} levels deep`, { parent: "Too deep" });
+      const path = p.path ? `${p.path}/${input.slug}` : input.slug;
+      await touch([input.parent], session); // conflicts with a concurrent move/delete of the parent
+      const [c] = await Category.create([{ ...input, path, level: p.level + 1 }], { session });
+      await clearRedirectsFrom([`/category/${path}`], session);
+      out = toAdmin(c.toObject() as CategoryDoc);
+    });
+    return out;
   } catch (err) {
     return dupPath(err);
+  } finally {
+    await session.endSession();
   }
 }
 
@@ -97,6 +116,7 @@ export async function updateCategory(id: string, { baseUpdatedAt, ...input }: Up
           return p;
         })();
       }
+      await touch([cur.parent, parent], session); // serialises against concurrent moves/deletes around these parents
       const newLevel = np.level + 1;
       const delta = newLevel - cur.level;
       const height = Math.max(0, ...descendants.map((d) => d.level - cur.level)) + 1;
@@ -113,6 +133,7 @@ export async function updateCategory(id: string, { baseUpdatedAt, ...input }: Up
           return { updateOne: { filter: { _id: d._id }, update: { $set: { path: np2, level: d.level + delta } } } };
         });
         if (ops.length) await Category.bulkWrite(ops, { session, ordered: true });
+        await clearRedirectsFrom([`/category/${newPath}`], session);
         await recordRedirects(moves, session);
       }
       const { image, seo, ...rest } = input;
@@ -130,12 +151,23 @@ export async function updateCategory(id: string, { baseUpdatedAt, ...input }: Up
 export async function deleteCategory(id: string) {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Category not found");
   await connectDB();
-  const c = await Category.findById(id).select("path").lean();
-  if (!c) throw new ApiError("NOT_FOUND", "Category not found");
-  if (await Category.exists({ parent: id })) throw new ApiError("CONFLICT", "Delete or move its subcategories first");
-  if (await Product.exists({ category: id })) throw new ApiError("CONFLICT", "Move its products to another category first");
-  await Category.deleteOne({ _id: id });
-  return { path: c.path };
+  const session = await mongoose.startSession();
+  try {
+    let path = "";
+    await session.withTransaction(async () => {
+      const c = await Category.findById(id).session(session).select("path parent").lean();
+      if (!c) throw new ApiError("NOT_FOUND", "Category not found");
+      await touch([id, c.parent], session); // a concurrent create/move under it now conflicts instead of orphaning
+      if (await Category.exists({ parent: id }).session(session)) throw new ApiError("CONFLICT", "Delete or move its subcategories first");
+      if (await Product.exists({ category: id }).session(session)) throw new ApiError("CONFLICT", "Move its products to another category first");
+      await Category.deleteOne({ _id: id }, { session });
+      await dropRedirectsTo([`/category/${c.path}`], session);
+      path = c.path;
+    });
+    return { path };
+  } finally {
+    await session.endSession();
+  }
 }
 
 // ---------- Public ----------

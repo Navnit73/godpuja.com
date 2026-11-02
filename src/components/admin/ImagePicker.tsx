@@ -7,13 +7,24 @@ import { api } from "@/lib/api";
 import type { MediaItem } from "@/server/services/media";
 
 /** Choose an image from the media library. Calls `onPick` with its URL and stored alt text. */
+const PAGE = 36;
+
 export default function ImagePicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (url: string, alt: string) => void }) {
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [more, setMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const load = (p: number) => {
+    setLoading(true);
+    api.get<MediaItem[]>(`/admin/media?limit=${PAGE}&page=${p}`)
+      .then((rows) => { setItems((cur) => [...(p === 1 ? [] : cur ?? []), ...rows]); setMore(rows.length === PAGE); setPage(p); }, () => setError("Could not load the media library."))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => {
-    if (!open || items) return;
-    api.get<MediaItem[]>("/admin/media?limit=60").then(setItems, () => setError("Could not load the media library."));
-  }, [open, items]);
+    if (open && !items && !loading) queueMicrotask(() => load(1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when first opened
+  }, [open]);
   return (
     <Modal open={open} onClose={onClose} title="Choose an image">
       {error && <p role="alert" className="alert-error">{error}</p>}
@@ -29,7 +40,10 @@ export default function ImagePicker({ open, onClose, onPick }: { open: boolean; 
           </li>
         ))}
       </ul>
-      <div className="mt-4 flex justify-end"><Button variant="outline" onClick={onClose}>Cancel</Button></div>
+      <div className="mt-4 flex justify-between gap-2">
+        {more ? <Button variant="outline" onClick={() => load(page + 1)} loading={loading}>Load more</Button> : <span />}
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+      </div>
     </Modal>
   );
 }

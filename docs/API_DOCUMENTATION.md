@@ -18,7 +18,14 @@ Permission column: `—` public, `auth` any logged-in user, otherwise a permissi
 | GET | /auth/me | auth | current user |
 
 ## Users & roles (Stage 2)
-GET/POST `/admin/users`, GET/PATCH/DELETE `/admin/users/:id` — `users:*`.
+| Method | Path | Perm | Notes |
+|---|---|---|---|
+| GET | /admin/users | users:read | `q`, `role`, `page`, `limit` (≤50); `meta {total,page,limit,pages}` |
+| POST | /admin/users | users:write | `{name,email,password,role}` |
+| GET | /admin/users/:id | users:read | |
+| PATCH | /admin/users/:id | users:write | any of `name, role, isActive, password`; unknown keys ignored |
+
+No DELETE: users are deactivated (`isActive:false`) so order history stays intact. Rules (server-enforced, transactional): no self role change/deactivation; last active superadmin cannot be demoted/deactivated; role/active/password changes revoke the user's sessions (`tokenVersion`); changing your own password re-issues your cookie.
 
 ## Pages (Stage 3)
 | Method | Path | Perm |

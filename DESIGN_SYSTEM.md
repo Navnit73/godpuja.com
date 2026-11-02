@@ -7,7 +7,7 @@
 1. Minimal, calm, premium, light theme only (no dark mode, `color-scheme: light`).
 2. Material-style depth: soft elevation shadows from tokens; **no glassmorphism** (no blur, no translucent frosted surfaces).
 3. Only token colors, spacing, radii, fonts. No hex values, arbitrary `px` values, or inline styles in components.
-4. No gradients. Exception: none. (The existing `divider-gold` gradient is replaced with a solid line in Stage 1.)
+4. No gradients (`divider-gold` is now a solid line).
 5. Same layout language across storefront and admin.
 6. WCAG AA contrast, visible focus ring, 44px minimum touch targets on mobile.
 
@@ -25,15 +25,16 @@
 | Surface | `surface` | #ffffff | cards, navbar, tables, inputs |
 | Border | `border` (`sandal-300`) | #e9d8b9 | dividers, input borders |
 | Accent | `accent` (`gold-500`) | #c19a2e | focus ring, ornaments only (not text on light) |
-| Success | `tulsi-500/700` | #4f7f55 / #335738 | success states |
-| Danger | `kumkum-600` | #a82a30 | errors, destructive |
+| Success | `success` (`tulsi-700`) / `success-soft` (`tulsi-50`) | #335738 / #f2f7f2 | success text and tonal badges (AA). `tulsi-500` is decorative only |
+| Danger | `danger` (`kumkum-600`) / `danger-soft` | #a82a30 | errors, destructive |
+| Scrim | `scrim` | maroon @ 45% | modal and mobile-drawer backdrop only (the single translucent token; no frosted/blurred surfaces) |
 
-Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50…400`, `tulsi-50…700`. To add in Stage 1: `warning`, `info`, `danger`, `success` semantic aliases.
+Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50…400`, `tulsi-50…700`. Semantic aliases (Stage 1): `danger`/`danger-soft`, `success`/`success-soft`, `warning`/`warning-soft`.
 
 ## Typography
 
 - Headings: `font-serif` (Cormorant Garamond, 500–700). Body/UI: `font-sans` (Inter).
-- Scale (to be tokenised in Stage 1 as `--text-*`): xs 12, sm 14, base 16, lg 18, xl 20, 2xl 24, 3xl 30, 4xl 36, 5xl 48. Body line-height 1.6, headings 1.2.
+- Scale (tokenised as `--text-*` in `globals.css`): xs 12, sm 14, base 16, lg 18, xl 20, 2xl 24, 3xl 30, 4xl 36, 5xl 48. Body line-height 1.6, headings 1.2.
 - Weights: 400 body, 500 UI labels/buttons, 600 headings/emphasis. Admin UI uses `font-sans` throughout, including headings.
 
 ## Spacing, radius, containers
@@ -53,14 +54,18 @@ Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50�
 |---|---|
 | `btn-primary` | saffron fill, white text, `elev-1`, hover state-layer 8%, press 14% |
 | `btn-outline` | saffron-300 border, primary text, state layer |
-| `btn-ghost` (Stage 2) | no border/fill, for toolbars |
-| `btn-danger` (Stage 2) | kumkum-600 fill |
+| `btn-ghost` | no border/fill, for toolbars and row actions |
+| `btn-danger` | `danger` fill |
+| `btn-sm` | `min-h-11` (44px touch target) on mobile, `min-h-8` from `sm` up |
+| `badge-*` | `primary`, `success`, `danger`, `muted`; tonal bg + dark text |
+| Modal | native `<dialog>`; `rounded-xl`, `elev-4`, `scrim` backdrop; closes on Esc or backdrop press+release |
+| Toast | bottom-right, `aria-live="polite"`, auto-dismiss 4 s |
 | `card` | `surface`, `rounded-xl`, `elev-1`, hover `elev-3` (only when clickable) |
-| Input (Stage 1) | `surface`, 1px `border`, `rounded-md`, h-10, focus: 2px `accent` ring; error: `danger` border + message below |
-| Table (Stage 2) | `surface`, header `sandal-100` bg, row divider `border`, row hover `sandal-50`, sticky header, empty state row |
+| `input`, `label`, `field-error`, `alert-error` (Stage 1) | `surface`, 1px `border`, `rounded-md`, h-10, focus: 2px `accent` ring; error: `danger` border + message below |
+| `data-table` (Stage 2) | `surface` card with `overflow-x-auto`, header `sandal-100`, row divider `border`, row hover `sandal-50`, `<caption class="sr-only">`, `scope="col"`; header is **not** sticky (sticky inside a scroll container never sticks); empty state replaces the table |
 | Badge (Stage 2) | `rounded-full`, tonal bg `*-100` + `*-700` text |
 | Navbar | sticky, `surface`, bottom `border`, **no shadow** |
-| Admin shell (Stage 2) | fixed sidebar 256px (collapses < lg), header with breadcrumbs, content in `max-w-7xl` |
+| Admin shell (Stage 2) | sidebar 256px (drawer < lg: hidden from tab order when closed, Esc closes, background `inert` when open), sticky header with breadcrumbs + sign-out, content in `max-w-7xl` |
 
 ## Accessibility
 

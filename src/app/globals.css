@@ -74,6 +74,28 @@
   --shadow-elev-4: 0 2px 3px rgb(60 20 10 / 0.18), 0 6px 10px 4px rgb(60 20 10 / 0.12);
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
+  /* Modal / drawer scrim (the only translucent token; not a frosted surface) */
+  --color-scrim: rgb(59 13 16 / 0.45);
+
+  /* Semantic status colors */
+  --color-danger: var(--color-kumkum-600);
+  --color-danger-soft: var(--color-kumkum-50);
+  --color-success: var(--color-tulsi-700);
+  --color-success-soft: var(--color-tulsi-50);
+  --color-warning: var(--color-gold-700);
+  --color-warning-soft: var(--color-gold-50);
+
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-cormorant), ui-serif, Georgia, serif;
 }
@@ -142,5 +164,67 @@
 }
 
 @utility divider-gold {
-  @apply h-px w-24 bg-gradient-to-r from-transparent via-accent to-transparent;
+  @apply h-px w-24 bg-accent;
+}
+
+/* Form controls */
+@utility input {
+  @apply block h-10 w-full rounded-md border border-border bg-surface px-3 text-base text-foreground transition-colors placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-0 focus:outline-accent disabled:cursor-not-allowed disabled:bg-sandal-100;
+  &[aria-invalid="true"] { border-color: var(--color-danger); }
+}
+
+@utility label {
+  @apply mb-1.5 block text-sm font-medium text-foreground;
+}
+
+@utility field-error {
+  @apply mt-1 text-sm text-danger;
+}
+
+@utility alert-error {
+  @apply rounded-md border border-kumkum-200 bg-danger-soft px-3 py-2 text-sm text-danger;
+}
+
+/* ---- Stage 2: admin + UI kit utilities ---- */
+@utility btn-ghost {
+  @apply btn text-foreground;
+}
+
+@utility btn-danger {
+  @apply btn bg-danger text-white shadow-elev-1 hover:shadow-elev-2;
+}
+
+@utility btn-sm {
+  /* 44px touch target on mobile, compact from sm up */
+  @apply min-h-11 px-4 py-1.5 text-xs sm:min-h-8;
+}
+
+@utility badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+@utility badge-primary { @apply badge bg-saffron-100 text-saffron-800; }
+@utility badge-success { @apply badge bg-success-soft text-success; }
+@utility badge-danger { @apply badge bg-danger-soft text-danger; }
+@utility badge-muted { @apply badge bg-sandal-200 text-kumkum-800; }
+
+/* Data table */
+@utility data-table {
+  @apply w-full border-collapse text-left text-sm;
+  & thead th { @apply whitespace-nowrap bg-sandal-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted; }
+  & tbody td { @apply border-t border-border px-4 py-3 align-middle; }
+  & tbody tr:hover { background: var(--color-sandal-50); }
+}
+
+@utility sidebar-link {
+  @apply flex items-center rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-sandal-100;
+  &[aria-current="page"] { @apply bg-saffron-50 text-saffron-800; }
+}
+
+dialog.modal {
+  @apply m-auto w-11/12 max-w-lg rounded-xl bg-surface p-0 text-foreground shadow-elev-4;
+}
+dialog.modal::backdrop { background: var(--color-scrim); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

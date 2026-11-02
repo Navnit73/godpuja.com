@@ -122,9 +122,9 @@ Tracked in [PROJECT_TRACKER.md](PROJECT_TRACKER.md). Each stage ends with `docs/
 
 | # | Decision | Needed by | Default |
 |---|---|---|---|
-| 1 | MongoDB hosting (Atlas vs local/self-hosted) and connection string | Stage 1 | Atlas free tier; local `mongod` for dev |
-| 2 | Payment gateway (Razorpay is typical for India; Dodo/Stripe alternatives) | Stage 9 | Razorpay |
-| 3 | Media storage (Cloudinary vs S3-compatible) | Stage 6 | Cloudinary |
+| 1 | MongoDB hosting | Stage 1 | **Decided: Atlas** (`godpuja` database; tests use `godpuja_test`) |
+| 2 | Payment gateway | Stage 9 | **Deferred by owner** — decide before Stage 9 |
+| 3 | Media storage | Stage 6 | **Decided: Cloudinary** |
 | 4 | Guest checkout allowed? | Stage 9 | Yes |
 | 5 | Currency / tax / shipping rules | Stage 9 | INR, tax-inclusive, flat + free-over-threshold shipping |
 | 6 | Email provider for order mails / newsletter | Stage 9 | Resend |

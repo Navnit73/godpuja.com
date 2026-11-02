@@ -51,7 +51,7 @@ docs/  PROJECT_PRD.md  DESIGN_SYSTEM.md  PROJECT_TRACKER.md
 | A2 | Native `fetch` wrapper in `lib/api.ts` (no Axios) | Fewer dependencies |
 | A3 | Services are the only code that imports models | One place for validation, caching, invalidation |
 | A4 | Sections are typed JSON blocks (`type` + `data`) validated by a Zod discriminated union | Flexible without a visual builder |
-| A5 | Cache tags per content type (`nav`, `footer`, `home`, `page:<slug>`, `product:<slug>`, `categories`); admin writes call `revalidateTag` | Instant CMS updates, cached reads |
+| A5 | `cacheComponents` is enabled in `next.config.ts`: public CMS reads use `"use cache"` + `cacheLife` + `cacheTag`; anything reading cookies/headers must sit inside `<Suspense>`. Cache tags per content type (`nav`, `footer`, `home`, `page:<slug>`, `product:<slug>`, `categories`); admin writes call `revalidateTag` | Instant CMS updates, cached reads |
 | A6 | JWT cookie sessions via `jose`; role in token, re-verified in DB for destructive actions | Stateless and edge-compatible `proxy.ts` |
 | A7 | MongoDB transactions (replica set required; Atlas provides it) for order creation + stock | Consistency; local dev needs a replica set (`mongod --replSet`) |
 | A8 | Stock decrement via atomic `findOneAndUpdate({ stock: { $gte: qty } })` inside the transaction | Prevents overselling |
@@ -75,4 +75,4 @@ docs/  PROJECT_PRD.md  DESIGN_SYSTEM.md  PROJECT_TRACKER.md
 
 ## Environment variables
 
-`MONGODB_URI`, `AUTH_SECRET`, `SITE_URL`, later `PAYMENT_*`, `MEDIA_*`, `EMAIL_*`.
+`MONGODB_URI`, `AUTH_SECRET` (≥32 chars), `SITE_URL`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET` (media, decided), later `PAYMENT_*` (undecided), `EMAIL_*`. Template in `.env.example`; real values only in `.env.local` (git-ignored). Tests force the DB name to `godpuja_test`.

@@ -23,7 +23,8 @@
 | Muted text | `muted` | #7a625a | secondary text (AA on `background`) |
 | Background | `background` (`sandal-50`) | #fffdf8 | page |
 | Surface | `surface` | #ffffff | cards, navbar, tables, inputs |
-| Border | `border` (`sandal-300`) | #e9d8b9 | dividers, input borders |
+| Border | `border` (`sandal-300`) | #e9d8b9 | dividers, card edges (decorative) |
+| Input border | `input-border` | #9a8475 | form control edges — 3.3:1+ on surface/background (WCAG 1.4.11, Stage 11) |
 | Accent | `accent` (`gold-600`) | #9a7623 | focus ring (≥3:1 on white), divider ornament. Not for body text |
 | Success | `success` (`tulsi-700`) / `success-soft` (`tulsi-50`) | #335738 / #f2f7f2 | success text and tonal badges (AA). `tulsi-500` is decorative only |
 | Danger | `danger` (`kumkum-600`) / `danger-soft` | #a82a30 | errors, destructive |
@@ -61,7 +62,7 @@ Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50�
 | Modal | native `<dialog>`; `rounded-xl`, `elev-4`, `scrim` backdrop; closes on Esc or backdrop press+release |
 | Toast | bottom-right, `aria-live="polite"`, auto-dismiss 4 s |
 | `card` | `surface`, `rounded-xl`, `elev-1`, hover `elev-3` (only when clickable) |
-| `input`, `label`, `field-error`, `alert-error` (Stage 1) | `surface`, 1px `border`, `rounded-md`, h-10, focus: 2px `accent` ring; error: `danger` border + message below |
+| `input`, `label`, `field-error`, `alert-error` (Stage 1) | `surface`, 1px `input-border`, `rounded-md`, h-10, focus: 2px `accent` ring; error: `danger` border + message below |
 | `data-table` (Stage 2) | `surface` card with `overflow-x-auto`, header `sandal-100`, row divider `border`, row hover `sandal-50`, `<caption class="sr-only">`, `scope="col"`; header is **not** sticky (sticky inside a scroll container never sticks); empty state replaces the table |
 | Badge (Stage 2) | `rounded-full`, tonal bg `*-100` + `*-700` text |
 | Navbar | sticky, `surface`, bottom `border`, **no shadow** |

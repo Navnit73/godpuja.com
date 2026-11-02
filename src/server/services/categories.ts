@@ -5,6 +5,7 @@ import { Category, type CategoryDoc } from "../models/Category";
 import { Product } from "../models/Product";
 import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 import { MAX_CATEGORY_DEPTH, type CategoryInput, type UpdateCategoryInput } from "@/lib/validation/catalog";
+import { invalidateCategorySnapshot } from "./category-snapshot";
 
 export type AdminCategory = CategoryInput & { id: string; path: string; level: number; createdAt: string; updatedAt: string };
 export type CategoryListItem = Pick<AdminCategory, "id" | "name" | "slug" | "path" | "level" | "parent" | "order" | "isActive"> & { productCount: number };
@@ -79,6 +80,7 @@ export async function createCategory(input: CategoryInput) {
       await clearRedirectsFrom([`/category/${path}`], session);
       out = toAdmin(c.toObject() as CategoryDoc);
     });
+    invalidateCategorySnapshot();
     return out;
   } catch (err) {
     return dupPath(err);
@@ -140,6 +142,7 @@ export async function updateCategory(id: string, { baseUpdatedAt, ...input }: Up
       const updated = await Category.findByIdAndUpdate(id, { $set: { ...rest, image, seo, parent: parent ? new mongoose.Types.ObjectId(parent) : null, path: newPath, level: newLevel } }, { returnDocument: "after", session }).lean();
       result = toAdmin(updated!);
     });
+    invalidateCategorySnapshot();
     return result;
   } catch (err) {
     return dupPath(err);
@@ -164,6 +167,7 @@ export async function deleteCategory(id: string) {
       await dropRedirectsTo([`/category/${c.path}`], session);
       path = c.path;
     });
+    invalidateCategorySnapshot();
     return { path };
   } finally {
     await session.endSession();

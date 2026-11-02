@@ -42,7 +42,7 @@ async function HomeContent() {
   if (r.kind === "sections") return <>{ld}<HomeView sections={r.home.sections} /></>;
   if (r.kind === "page") return <>{ld}<PageView page={r.page} /></>;
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+    <main id="main" tabIndex={-1} className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
       {ld}
       <h1 className="sr-only">{s.siteName}</h1>
       <Logo />
@@ -54,7 +54,7 @@ async function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<main className="flex-1" aria-busy="true" />}>
+    <Suspense fallback={<main id="main" tabIndex={-1} className="flex-1" aria-busy="true" />}>
       <HomeContent />
     </Suspense>
   );

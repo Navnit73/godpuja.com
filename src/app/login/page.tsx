@@ -20,7 +20,7 @@ async function RedirectIfSignedIn({ searchParams }: { searchParams: PageProps<"/
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
+    <main id="main" tabIndex={-1} className="flex flex-1 items-center justify-center px-4 py-16">
       <Suspense><RedirectIfSignedIn searchParams={searchParams} /></Suspense>
       <div className="card w-full max-w-sm p-8 hover:shadow-elev-1">
         <div className="mb-6 flex justify-center"><Logo /></div>

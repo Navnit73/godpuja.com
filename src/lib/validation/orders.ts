@@ -9,7 +9,8 @@ const sku = z.string().trim().toUpperCase().min(2).max(40).regex(/^[A-Z0-9][A-Z0
 
 export const cartLineSchema = z.object({
   productId: z.string().regex(/^[a-f0-9]{24}$/, "Invalid product"),
-  variantSku: sku.optional(),
+  // The browser cart stores null for products without variants; treat null exactly like "absent".
+  variantSku: sku.nullish().transform((v) => v ?? undefined).optional(),
   qty: z.number().int("Whole numbers only").min(1).max(MAX_LINE_QTY, `At most ${MAX_LINE_QTY} per item`),
 });
 export const cartInputSchema = z.object({ items: z.array(cartLineSchema).min(1, "Your cart is empty").max(MAX_CART_LINES, `At most ${MAX_CART_LINES} different items`) });

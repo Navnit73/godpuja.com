@@ -6,6 +6,7 @@ import { api, ApiClientError } from "@/lib/api";
 import { cart, MAX_QTY, useCart } from "@/lib/cart";
 import { formatPaise } from "@/lib/money";
 import type { CartValidation } from "@/lib/storefront-api";
+import { sized } from "@/lib/image";
 
 /** Server-validated cart: prices and stock always come from the API, never from the browser. */
 export function useValidatedCart() {
@@ -59,7 +60,7 @@ export default function CartClient() {
         <ul className="space-y-3">
           {data.items.map((i) => (
             <li key={`${i.productId}:${i.variantSku}`} className={`card flex gap-4 p-3 hover:shadow-elev-1 ${i.available ? "" : "opacity-70"}`}>
-              {i.image ? <img src={i.image.url} alt={i.image.alt} loading="lazy" referrerPolicy="no-referrer" className="h-24 w-24 shrink-0 rounded-md object-cover" /> : <div className="h-24 w-24 shrink-0 rounded-md bg-sandal-100" aria-hidden="true" />}
+              {i.image ? <img src={sized(i.image.url, 192)} alt={i.image.alt} loading="lazy" referrerPolicy="no-referrer" className="h-24 w-24 shrink-0 rounded-md object-cover" /> : <div className="h-24 w-24 shrink-0 rounded-md bg-sandal-100" aria-hidden="true" />}
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{i.available ? <Link href={`/product/${i.slug}`} className="hover:text-primary">{i.name}</Link> : i.name}</p>
                 {Object.keys(i.options).length > 0 && <p className="text-sm text-muted">{Object.entries(i.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>}

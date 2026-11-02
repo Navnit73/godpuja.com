@@ -1,8 +1,9 @@
-/* eslint-disable @next/next/no-img-element -- remote CMS images; switch to next/image when media is served from Cloudinary in Stage 8 */
+/* eslint-disable @next/next/no-img-element -- remote CMS images from any host; Cloudinary ones are resized via lib/image */
 import Link from "next/link";
 import type { PublicHomeSection } from "@/server/services/homepage";
 import ProductCard from "./ProductCard";
 import { Section as PageSection } from "./PageView";
+import { responsive } from "@/lib/image";
 
 const external = (u: string) => /^https?:\/\//i.test(u);
 function Cta({ href, children, variant = "btn-primary" }: { href: string; children: React.ReactNode; variant?: string }) {
@@ -27,7 +28,7 @@ function Block({ s }: { s: PublicHomeSection }) {
                 {s.secondaryCtaLabel && <Cta href={s.secondaryCtaUrl} variant="btn-outline">{s.secondaryCtaLabel}</Cta>}
               </div>
             </div>
-            {s.imageUrl && <img src={s.imageUrl} alt={s.imageAlt} decoding="async" referrerPolicy="no-referrer" className="h-auto w-full rounded-xl" />}
+            {s.imageUrl && <img {...responsive(s.imageUrl, "(min-width: 768px) 50vw, 100vw", 640)} alt={s.imageAlt} fetchPriority="high" referrerPolicy="no-referrer" className="h-auto w-full rounded-xl" />}
           </Wrap>
         </section>
       );
@@ -37,7 +38,7 @@ function Block({ s }: { s: PublicHomeSection }) {
           {s.items.map((b, i) => {
             const inner = (
               <>
-                <img src={b.imageUrl} alt={b.imageAlt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-[16/7] w-full object-cover" />
+                <img {...responsive(b.imageUrl, "(min-width: 640px) 50vw, 100vw", 640)} alt={b.imageAlt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-[16/7] w-full object-cover" />
                 {(b.heading || b.text) && <div className="p-4">{b.heading && <p className="text-lg font-semibold">{b.heading}</p>}{b.text && <p className="text-sm text-muted">{b.text}</p>}</div>}
               </>
             );
@@ -53,7 +54,7 @@ function Block({ s }: { s: PublicHomeSection }) {
             {s.categories.map((c) => (
               <li key={c.id} className="card overflow-hidden p-0">
                 <Link href={`/category/${c.path}`} className="group block">
-                  {c.image.url ? <img src={c.image.url} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full object-cover" /> : <div className="aspect-square w-full bg-sandal-100" aria-hidden="true" />}
+                  {c.image.url ? <img {...responsive(c.image.url, "(min-width: 768px) 25vw, 50vw", 320)} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full object-cover" /> : <div className="aspect-square w-full bg-sandal-100" aria-hidden="true" />}
                   <p className="p-3 font-medium group-hover:text-primary">{c.name}</p>
                 </Link>
               </li>
@@ -106,7 +107,7 @@ function Block({ s }: { s: PublicHomeSection }) {
 export default function HomeView({ sections }: { sections: PublicHomeSection[] }) {
   const hasHero = sections.some((s) => s.type === "hero");
   return (
-    <main className="flex-1">
+    <main id="main" tabIndex={-1} className="flex-1">
       {!hasHero && <h1 className="sr-only">GodPuja</h1>}
       {sections.map((s) => <Block key={s.id} s={s} />)}
     </main>

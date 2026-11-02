@@ -63,6 +63,7 @@
   --color-surface: var(--surface);
   --color-muted: var(--muted);
   --color-border: var(--border);
+  --color-input-border: var(--input-border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
@@ -105,7 +106,8 @@
   --foreground: var(--color-kumkum-900);
   --surface: #ffffff;
   --muted: #7a625a;
-  --border: var(--color-sandal-300);
+  --border: var(--color-sandal-300); /* decorative dividers and card edges */
+  --input-border: #9a8475; /* form control edges: >= 3:1 on surface/background (WCAG 1.4.11) */
   --primary: var(--color-saffron-700);
   --primary-foreground: #ffffff;
   --accent: var(--color-gold-600);
@@ -140,6 +142,22 @@
     background: var(--color-saffron-200);
     color: var(--color-kumkum-900);
   }
+  /* Skip link target: focused programmatically, so no ring on the whole page region. */
+  main:focus { outline: none; }
+}
+
+/* WCAG 2.4.1: first Tab stop on every page; off-screen until focused. */
+@utility skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100px;
+  z-index: 100;
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  &:focus-visible { top: 1rem; outline: 2px solid var(--color-accent); outline-offset: 2px; }
 }
 
 /* Material-style buttons: elevation + state-layer (hover/press) + ripple */
@@ -177,7 +195,7 @@
 
 /* Form controls */
 @utility input {
-  @apply block h-10 w-full rounded-md border border-border bg-surface px-3 text-base text-foreground transition-colors placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-0 focus:outline-accent disabled:cursor-not-allowed disabled:bg-sandal-100;
+  @apply block h-10 w-full rounded-md border border-input-border bg-surface px-3 text-base text-foreground transition-colors placeholder:text-muted focus:border-accent focus:outline-2 focus:outline-offset-0 focus:outline-accent disabled:cursor-not-allowed disabled:bg-sandal-100;
   &[aria-invalid="true"] { border-color: var(--color-danger); }
 }
 

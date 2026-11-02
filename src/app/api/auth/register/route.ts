@@ -3,13 +3,13 @@ import { hashPassword } from "@/server/auth/password";
 import { setSessionCookie } from "@/server/auth/session";
 import { connectDB } from "@/server/db";
 import { User } from "@/server/models/User";
-import { clientIp, rateLimit } from "@/server/rate-limit";
+import { clientIp, rateLimitShared } from "@/server/rate-limit";
 import { registerSchema } from "@/lib/validation/auth";
 
 export const POST = handle(async (req) => {
   // No public sign-up UI exists until the storefront account feature (Stage 8/9). Closed by default.
   if (process.env.ALLOW_PUBLIC_REGISTRATION !== "true") throw new ApiError("FORBIDDEN", "Registration is not open");
-  rateLimit(`register:${clientIp(req)}`, 5, 60_000);
+  await rateLimitShared(`register:${clientIp(req)}`, 5, 60_000);
   const { name, email, password } = registerSchema.parse(await readJson(req));
 
   await connectDB();

@@ -50,7 +50,7 @@ async function Content({ params, searchParams }: Props) {
   const query = parseListing(await searchParams, { category: path, q: undefined });
   const result = await findPublicProducts(query);
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
       <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...cat.breadcrumbs.map((b) => ({ name: b.name, path: `/category/${b.path}` }))])} />
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...cat.breadcrumbs.map((b, i, a) => ({ name: b.name, href: i < a.length - 1 ? `/category/${b.path}` : undefined }))]} />
       <h1 className="text-4xl font-semibold">{cat.name}</h1>

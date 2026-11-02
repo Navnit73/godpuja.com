@@ -6,6 +6,7 @@ import { Category } from "../models/Category";
 import { Product, type ProductDoc } from "../models/Product";
 import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 import type { InventoryInput, ListProductsInput, ProductInput, PublicProductsInput, UpdateProductInput } from "@/lib/validation/catalog";
+import { activeSubtree, categorySnapshot } from "./category-snapshot";
 
 type Variant = ProductDoc["variants"][number];
 export type AdminProduct = Omit<ProductInput, "variants"> & { id: string; variants: Variant[]; soldCount: number; createdAt: string; updatedAt: string };
@@ -234,32 +235,26 @@ export const inStock = (p: ProductDoc) => (p.variants?.length ? p.variants.some(
  * Path + visibility index of all categories (one small query). `hidden` = ids of inactive categories and everything
  * beneath them; public product queries exclude these so hiding a category really hides its products everywhere.
  */
-export async function loadCategoryIndex() {
-  await connectDB();
-  const rows = await Category.find().select("path isActive").lean();
-  const inactive = rows.filter((r) => r.isActive === false).map((r) => r.path);
-  const hidden = rows.filter((r) => inactive.some((p) => r.path === p || r.path.startsWith(p + "/"))).map((r) => r._id);
-  return { catPath: new Map(rows.map((c) => [String(c._id), c.path])), hidden };
+/**
+ * Category paths and hidden categories for public reads. Served from the short-lived in-process snapshot
+ * (see category-snapshot.ts); pass `fresh: true` where a stale answer would matter (cart, checkout).
+ */
+export async function loadCategoryIndex({ fresh = false } = {}) {
+  const { catPath, hidden } = await categorySnapshot({ fresh });
+  return { catPath, hidden };
 }
 
 /** Category path -> ids of that category and its active descendants (whole chain must be active). null = unknown/inactive. */
 export async function activeCategoryIds(path: string): Promise<mongoose.Types.ObjectId[] | null> {
-  const parts = path.split("/");
-  const ancestors = parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join("/"));
-  if (ancestors.length && (await Category.exists({ path: { $in: ancestors }, isActive: false }))) return null; // hidden by an inactive ancestor
-  const rows = await Category.find({ $or: [{ path }, { path: { $regex: `^${escapeRegex(path)}/` } }], isActive: true }).select("path parent").sort({ path: 1 }).lean();
-  const root = rows.find((r) => r.path === path);
-  if (!root) return null;
-  const ok = new Set([String(root._id)]);
-  for (const r of rows) if (r.parent && ok.has(String(r.parent))) ok.add(String(r._id));
-  return rows.filter((r) => ok.has(String(r._id))).map((r) => r._id);
+  return activeSubtree(await categorySnapshot(), path);
 }
 
 export async function findPublicProducts(q: PublicProductsInput) {
   await connectDB();
   const filter: Record<string, unknown> = { status: "active" };
+  const cats = await categorySnapshot();
   if (q.category) {
-    const ids = await activeCategoryIds(q.category);
+    const ids = activeSubtree(cats, q.category);
     if (!ids) return { items: [] as PublicProduct[], total: 0, page: q.page, limit: q.limit, pages: 1 };
     filter.category = { $in: ids };
   }
@@ -271,7 +266,7 @@ export async function findPublicProducts(q: PublicProductsInput) {
   const sort: Record<string, 1 | -1> =
     q.sort === "price-asc" ? { effectivePrice: 1, _id: 1 } : q.sort === "price-desc" ? { effectivePrice: -1, _id: -1 }
     : q.sort === "popular" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
-  const { catPath: path, hidden } = await loadCategoryIndex();
+  const { catPath: path, hidden } = cats;
   if (hidden.length && !q.category) filter.category = { $nin: hidden };
   const [rows, total] = await Promise.all([
     Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
@@ -286,17 +281,14 @@ export async function findPublicProducts(q: PublicProductsInput) {
 
 export async function findPublicProduct(slug: string): Promise<PublicProductDetail | null> {
   await connectDB();
-  const p = await Product.findOne({ slug, status: "active" }).lean();
+  // Product and category snapshot in parallel: one DB round trip on a cold read.
+  const [p, cats] = await Promise.all([Product.findOne({ slug, status: "active" }).lean(), categorySnapshot()]);
   if (!p) return null;
-  const cat = p.category ? await Category.findById(p.category).select("path isActive").lean() : null;
-  if (p.category) {
-    const { hidden } = await loadCategoryIndex();
-    if (hidden.some((h) => String(h) === String(p.category))) return null; // its category (or an ancestor) is hidden
-  }
+  if (p.category && cats.hiddenIds.has(String(p.category))) return null; // its category (or an ancestor) is hidden
+  const cat = p.category ? cats.byId.get(String(p.category)) ?? null : null;
   const parts = cat?.path ? cat.path.split("/") : [];
   const chain = parts.map((_, i) => parts.slice(0, i + 1).join("/"));
-  const named = chain.length ? await Category.find({ path: { $in: chain } }).select("name path").lean() : [];
-  const nameOf = new Map(named.map((c) => [c.path, c.name]));
+  const nameOf = new Map(chain.map((c) => [c, cats.byPath.get(c)?.name]));
   return {
     breadcrumbs: chain.map((c) => ({ name: nameOf.get(c) ?? c.split("/").pop()!, path: c })),
     id: String(p._id), name: p.name, slug: p.slug, sku: p.sku, shortDescription: p.shortDescription ?? "", descriptionHtml: renderMarkdown(p.description ?? ""),

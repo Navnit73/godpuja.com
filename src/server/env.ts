@@ -13,6 +13,10 @@ const schema = z.object({
   FREE_SHIPPING_OVER_PAISE: z.coerce.number().int().min(0).default(99900),
   // Shared secret for the generic signed payment webhook (HMAC-SHA256 of the raw body). Without it the webhook is disabled.
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
+  // Client IP for rate limiting (see server/rate-limit.ts). Either a header your edge overwrites on every request,
+  // or the number of trusted proxies that append to X-Forwarded-For (1 = Vercel / a single nginx).
+  CLIENT_IP_HEADER: z.string().trim().toLowerCase().regex(/^[a-z0-9-]*$/).optional(), // empty = not set
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).max(5).default(1),
 });
 
 let cached: z.infer<typeof schema> | undefined;

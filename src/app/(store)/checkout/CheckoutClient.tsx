@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api";
 import { cart } from "@/lib/cart";
 import { formatPaise } from "@/lib/money";
@@ -50,6 +50,11 @@ export default function CheckoutClient() {
   const [general, setGeneral] = useState<string | null>(null);
   // One key per attempt-set: a retry after a network error returns the SAME order instead of creating a second one.
   const idem = useRef<string | null>(null);
+  // After the server reports field errors, move focus to the first invalid field (WCAG 3.3.1 / keyboard users).
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (Object.keys(errs).length) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errs]);
 
   if (lines.length === 0) {
     return <div className="card px-6 py-16 text-center hover:shadow-elev-1"><p className="text-lg font-semibold">Your cart is empty</p><Link href="/" className="btn-primary mt-5">Continue shopping</Link></div>;
@@ -87,7 +92,7 @@ export default function CheckoutClient() {
   }
 
   return (
-    <form onSubmit={submit} noValidate className="grid gap-8 lg:grid-cols-[1fr_20rem]">
+    <form ref={formRef} onSubmit={submit} noValidate className="grid gap-8 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-8">
         {general && <p role="alert" className="alert-error">{general}</p>}
         {data.issues.length > 0 && <ul role="status" className="alert-error space-y-1">{data.issues.map((i, n) => <li key={n}>{i.message}</li>)}</ul>}

@@ -22,7 +22,7 @@ import { POST as webhookPOST } from "@/app/api/payments/webhook/route";
 import { POST as checkoutPOST } from "@/app/api/checkout/route";
 import { POST as cartPOST } from "@/app/api/cart/validate/route";
 import { GET as orderGET } from "@/app/api/orders/[id]/route";
-import { _resetRateLimit } from "@/server/rate-limit";
+import { _resetRateLimit, _resetSharedRateLimit } from "@/server/rate-limit";
 import { ApiError } from "@/server/api";
 import { can } from "@/server/auth/permissions";
 import { emptyCategory, type ProductInput } from "@/lib/validation/catalog";
@@ -74,6 +74,10 @@ describe("order validation", () => {
     expect(cartInputSchema.safeParse({ items: [] }).success).toBe(false);
     expect(cartInputSchema.safeParse({ items: Array.from({ length: 31 }, (_, i) => ({ productId: String(i).padStart(24, "a"), qty: 1 })) }).success).toBe(false);
     expect(cartInputSchema.safeParse({ items: [{ productId: "not-an-id", qty: 1 }] }).success).toBe(false);
+    // Regression (Stage 11): the browser cart (lib/cart.ts) sends variantSku: null for products without variants.
+    const fromBrowser = cartInputSchema.safeParse({ items: [{ productId: "a".repeat(24), variantSku: null, qty: 1 }] });
+    expect(fromBrowser.success).toBe(true);
+    expect(fromBrowser.data!.items[0].variantSku).toBeUndefined();
   });
   it("ignores client-supplied prices and other unknown keys (mass assignment)", () => {
     const v = checkoutSchema.parse({ ...body([{ productId: "a".repeat(24), qty: 1, unitPrice: 1, price: 1 } as { productId: string; qty: number }]), total: 1, status: "delivered", payment: { status: "paid" }, accessToken: "x" }) as Record<string, unknown>;
@@ -163,7 +167,7 @@ describe("orders (godpuja_test)", () => {
     if (mongoose.connection.name !== "godpuja_test") throw new Error(`Refusing to run on ${mongoose.connection.name}`);
     await Promise.all([Order.syncIndexes(), Product.syncIndexes(), Category.syncIndexes(), WebhookEvent.syncIndexes()]);
   });
-  beforeEach(async () => { await wipe(); _resetRateLimit(); });
+  beforeEach(async () => { await wipe(); _resetRateLimit(); await _resetSharedRateLimit(); });
   afterAll(async () => { await wipe(); await mongoose.disconnect(); });
 
   let n = 0;
@@ -363,9 +367,9 @@ describe("orders (godpuja_test)", () => {
       expect(r2.status).toBe(200);
       expect((await r2.json()).data.orderId).toBe(j1.data.orderId);
       expect((await call({ "idempotency-key": key() }, { ...payload, items: [] })).status).toBe(400);
-      _resetRateLimit();
+      await _resetSharedRateLimit();
       let last = 0;
-      for (let i = 0; i < 12; i++) last = (await call({ "idempotency-key": `rl-key-${i}-${Date.now()}`, "x-real-ip": "9.9.9.9" }, { ...payload, items: [] })).status;
+      for (let i = 0; i < 12; i++) last = (await call({ "idempotency-key": `rl-key-${i}-${Date.now()}`, "x-forwarded-for": "6.6.6.6, 9.9.9.9" }, { ...payload, items: [] })).status;
       expect(last).toBe(429);
       expect(await stockOf(p.id)).toBe(8);
     });

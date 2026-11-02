@@ -106,7 +106,7 @@ export default function AdminFrame({ user, items, children }: Props) {
             <Button variant="outline" size="sm" onClick={logout} loading={busy}>Sign out</Button>
             {logoutError && <span role="alert" className="text-xs text-danger">Could not sign out. Try again.</span>}
           </header>
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+          <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
         </div>
       </div>
     </ToastProvider>

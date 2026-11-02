@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Checkout", robots: { index: false, f
 
 export default function CheckoutPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
       <h1 className="text-4xl font-semibold">Checkout</h1>
       <div className="divider-gold my-6" />
       <CheckoutClient />

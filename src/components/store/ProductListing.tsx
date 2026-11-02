@@ -7,11 +7,12 @@ import ProductCard from "./ProductCard";
 type Result = { items: PublicProduct[]; total: number; page: number; pages: number };
 
 /** Filter/sort form (plain GET, works without JavaScript) + product grid + pagination. */
-export default function ProductListing({ base, query, result, hiddenFields = {} }: { base: string; query: PublicProductsInput; result: Result; hiddenFields?: Record<string, string> }) {
+export default function ProductListing({ base, query, result, hiddenFields = {}, heading = "Products" }: { base: string; query: PublicProductsInput; result: Result; hiddenFields?: Record<string, string>; heading?: string }) {
   const filtered = query.minPrice !== undefined || query.maxPrice !== undefined;
   return (
-    <section aria-label="Products">
-      <form method="get" action={base} role="search" className="mb-6 flex flex-wrap items-end gap-3">
+    <section aria-labelledby="listing-heading">
+      <h2 id="listing-heading" className="sr-only">{heading}</h2>
+      <form method="get" action={base} aria-label="Sort and filter products" className="mb-6 flex flex-wrap items-end gap-3">
         {Object.entries(hiddenFields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
         <div><label htmlFor="sort" className="label">Sort by</label>
           <select id="sort" name="sort" defaultValue={query.sort} className="input">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>

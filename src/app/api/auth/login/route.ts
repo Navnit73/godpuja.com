@@ -3,22 +3,25 @@ import { setSessionCookie } from "@/server/auth/session";
 import { verifyPassword } from "@/server/auth/password";
 import { connectDB } from "@/server/db";
 import { User } from "@/server/models/User";
-import { clientIp, rateLimit, rateLimitPeek } from "@/server/rate-limit";
+import { clientIp, rateLimitShared, rateLimitSharedPeek } from "@/server/rate-limit";
 import { loginSchema } from "@/lib/validation/auth";
 
 export const POST = handle(async (req) => {
   const { email, password } = loginSchema.parse(await readJson(req));
-  rateLimit(`login:${clientIp(req)}:${email}`, 5, 60_000);
-  rateLimit(`login-ip:${clientIp(req)}`, 30, 60_000);
+  // Shared store: these limits hold across all server instances.
+  const ip = clientIp(req);
+  await rateLimitShared(`login:${ip}:${email}`, 5, 60_000);
+  await rateLimitShared(`login-ip:${ip}`, 30, 60_000);
   // IP-independent cap per account, counting FAILURES only so a successful login never contributes to a lockout.
   const FAIL_KEY = `login-fail:${email}`;
-  rateLimitPeek(FAIL_KEY, 20);
+  const FAIL_WINDOW = 15 * 60_000;
+  await rateLimitSharedPeek(FAIL_KEY, 20, FAIL_WINDOW);
 
   await connectDB();
   const user = await User.findOne({ email }).select("+passwordHash name email role isActive tokenVersion");
   const valid = await verifyPassword(password, user?.passwordHash);
   if (!user || !valid || !user.isActive) {
-    rateLimit(FAIL_KEY, 20, 15 * 60_000);
+    await rateLimitShared(FAIL_KEY, 20, FAIL_WINDOW);
     throw new ApiError("UNAUTHENTICATED", "Invalid email or password");
   }
 

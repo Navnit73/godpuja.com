@@ -83,7 +83,7 @@ export function resolveLines(items: CartLineInput[], products: Map<string, Loade
 }
 
 export async function hiddenCategorySet() {
-  const { hidden } = await loadCategoryIndex();
+  const { hidden } = await loadCategoryIndex({ fresh: true }); // exact visibility for what can be bought
   return new Set(hidden.map(String));
 }
 

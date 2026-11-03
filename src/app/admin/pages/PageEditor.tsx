@@ -69,7 +69,11 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
   });
   const slugReg = register("slug", { onChange: () => setSlugTouched(true) });
 
+  // One action at a time: a save racing a publish / link reset would fail with a false "changed by someone else".
+  const locked = busy !== null || isSubmitting;
+
   async function onSubmit(values: PageInput) {
+    if (busy !== null) return;
     setFormError(null);
     try {
       if (page) {
@@ -92,7 +96,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
   }
 
   async function publish(body: { action: "publish" | "unpublish" } | { action: "schedule"; publishAt: string }, okMsg: string) {
-    if (!page) return;
+    if (!page || locked) return;
     setBusy(body.action);
     try {
       setMeta(await api.post<AdminPage>(`/admin/pages/${page.id}/publish`, body));
@@ -106,7 +110,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
   }
 
   async function rotateToken() {
-    if (!page) return;
+    if (!page || locked) return;
     setBusy("token");
     try {
       setMeta(await api.post<AdminPage>(`/admin/pages/${page.id}/preview-token`)); // new token + new updatedAt
@@ -129,7 +133,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
   }
 
   async function doDelete() {
-    if (!page) return;
+    if (!page || locked) return;
     setBusy("delete");
     try {
       await api.delete(`/admin/pages/${page.id}`);
@@ -251,7 +255,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
       <aside className="space-y-6 lg:sticky lg:top-20" aria-label="Page actions">
         {!readOnly && (
           <div className="card space-y-3 p-5 hover:shadow-elev-1">
-            <Button type="submit" loading={isSubmitting} className="w-full">{page ? "Save changes" : `Create ${noun}`}</Button>
+            <Button type="submit" loading={isSubmitting} disabled={busy !== null} className="w-full">{page ? "Save changes" : `Create ${noun}`}</Button>
             {isDirty && page && <p className="text-xs text-warning">You have unsaved changes.</p>}
           </div>
         )}
@@ -266,17 +270,17 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
             </div>
             {meta.status === "scheduled" && <p className="text-sm text-muted">Goes live {formatDateTime(meta.publishAt)}</p>}
             {meta.status === "published" && <p className="text-sm text-muted">Published {formatDateTime(meta.publishedAt)}</p>}
-            {live && <Link href={`/${meta.slug}`} target="_blank" className="text-sm text-primary underline underline-offset-2">View live {noun} ↗</Link>}
+            {live && <Link href={meta.slug === "home" ? "/" : `/${meta.slug}`} target="_blank" className="text-sm text-primary underline underline-offset-2">View live {noun} ↗</Link>}
 
             {canPublish && !readOnly ? (
               <>
                 {isDirty && <p className="text-xs text-muted">Save your changes before publishing.</p>}
                 <div className="flex flex-wrap gap-2">
                   {meta.status !== "published" && (
-                    <Button size="sm" disabled={isDirty} loading={busy === "publish"} onClick={() => publish({ action: "publish" }, `${km.label} published`)}>Publish now</Button>
+                    <Button size="sm" disabled={isDirty || locked} loading={busy === "publish"} onClick={() => publish({ action: "publish" }, `${km.label} published`)}>Publish now</Button>
                   )}
                   {meta.status !== "draft" && (
-                    <Button size="sm" variant="outline" disabled={isDirty} loading={busy === "unpublish"} onClick={() => publish({ action: "unpublish" }, `${km.label} moved to draft`)}>Unpublish</Button>
+                    <Button size="sm" variant="outline" disabled={isDirty || locked} loading={busy === "unpublish"} onClick={() => publish({ action: "unpublish" }, `${km.label} moved to draft`)}>Unpublish</Button>
                   )}
                 </div>
                 {live ? (
@@ -285,7 +289,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
                 <div>
                   <label htmlFor="schedule-at" className="label">Schedule (India Standard Time)</label>
                   <input id="schedule-at" type="datetime-local" className="input" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} />
-                  <Button size="sm" variant="outline" className="mt-2" disabled={isDirty || !scheduleAt} loading={busy === "schedule"}
+                  <Button size="sm" variant="outline" className="mt-2" disabled={isDirty || !scheduleAt || locked} loading={busy === "schedule"}
                     onClick={() => publish({ action: "schedule", publishAt: istInputToIso(scheduleAt) }, `${km.label} scheduled`)}>Schedule</Button>
                 </div>
                 )}
@@ -303,14 +307,14 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
             <div className="flex flex-wrap gap-2">
               <Link href={`/preview/${meta.previewToken}`} target="_blank" className="btn-outline btn-sm">Open preview ↗</Link>
               <Button size="sm" variant="ghost" onClick={copyPreview}>Copy link</Button>
-              {!readOnly && <Button size="sm" variant="ghost" loading={busy === "token"} onClick={rotateToken}>Reset link</Button>}
+              {!readOnly && <Button size="sm" variant="ghost" disabled={locked} loading={busy === "token"} onClick={rotateToken}>Reset link</Button>}
             </div>
           </div>
         )}
 
         {page && !readOnly && (
           <div className="card p-5 hover:shadow-elev-1">
-            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>Delete {noun}</Button>
+            <Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete {noun}</Button>
           </div>
         )}
       </aside>
@@ -324,7 +328,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
         <p className="text-sm text-muted">“{page?.title}” will be removed permanently and its URL will stop working.</p>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-          <Button variant="danger" loading={busy === "delete"} onClick={doDelete}>Delete</Button>
+          <Button variant="danger" loading={busy === "delete"} disabled={locked && busy !== "delete"} onClick={doDelete}>Delete</Button>
         </div>
       </Modal>
     </form>

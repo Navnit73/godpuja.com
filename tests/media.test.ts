@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import mongoose from "mongoose";
 import { sign } from "@/server/cloudinary";
-import { MAX_UPLOAD_BYTES, sniffImage, uploadMedia } from "@/server/services/media";
+import { connectDB } from "@/server/db";
+import { Media } from "@/server/models/Media";
+import { Page } from "@/server/models/Page";
+import { Settings } from "@/server/models/Settings";
+import { deleteMedia, MAX_UPLOAD_BYTES, sniffImage, uploadMedia } from "@/server/services/media";
 import { ApiError } from "@/server/api";
 import { rupeesToPaise, paiseToRupees, formatPaise } from "@/lib/money";
 
@@ -59,5 +64,31 @@ describe("money helpers", () => {
     expect(paiseToRupees(20000)).toBe("200");
     expect(paiseToRupees(null)).toBe("");
     expect(formatPaise(19950)).toContain("199.5");
+  });
+});
+
+describe("deleteMedia in-use guard (godpuja_test)", () => {
+  const url = "https://res.cloudinary.com/demo/image/upload/v1/godpuja/in-use.png";
+  const mk = () => Media.create({ url, publicId: `godpuja/in-use-${Date.now()}-${Math.random()}`, filename: "in-use.png", mime: "image/png", size: 10 });
+  beforeAll(async () => { await connectDB(); });
+  afterEach(async () => { await Promise.all([Media.deleteMany({}), Page.deleteMany({}), Settings.deleteMany({})]); });
+  afterAll(async () => { await mongoose.disconnect(); });
+
+  it("refuses while a blog post / guide uses the image as its cover", async () => {
+    const m = await mk();
+    await Page.create({ kind: "blog", title: "Diwali", slug: "blog/diwali", coverImageUrl: url, coverImageAlt: "Diya", previewToken: `t-${Date.now()}` });
+    const err = await deleteMedia(String(m._id)).then(() => null, (e) => e);
+    expect((err as ApiError)?.code).toBe("CONFLICT");
+    expect(await Media.exists({ _id: m._id })).toBeTruthy();
+  });
+  it("refuses while the SEO settings use the image as default share image or logo", async () => {
+    for (const field of ["defaultOgImage", "logoUrl"] as const) {
+      const m = await mk();
+      await Settings.deleteMany({});
+      await Settings.create({ key: "main", [field]: url });
+      const err = await deleteMedia(String(m._id)).then(() => null, (e) => e);
+      expect((err as ApiError)?.code).toBe("CONFLICT");
+      expect(await Media.exists({ _id: m._id })).toBeTruthy();
+    }
   });
 });

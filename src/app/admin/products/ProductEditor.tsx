@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- admin thumbnails of remote images */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImagePicker from "@/components/admin/ImagePicker";
@@ -62,6 +62,7 @@ export default function ProductEditor({ product, categories, canWrite }: { produ
   const [general, setGeneral] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const edits = useRef(0); // bumped on every change; a save only clears "dirty" if nothing changed while it was in flight
   const [pickIdx, setPickIdx] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isNew = !product;
@@ -74,7 +75,7 @@ export default function ProductEditor({ product, categories, canWrite }: { produ
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const set = (patch: Partial<Form>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); };
+  const set = (patch: Partial<Form>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); edits.current++; };
   const setVariant = (i: number, patch: Partial<VariantForm>) => set({ variants: f.variants.map((v, n) => (n === i ? { ...v, ...patch } : v)) });
   const e = (k: string) => errs[k];
   const dis = !canWrite;
@@ -90,10 +91,14 @@ export default function ProductEditor({ product, categories, canWrite }: { produ
       setErrs(m); setGeneral("Fix the highlighted fields."); return;
     }
     setErrs({}); setBusy(true);
+    const rev = edits.current;
     try {
       if (product) {
         const saved = await api.patch<AdminProduct>(`/admin/products/${product.id}`, { ...parsed.data, baseUpdatedAt: version });
-        setVersion(saved.updatedAt); setF(toForm(saved)); setDirty(false); toast("Product saved"); router.refresh();
+        setVersion(saved.updatedAt);
+        // Take the server's normalised copy only if nothing was typed meanwhile; otherwise keep those edits (still dirty).
+        if (edits.current === rev) { setF(toForm(saved)); setDirty(false); }
+        toast("Product saved"); router.refresh();
       } else {
         const created = await api.post<AdminProduct>("/admin/products", parsed.data);
         setDirty(false); toast("Product created"); router.replace(`/admin/products/${created.id}`);

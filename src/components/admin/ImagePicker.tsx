@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- remote Cloudinary/admin-provided images; thumbnails only */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { api } from "@/lib/api";
@@ -15,15 +15,20 @@ export default function ImagePicker({ open, onClose, onPick }: { open: boolean; 
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const req = useRef(0); // only the latest request may update the list (a slow "Load more" must not append to a reloaded list)
   const load = (p: number) => {
-    setLoading(true);
+    const n = ++req.current;
+    setLoading(true); setError(null);
     api.get<MediaItem[]>(`/admin/media?limit=${PAGE}&page=${p}`)
-      .then((rows) => { setItems((cur) => [...(p === 1 ? [] : cur ?? []), ...rows]); setMore(rows.length === PAGE); setPage(p); }, () => setError("Could not load the media library."))
-      .finally(() => setLoading(false));
+      .then(
+        (rows) => { if (n !== req.current) return; setItems((cur) => [...(p === 1 ? [] : cur ?? []), ...rows]); setMore(rows.length === PAGE); setPage(p); },
+        () => { if (n === req.current) setError("Could not load the media library."); },
+      )
+      .finally(() => { if (n === req.current) setLoading(false); });
   };
   useEffect(() => {
-    if (open && !items && !loading) queueMicrotask(() => load(1));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load once when first opened
+    // Reload on every open so images uploaded since (e.g. in another tab) are offered, and a failed load can be retried.
+    if (open) queueMicrotask(() => load(1));
   }, [open]);
   return (
     <Modal open={open} onClose={onClose} title="Choose an image">

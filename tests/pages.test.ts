@@ -188,6 +188,41 @@ describe("pages service (godpuja_test)", () => {
     await expect(updatePage(p.id, base({ title: "After rotate" }), rotated.updatedAt)).resolves.toBeTruthy();
   });
 
+  it("rotating the preview token does not invalidate another editor's loaded version", async () => {
+    const p = await createPage(base());
+    await rotatePreviewToken(p.id); // editor B resets the link while editor A has the page open
+    await expect(updatePage(p.id, base({ title: "Editor A" }), p.updatedAt)).resolves.toBeTruthy();
+  });
+
+  it("re-publishing a live page keeps its original publishedAt", async () => {
+    const p = await createPage(base());
+    const first = await setPublishState(p.id, { action: "publish" });
+    await new Promise((r) => setTimeout(r, 20));
+    const again = await setPublishState(p.id, { action: "publish" });
+    expect(again.publishedAt).toBe(first.publishedAt);
+    // Publishing a scheduled page that already went live keeps the time it went live.
+    const s = await createPage(base({ slug: "sched" }));
+    const past = new Date(Date.now() - 60_000);
+    await Page.updateOne({ _id: s.id }, { $set: { status: "scheduled", publishAt: past, publishedAt: past } });
+    expect((await setPublishState(s.id, { action: "publish" })).publishedAt).toBe(past.toISOString());
+    // After unpublishing, publishing again starts a new date.
+    await setPublishState(p.id, { action: "unpublish" });
+    const fresh = await setPublishState(p.id, { action: "publish" });
+    expect(fresh.publishedAt).not.toBe(first.publishedAt);
+  });
+
+  it("draftOnly (no publish rights): drafts can be edited/deleted, published pages cannot — checked in the write", async () => {
+    const d = await createPage(base({ slug: "draft-one" }));
+    await expect(updatePage(d.id, base({ slug: "draft-one", title: "Edited" }), d.updatedAt, { draftOnly: true })).resolves.toBeTruthy();
+    const p = await createPage(base({ slug: "live-one" }));
+    const live = await setPublishState(p.id, { action: "publish" });
+    await fails(updatePage(p.id, base({ slug: "live-one", title: "Nope" }), live.updatedAt, { draftOnly: true }), "FORBIDDEN");
+    await fails(deletePage(p.id, { draftOnly: true }), "FORBIDDEN");
+    expect((await getPage(p.id)).title).toBe("About Us");
+    await expect(deletePage(d.id, { draftOnly: true })).resolves.toEqual({ slug: "draft-one" });
+    await fails(deletePage(d.id, { draftOnly: true }), "NOT_FOUND");
+  });
+
   it("a scheduled page gets publishedAt = its publish time", async () => {
     const p = await createPage(base());
     const at = new Date(Date.now() + 3600_000).toISOString();

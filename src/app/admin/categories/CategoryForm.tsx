@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- admin thumbnail of a remote image */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImagePicker from "@/components/admin/ImagePicker";
@@ -25,6 +25,7 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
   const [general, setGeneral] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const edits = useRef(0); // bumped on every change; a save only clears "dirty" if nothing changed while it was in flight
   const [pick, setPick] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -35,7 +36,7 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const change = (patch: Partial<CategoryInput>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); };
+  const change = (patch: Partial<CategoryInput>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); edits.current++; };
   // A category cannot be moved under itself or its own descendants; the server re-checks depth.
   const parents = all.filter((c) => c.id !== id && !(initialPath && c.path.startsWith(initialPath + "/")) && c.level < 3);
   const slugChanged = !!category && f.slug !== category.slug;
@@ -49,10 +50,11 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
       setErrs(m); setGeneral("Fix the highlighted fields."); return;
     }
     setErrs({}); setBusy(true);
+    const rev = edits.current;
     try {
       if (category) {
         const saved = await api.patch<AdminCategory>(`/admin/categories/${id}`, { ...parsed.data, baseUpdatedAt: version });
-        setVersion(saved.updatedAt); setDirty(false); toast("Category saved"); router.refresh();
+        setVersion(saved.updatedAt); if (edits.current === rev) setDirty(false); toast("Category saved"); router.refresh();
       } else {
         const created = await api.post<AdminCategory>("/admin/categories", parsed.data);
         setDirty(false); toast("Category created"); router.replace(`/admin/categories/${created.id}`);

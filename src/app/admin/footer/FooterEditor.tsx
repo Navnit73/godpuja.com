@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
@@ -90,6 +90,7 @@ export default function FooterEditor({ initial, pages, pagesTruncated = false }:
   const [errs, setErrs] = useState<Errs>({});
   const [general, setGeneral] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const edits = useRef(0); // bumped on every change; a save only clears "dirty" if nothing changed while it was in flight
 
   useEffect(() => {
     if (!dirty) return;
@@ -98,7 +99,7 @@ export default function FooterEditor({ initial, pages, pagesTruncated = false }:
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const change = (patch: Partial<FooterInput>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); };
+  const change = (patch: Partial<FooterInput>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); edits.current++; };
   const setColumn = (i: number, patch: Partial<Column>) => change({ columns: set(f.columns, i, patch) });
   const e = (k: string) => errs[k];
 
@@ -115,10 +116,11 @@ export default function FooterEditor({ initial, pages, pagesTruncated = false }:
     }
     setErrs({});
     setBusy(true);
+    const rev = edits.current;
     try {
       const saved = await api.put<AdminFooter>("/admin/footer", body);
       setVersion(saved.updatedAt);
-      setDirty(false);
+      if (edits.current === rev) setDirty(false);
       toast("Footer saved. It is live on the storefront.");
       router.refresh();
     } catch (err) {

@@ -130,13 +130,16 @@ export async function createPage(input: PageInput) {
  * loaded: if the page changed since, the save is rejected (409) instead of silently overwriting someone else.
  * Returns the previous slug for cache invalidation.
  */
-export async function updatePage(id: string, input: PageInput, baseUpdatedAt: string) {
+/** Users without publish rights may only change drafts; enforced inside the write itself, not by an earlier read. */
+const notPublishable = () => new ApiError("FORBIDDEN", "Only users who can publish may change a published page");
+
+export async function updatePage(id: string, input: PageInput, baseUpdatedAt: string, { draftOnly = false } = {}) {
   if (!mongoose.isValidObjectId(id)) throw new ApiError("NOT_FOUND", "Page not found");
   await connectDB();
   let prev: { slug: string } | null;
   try {
     prev = await Page.findOneAndUpdate(
-      { _id: id, updatedAt: new Date(baseUpdatedAt) },
+      { _id: id, updatedAt: new Date(baseUpdatedAt), ...(draftOnly ? { status: "draft" as const } : {}) },
       { $set: normalise(input) },
       { returnDocument: "before" },
     ).select("slug").lean();
@@ -144,8 +147,9 @@ export async function updatePage(id: string, input: PageInput, baseUpdatedAt: st
     return dupSlug(err);
   }
   if (!prev) {
-    const exists = await Page.exists({ _id: id });
-    if (!exists) throw new ApiError("NOT_FOUND", "Page not found");
+    const cur = await Page.findById(id).select("status").lean();
+    if (!cur) throw new ApiError("NOT_FOUND", "Page not found");
+    if (draftOnly && cur.status !== "draft") throw notPublishable();
     throw new ApiError("CONFLICT", "This page was changed by someone else. Reload to see their changes before saving.");
   }
   if (prev.slug !== input.slug) {
@@ -156,40 +160,60 @@ export async function updatePage(id: string, input: PageInput, baseUpdatedAt: st
   return { page: await getPage(id), previousSlug: prev.slug };
 }
 
-export async function deletePage(id: string) {
+export async function deletePage(id: string, { draftOnly = false } = {}) {
   if (!mongoose.isValidObjectId(id)) throw new ApiError("NOT_FOUND", "Page not found");
   await connectDB();
-  const p = await Page.findByIdAndDelete(id).select("slug").lean();
-  if (!p) throw new ApiError("NOT_FOUND", "Page not found");
+  const p = await Page.findOneAndDelete({ _id: id, ...(draftOnly ? { status: "draft" as const } : {}) }).select("slug").lean();
+  if (!p) {
+    if (draftOnly && (await Page.exists({ _id: id }))) throw notPublishable();
+    throw new ApiError("NOT_FOUND", "Page not found");
+  }
   await dropRedirectsTo([pagePath(p.slug)]);
   return { slug: p.slug };
 }
 
+/**
+ * Publish, unpublish or schedule. Publishing a page that is already live keeps its original `publishedAt`, so
+ * re-publishing a blog post does not change its date or move it to the top of the listings. The write is a
+ * compare-and-set on the state that decision was based on; a concurrent change makes it retry.
+ */
 export async function setPublishState(id: string, input: PublishInput) {
   if (!mongoose.isValidObjectId(id)) throw new ApiError("NOT_FOUND", "Page not found");
   await connectDB();
-  const now = new Date();
-  let update: Record<string, unknown>;
-  if (input.action === "publish") {
-    update = { $set: { status: "published", publishedAt: now }, $unset: { publishAt: 1 } };
-  } else if (input.action === "unpublish") {
-    update = { $set: { status: "draft" }, $unset: { publishAt: 1, publishedAt: 1 } };
-  } else {
-    const at = new Date(input.publishAt);
-    update = { $set: { status: "scheduled", publishAt: at, publishedAt: at } }; // publishedAt = when it goes live
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const cur = await Page.findById(id).select("status publishAt publishedAt").lean();
+    if (!cur) throw new ApiError("NOT_FOUND", "Page not found");
+    const now = new Date();
+    let update: Record<string, unknown>;
+    if (input.action === "publish") {
+      const keep = isLive(cur, now) && cur.publishedAt ? cur.publishedAt : now;
+      update = { $set: { status: "published", publishedAt: keep }, $unset: { publishAt: 1 } };
+    } else if (input.action === "unpublish") {
+      update = { $set: { status: "draft" }, $unset: { publishAt: 1, publishedAt: 1 } };
+    } else {
+      const at = new Date(input.publishAt);
+      update = { $set: { status: "scheduled", publishAt: at, publishedAt: at } }; // publishedAt = when it goes live
+    }
+    const p = await Page.findOneAndUpdate(
+      { _id: id, status: cur.status, publishAt: cur.publishAt ?? null, publishedAt: cur.publishedAt ?? null },
+      update,
+      { returnDocument: "after" },
+    ).lean();
+    if (p) return toAdmin(p);
   }
-  const p = await Page.findByIdAndUpdate(id, update, { returnDocument: "after" }).lean();
-  if (!p) throw new ApiError("NOT_FOUND", "Page not found");
-  return toAdmin(p);
+  throw new ApiError("CONFLICT", "This page is being changed right now. Try again.");
 }
 
-/** Invalidate the old preview link and issue a new one. */
+/**
+ * Invalidate the old preview link and issue a new one. Does not touch `updatedAt`: the content is unchanged, so
+ * someone editing the page at the same time must not get a false "changed by someone else" conflict.
+ */
 export async function rotatePreviewToken(id: string) {
   if (!mongoose.isValidObjectId(id)) throw new ApiError("NOT_FOUND", "Page not found");
   await connectDB();
-  const p = await Page.findByIdAndUpdate(id, { $set: { previewToken: newToken() } }, { returnDocument: "after" }).lean();
+  const p = await Page.findByIdAndUpdate(id, { $set: { previewToken: newToken() } }, { returnDocument: "after", timestamps: false }).lean();
   if (!p) throw new ApiError("NOT_FOUND", "Page not found");
-  return toAdmin(p); // full page: rotating bumps updatedAt, so the editor needs the new version
+  return toAdmin(p);
 }
 
 // ---------- Public (storefront) reads ----------

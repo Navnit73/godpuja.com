@@ -101,7 +101,11 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
   const [general, setGeneral] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // Dirty = edits made since the last saved revision. A save records the revision it sent, so anything typed while
+  // the request was in flight stays unsaved (and keeps the leave-page warning) instead of being marked clean.
+  const [edits, setEdits] = useState(0);
+  const [savedRev, setSavedRev] = useState(0);
+  const dirty = edits !== savedRev;
   const [addType, setAddType] = useState<SectionType>("hero");
   const [picker, setPicker] = useState<{ i: number; list?: [string, number]; altKey: string; key: string } | null>(null);
   const [announce, setAnnounce] = useState("");
@@ -113,7 +117,7 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const commit = (next: HomeSection[]) => { setSections(next); setDirty(true); setErrs({}); setGeneral(null); }; // errors are keyed by position, so they are cleared whenever the list changes
+  const commit = (next: HomeSection[]) => { setSections(next); setEdits((n) => n + 1); setErrs({}); setGeneral(null); }; // errors are keyed by position, so they are cleared whenever the list changes
   const patchData = (i: number, patch: Data) => commit(sections.map((s, n) => (n === i ? ({ ...s, data: { ...s.data, ...patch } } as HomeSection) : s)));
   const patchSection = (i: number, patch: Partial<HomeSection>) => commit(sections.map((s, n) => (n === i ? ({ ...s, ...patch } as HomeSection) : s)));
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -147,9 +151,10 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
       return;
     }
     setErrs({}); setBusy(true);
+    const rev = edits;
     try {
       const saved = await api.put<AdminHomepage>("/admin/homepage", body);
-      setVersion(saved.updatedAt); setDirty(false); toast("Homepage saved. It is live on the storefront."); router.refresh();
+      setVersion(saved.updatedAt); setSavedRev(rev); toast("Homepage saved. It is live on the storefront."); router.refresh();
     } catch (e) {
       setConflict(e instanceof ApiClientError && e.status === 409);
       setGeneral(e instanceof ApiClientError ? e.message : "Could not save the homepage");

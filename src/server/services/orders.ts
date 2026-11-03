@@ -276,11 +276,18 @@ export async function changePayment(id: string, to: "paid" | "failed", actor: Ac
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
   const from: PaymentStatus[] = to === "paid" ? ["pending", "failed"] : ["pending"];
+  // The history entry records the order status at the time of the payment change, so the write is a
+  // compare-and-set on that status (a concurrent status change makes this one report a conflict).
+  const cur = await Order.findById(id).select("status").lean();
+  if (!cur) throw new ApiError("NOT_FOUND", "Order not found");
+  const refused = `Payment cannot be marked ${to} for this order (it may be cancelled, already paid, or changed by someone else).`;
+  if (cur.status === "cancelled") throw new ApiError("CONFLICT", refused);
+  const at = new Date();
   const res = await Order.updateOne(
-    { _id: id, status: { $ne: "cancelled" }, "payment.status": { $in: from } },
-    { $set: { "payment.status": to, ...(to === "paid" ? { "payment.paidAt": new Date() } : {}) }, $push: { history: { kind: "payment", status: "confirmed", note: `Payment marked ${to}`, by: actor, at: new Date() } } },
+    { _id: id, status: cur.status, "payment.status": { $in: from } },
+    { $set: { "payment.status": to, ...(to === "paid" ? { "payment.paidAt": at } : {}) }, $push: { history: { kind: "payment", status: cur.status, note: `Payment marked ${to}`, by: actor, at } } },
   );
-  if (res.matchedCount === 0) await missingOrConflict(id, `Payment cannot be marked ${to} for this order (it may be cancelled, already paid, or changed by someone else).`);
+  if (res.matchedCount === 0) await missingOrConflict(id, refused);
   return getAdminOrder(id);
 }
 

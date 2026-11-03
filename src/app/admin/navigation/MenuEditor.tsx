@@ -141,6 +141,7 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const pendingFocus = useRef<string | null>(null);
+  const edits = useRef(0); // bumped on every change; a save only clears "dirty" if nothing changed while it was in flight
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -151,7 +152,7 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const apply = (next: MenuItemInput[], focusKey?: string) => { setItems(next); setDirty(true); if (focusKey) pendingFocus.current = focusKey; };
+  const apply = (next: MenuItemInput[], focusKey?: string) => { setItems(next); setDirty(true); edits.current++; if (focusKey) pendingFocus.current = focusKey; };
   // Rows remount when an item changes level, so focus is restored to the same action (or the row's Edit button
   // if that action is no longer available) after React has rendered the new tree.
   useEffect(() => {
@@ -176,10 +177,11 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
     }
     setErrors({});
     setBusy(true);
+    const rev = edits.current;
     try {
       const saved = await api.put<AdminMenu>(`/admin/menus/${menu.id}`, body);
       setMeta(saved);
-      setDirty(false);
+      if (edits.current === rev) setDirty(false);
       toast("Menu saved. It is live on the storefront.");
       router.refresh();
     } catch (e) {
@@ -194,7 +196,7 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
   return (
     <div className="space-y-4">
       <div className="card grid gap-4 p-4 hover:shadow-elev-1 sm:grid-cols-[1fr_auto] sm:items-end">
-        <Input label="Menu name" value={name} readOnly={readOnly} onChange={(e) => { setName(e.target.value); setDirty(true); }} />
+        <Input label="Menu name" value={name} readOnly={readOnly} onChange={(e) => { setName(e.target.value); setDirty(true); edits.current++; }} />
         {!readOnly && <Button onClick={save} loading={busy} disabled={!dirty}>Save menu</Button>}
       </div>
       {general && (

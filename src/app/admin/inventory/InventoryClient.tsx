@@ -6,13 +6,13 @@ import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import type { InventoryItem } from "@/server/services/products";
 
-type Row = { key: string; id: string; sku?: string; label: string; stock: number; low: boolean };
+type Row = { key: string; id: string; sku?: string; label: string; stock: number; threshold: number; low: boolean };
 
 function toRows(items: InventoryItem[]): Row[] {
   return items.flatMap((p) =>
     p.variants.length
-      ? p.variants.map((v) => ({ key: `${p.id}:${v.sku}`, id: p.id, sku: v.sku, label: `${p.name} — ${Object.values(v.options).join(" / ")}`, stock: v.stock, low: v.stock <= p.lowStockThreshold }))
-      : [{ key: p.id, id: p.id, label: p.name, stock: p.stock, low: p.lowStock }],
+      ? p.variants.map((v) => ({ key: `${p.id}:${v.sku}`, id: p.id, sku: v.sku, label: `${p.name} — ${Object.values(v.options).join(" / ")}`, stock: v.stock, threshold: p.lowStockThreshold, low: v.stock <= p.lowStockThreshold }))
+      : [{ key: p.id, id: p.id, label: p.name, stock: p.stock, threshold: p.lowStockThreshold, low: p.lowStock }],
   );
 }
 
@@ -28,7 +28,7 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
     try {
       const res = await api.patch<{ stock: number; variants: { sku: string; stock: number }[] }>(`/admin/inventory/${r.id}`, { ...(r.sku ? { sku: r.sku } : {}), ...body });
       const next = r.sku ? res.variants.find((v) => v.sku === r.sku)?.stock ?? r.stock : res.stock;
-      setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, stock: next } : x)));
+      setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, stock: next, low: next <= x.threshold } : x)));
       setAmount((a) => ({ ...a, [r.key]: "" }));
       setAnnounce(`${r.label}: stock is now ${next}`);
     } catch (e) {

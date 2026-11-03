@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "@/components/ui/Button";
 import EmptyState from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Field";
@@ -26,6 +26,7 @@ export default function SeoClient({ settings, redirects, q }: Props) {
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const edits = useRef(0); // bumped on every change; a save only clears "dirty" if nothing changed while it was in flight
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [rErrs, setRErrs] = useState<Record<string, string>>({});
@@ -38,7 +39,7 @@ export default function SeoClient({ settings, redirects, q }: Props) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
-  const set = (patch: Partial<SeoSettings>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); };
+  const set = (patch: Partial<SeoSettings>) => { setF((s) => ({ ...s, ...patch })); setDirty(true); edits.current++; };
 
   async function save() {
     setGeneral(null);
@@ -49,9 +50,10 @@ export default function SeoClient({ settings, redirects, q }: Props) {
       setErrs(m); setGeneral("Fix the highlighted fields."); return;
     }
     setErrs({}); setBusy(true);
+    const rev = edits.current;
     try {
       const saved = await api.put<AdminSeoSettings>("/admin/seo", { ...parsed.data, baseUpdatedAt: version });
-      setVersion(saved.updatedAt); setDirty(false); toast("SEO settings saved"); router.refresh();
+      setVersion(saved.updatedAt); if (edits.current === rev) setDirty(false); toast("SEO settings saved"); router.refresh();
     } catch (e) {
       setGeneral(e instanceof ApiClientError ? e.message : "Could not save");
     } finally { setBusy(false); }

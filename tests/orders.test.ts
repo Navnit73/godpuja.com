@@ -478,6 +478,14 @@ describe("orders (godpuja_test)", () => {
       await fails(changePayment(r3.orderId, "paid", ACTOR), "CONFLICT");
       await fails(changePayment("a".repeat(24), "paid", ACTOR), "NOT_FOUND");
     });
+    it("the payment history entry records the order's actual status, not always 'confirmed'", async () => {
+      const { r } = await fresh();
+      await changeStatus(r.orderId, "processing", undefined, ACTOR);
+      await changeStatus(r.orderId, "shipped", undefined, ACTOR);
+      await changeStatus(r.orderId, "delivered", undefined, ACTOR);
+      const o = await changePayment(r.orderId, "paid", ACTOR);
+      expect(o.history.at(-1)).toMatchObject({ kind: "payment", status: "delivered", note: "Payment marked paid" });
+    });
     it("notes append with author and time", async () => {
       const { r } = await fresh();
       await addNote(r.orderId, "Call before delivery", ACTOR);

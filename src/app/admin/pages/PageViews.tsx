@@ -33,7 +33,9 @@ export async function EditPageView({ kind, id }: { kind: PageKind; id: string })
   return (
     <>
       <PageHeader title={page.title} description={`/${page.slug}`} />
-      <PageEditor page={page} kind={page.kind} canPublish={can(user.role, "pages:publish")} readOnly={!can(user.role, "pages:write")} />
+      {/* Same rule as the API: without publish rights, only drafts can be edited. */}
+      <PageEditor page={page} kind={page.kind} canPublish={can(user.role, "pages:publish")}
+        readOnly={!can(user.role, "pages:write") || (page.status !== "draft" && !can(user.role, "pages:publish"))} />
     </>
   );
 }

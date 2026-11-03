@@ -7,6 +7,7 @@ import { Media, type MediaDoc } from "../models/Media";
 import { Homepage } from "../models/Homepage";
 import { Page } from "../models/Page";
 import { Product } from "../models/Product";
+import { Settings } from "../models/Settings";
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export type MediaItem = { id: string; url: string; filename: string; mime: string; size: number; width: number | null; height: number | null; alt: string; createdAt: string };
@@ -61,21 +62,32 @@ export async function updateMediaAlt(id: string, alt: string) {
   return toItem(m);
 }
 
-/** Refuses while a product or category still uses the image, so storefront images never break. */
+/** Refuses while a product, category, page/post or site setting still uses the image, so storefront images never break. */
 export async function deleteMedia(id: string) {
   if (!mongoose.isValidObjectId(id)) throw new ApiError("NOT_FOUND", "Image not found");
   await connectDB();
   const m = await Media.findById(id).lean();
   if (!m) throw new ApiError("NOT_FOUND", "Image not found");
   const url = m.url;
-  const [product, category, page, home] = await Promise.all([
+  const [product, category, page, home, settings] = await Promise.all([
     Product.exists({ $or: [{ "images.url": url }, { "seo.ogImage": url }] }),
     Category.exists({ $or: [{ "image.url": url }, { "seo.ogImage": url }] }),
-    Page.exists({ $or: [{ "sections.data.imageUrl": url }, { "seo.ogImage": url }] }),
+    Page.exists({ $or: [{ "sections.data.imageUrl": url }, { coverImageUrl: url }, { "seo.ogImage": url }] }),
     Homepage.findOne({ key: "main" }).select("sections").lean(),
+    Settings.exists({ $or: [{ defaultOgImage: url }, { logoUrl: url }] }),
   ]);
   const inHome = !!home && JSON.stringify(home.sections ?? []).includes(JSON.stringify(url).slice(1, -1));
-  if (product || category || page || inHome) throw new ApiError("CONFLICT", "This image is used by a product, category, page or the homepage. Remove it there first.");
-  await destroyImage(m.publicId);
-  await Media.deleteOne({ _id: id });
+  if (product || category || page || inHome || settings) {
+    throw new ApiError("CONFLICT", "This image is used by a product, category, page, the homepage or the SEO settings. Remove it there first.");
+  }
+  // Claim the record first (atomic), then remove the file. Two concurrent deletes cannot both reach storage, and a
+  // failed storage call restores the record instead of leaving a library entry that points at a deleted file.
+  const claimed = await Media.findOneAndDelete({ _id: id }).lean();
+  if (!claimed) throw new ApiError("NOT_FOUND", "Image not found");
+  try {
+    await destroyImage(claimed.publicId);
+  } catch (err) {
+    await Media.create(claimed).catch((e) => console.error("[media] could not restore record after failed delete", e));
+    throw err;
+  }
 }

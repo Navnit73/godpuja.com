@@ -17,7 +17,7 @@ async function Gate({ children }: { children: ReactNode }) {
     const wanted = safeNext((await headers()).get("x-next-path"));
     redirect(`/login?next=${encodeURIComponent(wanted)}`);
   }
-  const items = ADMIN_NAV.filter((i) => can(user.role, i.permission)).map(({ label, href }) => ({ label, href }));
+  const items = ADMIN_NAV.filter((i) => can(user.role, i.permission)).map(({ label, href, icon, group }) => ({ label, href, icon, group }));
   return <AdminFrame user={{ name: user.name, role: user.role }} items={items}>{children}</AdminFrame>;
 }
 

@@ -21,7 +21,7 @@ export default function Modal({ open, onClose, title, children }: {
       onMouseDown={(e) => { downOnBackdrop.current = e.target === ref.current; }}
       onClick={(e) => { if (e.target === ref.current && downOnBackdrop.current) onClose(); }}>
       {open && (
-        <div className="p-6">
+        <div className="max-h-[85dvh] overflow-y-auto p-5 sm:p-6">
           <h2 id={titleId} className="mb-4 font-sans text-xl font-semibold">{title}</h2>
           {children}
         </div>

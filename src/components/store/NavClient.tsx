@@ -24,7 +24,6 @@ function NavLink({ item, className, onNavigate }: { item: PublicMenuItem; classN
   );
 }
 
-const linkCls = "rounded-full px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:bg-saffron-50 aria-[current=page]:text-primary";
 const pill = "flex items-center rounded-full transition-colors hover:bg-saffron-50 has-[[aria-current=page]]:bg-saffron-50 has-[[aria-current=page]]:text-primary has-[[aria-expanded=true]]:bg-saffron-50";
 const pillLink = "block rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:text-primary aria-[current=page]:text-primary";
 const subLinkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary";

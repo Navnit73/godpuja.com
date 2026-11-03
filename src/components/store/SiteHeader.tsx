@@ -17,11 +17,11 @@ function visibleOn(items: PublicMenuItem[], flag: "showOnDesktop" | "showOnMobil
 export function HeaderShell({ desktopNav, mobileNav }: { desktopNav?: ReactNode; mobileNav?: ReactNode }) {
   return (
     <>
-      <div className="bg-kumkum-950 text-xs text-sandal-200">
+      <section aria-label="Announcement" className="bg-kumkum-950 text-xs text-sandal-200">
         <p className="mx-auto w-full max-w-7xl truncate px-4 py-2 text-center tracking-wide sm:px-6">
           <span className="text-gold-300" aria-hidden="true">✦ </span>Sacred rituals, made simple<span className="hidden sm:inline"> — everything for your puja, in one place</span><span className="text-gold-300" aria-hidden="true"> ✦</span>
         </p>
-      </div>
+      </section>
       <header className="sticky top-0 z-30 border-b border-sandal-200 bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:px-6 md:h-20 md:gap-8">
           {mobileNav}

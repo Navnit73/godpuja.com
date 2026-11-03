@@ -16,9 +16,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div role="status" aria-live="polite" className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      <div role="status" aria-live="polite" className="fixed inset-x-4 bottom-4 z-50 flex flex-col items-end gap-2 sm:left-auto sm:max-w-sm">
         {items.map((t) => (
-          <div key={t.id} className={`rounded-md px-4 py-3 text-sm shadow-elev-3 ${t.kind === "error" ? "bg-danger text-white" : "bg-kumkum-900 text-sandal-50"}`}>
+          <div key={t.id} role={t.kind === "error" ? "alert" : undefined} className={`rounded-md px-4 py-3 text-sm font-medium shadow-elev-3 ${t.kind === "error" ? "bg-danger text-white" : "bg-kumkum-900 text-sandal-50"}`}>
             {t.message}
           </div>
         ))}

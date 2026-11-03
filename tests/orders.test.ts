@@ -194,6 +194,13 @@ describe("orders (godpuja_test)", () => {
       expect(r.issues.filter((i) => i.code === "unavailable")).toHaveLength(4);
       expect(r.pricing.subtotal).toBe(10000);
     });
+    it("upcoming products are visible but cannot be bought", async () => {
+      const soon = await mk({ status: "upcoming" });
+      const r = await validateCart([{ productId: soon.id, qty: 1 }]);
+      expect(r.items[0].available).toBe(false);
+      expect(r.issues[0]).toMatchObject({ code: "unavailable", message: expect.stringContaining("coming soon") });
+      expect(r.pricing.subtotal).toBe(0);
+    });
     it("clamps quantity to stock ('reduced') and flags out of stock; caps at 20", async () => {
       const low = await mk({ stock: 3 });
       const none = await mk({ stock: 0 });

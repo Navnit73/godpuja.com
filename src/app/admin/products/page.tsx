@@ -12,7 +12,7 @@ import { listCategories } from "@/server/services/categories";
 import { listProducts } from "@/server/services/products";
 
 export const metadata: Metadata = { title: "Products" };
-const STATUSES = ["draft", "active", "archived"] as const;
+const STATUSES = ["draft", "active", "upcoming", "archived"] as const;
 
 export default async function ProductsList({ searchParams }: PageProps<"/admin/products">) {
   const user = await currentUser();
@@ -66,7 +66,7 @@ export default async function ProductsList({ searchParams }: PageProps<"/admin/p
                   <td className="text-muted">{p.category ?? "—"}</td>
                   <td className="whitespace-nowrap">{p.salePrice != null ? <><span>{formatPaise(p.salePrice)}</span> <s className="text-muted">{formatPaise(p.price)}</s></> : formatPaise(p.price)}</td>
                   <td>{p.stock}{p.lowStock && <span className="badge-danger ml-2">Low</span>}</td>
-                  <td>{p.status === "active" ? <span className="badge-success">Active</span> : p.status === "draft" ? <span className="badge-muted">Draft</span> : <span className="badge-primary">Archived</span>}</td>
+                  <td>{p.status === "active" ? <span className="badge-success">Active</span> : p.status === "draft" ? <span className="badge-muted">Draft</span> : p.status === "upcoming" ? <span className="badge bg-gold-100 text-gold-700">Upcoming</span> : <span className="badge-primary">Archived</span>}</td>
                 </tr>
               ))}
             </tbody>

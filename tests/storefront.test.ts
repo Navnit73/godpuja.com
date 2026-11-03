@@ -86,5 +86,8 @@ describe("storefront reads (godpuja_test)", () => {
     expect(rel.map((p) => p.slug)).toEqual(["sib2", "sib1", "feat"]); // sold first, then featured top-up; no draft/self/hidden
     expect(await findRelated("draft")).toEqual([]);
     expect(await findRelated("missing")).toEqual([]);
+    await Product.updateOne({ slug: "draft" }, { $set: { status: "upcoming" } });
+    const withSoon = await findRelated("main", 4);
+    expect(withSoon.find((p) => p.slug === "draft")).toMatchObject({ upcoming: true }); // upcoming items are shown, flagged
   });
 });

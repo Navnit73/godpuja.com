@@ -15,6 +15,10 @@ export type ProductListItem = {
   stock: number; lowStock: boolean; category: string | null; image: string | null; updatedAt: string;
 };
 
+/** Statuses shown on the storefront. "upcoming" products are visible (as "Coming soon") but cannot be bought. */
+export const VISIBLE_STATUSES: ProductInput["status"][] = ["active", "upcoming"];
+const visible = { $in: VISIBLE_STATUSES };
+
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const isId = (id: string) => mongoose.isValidObjectId(id);
 const plainOptions = (o: unknown) => (o instanceof Map ? Object.fromEntries(o) : ({ ...(o as object) } as Record<string, string>));
@@ -219,7 +223,7 @@ export async function adjustStock(id: string, input: InventoryInput) {
 
 export type PublicProduct = {
   id: string; name: string; slug: string; shortDescription: string; image: { url: string; alt: string } | null;
-  price: number; salePrice: number | null; inStock: boolean; isFeatured: boolean; category: string | null;
+  price: number; salePrice: number | null; inStock: boolean; upcoming: boolean; isFeatured: boolean; category: string | null;
 };
 export type PublicProductDetail = Omit<PublicProduct, "image"> & {
   sku: string; descriptionHtml: string; images: { url: string; alt: string }[]; brand: string;
@@ -251,7 +255,7 @@ export async function activeCategoryIds(path: string): Promise<mongoose.Types.Ob
 
 export async function findPublicProducts(q: PublicProductsInput) {
   await connectDB();
-  const filter: Record<string, unknown> = { status: "active" };
+  const filter: Record<string, unknown> = { status: visible };
   const cats = await categorySnapshot();
   if (q.category) {
     const ids = activeSubtree(cats, q.category);
@@ -269,12 +273,12 @@ export async function findPublicProducts(q: PublicProductsInput) {
   const { catPath: path, hidden } = cats;
   if (hidden.length && !q.category) filter.category = { $nin: hidden };
   const [rows, total] = await Promise.all([
-    Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
+    Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category status").sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
     Product.countDocuments(filter),
   ]);
   const items: PublicProduct[] = rows.map((p) => ({
     id: String(p._id), name: p.name, slug: p.slug, shortDescription: p.shortDescription ?? "", image: sortedImages(p as ProductDoc)[0] ?? null,
-    price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p as ProductDoc), isFeatured: !!p.isFeatured, category: p.category ? path.get(String(p.category)) ?? null : null,
+    price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p as ProductDoc), upcoming: p.status === "upcoming", isFeatured: !!p.isFeatured, category: p.category ? path.get(String(p.category)) ?? null : null,
   }));
   return { items, total, page: q.page, limit: q.limit, pages: Math.max(1, Math.ceil(total / q.limit)) };
 }
@@ -282,7 +286,7 @@ export async function findPublicProducts(q: PublicProductsInput) {
 export async function findPublicProduct(slug: string): Promise<PublicProductDetail | null> {
   await connectDB();
   // Product and category snapshot in parallel: one DB round trip on a cold read.
-  const [p, cats] = await Promise.all([Product.findOne({ slug, status: "active" }).lean(), categorySnapshot()]);
+  const [p, cats] = await Promise.all([Product.findOne({ slug, status: visible }).lean(), categorySnapshot()]);
   if (!p) return null;
   if (p.category && cats.hiddenIds.has(String(p.category))) return null; // its category (or an ancestor) is hidden
   const cat = p.category ? cats.byId.get(String(p.category)) ?? null : null;
@@ -292,7 +296,7 @@ export async function findPublicProduct(slug: string): Promise<PublicProductDeta
   return {
     breadcrumbs: chain.map((c) => ({ name: nameOf.get(c) ?? c.split("/").pop()!, path: c })),
     id: String(p._id), name: p.name, slug: p.slug, sku: p.sku, shortDescription: p.shortDescription ?? "", descriptionHtml: renderMarkdown(p.description ?? ""),
-    images: sortedImages(p), brand: p.brand ?? "", price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), isFeatured: !!p.isFeatured,
+    images: sortedImages(p), brand: p.brand ?? "", price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), upcoming: p.status === "upcoming", isFeatured: !!p.isFeatured,
     category: cat?.path ?? null, categoryPath: cat?.path ?? null, attributes: (p.attributes ?? []).map((a) => ({ name: a.name!, value: a.value! })),
     variants: (p.variants ?? []).map((v) => ({ sku: v.sku, options: plainOptions(v.options), price: v.price ?? p.price, salePrice: v.salePrice ?? (v.price == null ? p.salePrice ?? null : null), inStock: v.stock > 0 })),
     seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "", canonical: p.seo?.canonical ?? "", ogImage: p.seo?.ogImage ?? "", noindex: !!p.seo?.noindex },
@@ -306,13 +310,13 @@ export type RailSpec = { kind: "featuredProducts" | "latestProducts" | "bestSell
 
 const toPublicProduct = (p: ProductDoc, catPath: Map<string, string>): PublicProduct => ({
   id: String(p._id), name: p.name, slug: p.slug, shortDescription: p.shortDescription ?? "", image: sortedImages(p)[0] ?? null,
-  price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), isFeatured: !!p.isFeatured, category: p.category ? catPath.get(String(p.category)) ?? null : null,
+  price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), upcoming: p.status === "upcoming", isFeatured: !!p.isFeatured, category: p.category ? catPath.get(String(p.category)) ?? null : null,
 });
 
 /** One indexed, limited query for a homepage product rail. Callers run all rails in parallel (never per product). */
 export async function findRail(spec: RailSpec, catPath: Map<string, string>, hidden: mongoose.Types.ObjectId[] = []): Promise<PublicProduct[]> {
   await connectDB();
-  const filter: Record<string, unknown> = { status: "active" };
+  const filter: Record<string, unknown> = { status: visible };
   if (spec.kind === "featuredProducts") filter.isFeatured = true;
   if (spec.category) {
     const ids = await activeCategoryIds(spec.category);
@@ -322,25 +326,25 @@ export async function findRail(spec: RailSpec, catPath: Map<string, string>, hid
   // _id tiebreaker keeps the order stable between cache refreshes when many products tie (e.g. all unsold); the
   // compound indexes end in _id so the sort is still served from the index.
   const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
-  const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category").sort(sort).limit(spec.limit).lean();
+  const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category status").sort(sort).limit(spec.limit).lean();
   return rows.map((p) => toPublicProduct(p as ProductDoc, catPath));
 }
 
 /** Up to `limit` other active products from the same category (best sellers first), topped up with featured ones. */
 export async function findRelated(slug: string, limit = 4): Promise<PublicProduct[]> {
   await connectDB();
-  const base = await Product.findOne({ slug, status: "active" }).select("category").lean();
+  const base = await Product.findOne({ slug, status: visible }).select("category").lean();
   if (!base) return [];
   const { catPath, hidden } = await loadCategoryIndex();
   const notHidden = hidden.length ? { category: { $nin: hidden } } : {};
-  const pick = "name slug shortDescription images price salePrice stock variants isFeatured category";
+  const pick = "name slug shortDescription images price salePrice stock variants isFeatured category status";
   const out: ProductDoc[] = [];
   if (base.category) {
-    out.push(...((await Product.find({ status: "active", category: base.category, slug: { $ne: slug } }).select(pick).sort({ soldCount: -1, _id: -1 }).limit(limit).lean()) as ProductDoc[]));
+    out.push(...((await Product.find({ status: visible, category: base.category, slug: { $ne: slug } }).select(pick).sort({ soldCount: -1, _id: -1 }).limit(limit).lean()) as ProductDoc[]));
   }
   if (out.length < limit) {
     const have = [slug, ...out.map((p) => p.slug)];
-    out.push(...((await Product.find({ status: "active", isFeatured: true, slug: { $nin: have }, ...notHidden }).select(pick).sort({ createdAt: -1, _id: -1 }).limit(limit - out.length).lean()) as ProductDoc[]));
+    out.push(...((await Product.find({ status: visible, isFeatured: true, slug: { $nin: have }, ...notHidden }).select(pick).sort({ createdAt: -1, _id: -1 }).limit(limit - out.length).lean()) as ProductDoc[]));
   }
   return out.map((p) => toPublicProduct(p, catPath));
 }

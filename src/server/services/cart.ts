@@ -62,6 +62,7 @@ export function resolveLines(items: CartLineInput[], products: Map<string, Loade
       };
     };
     const p = products.get(it.productId);
+    if (p?.status === "upcoming") { lines.push(dead("This item is coming soon and can't be ordered yet.", "unavailable", p)); continue; }
     if (!p || p.status !== "active" || (p.category && hidden.has(String(p.category)))) { lines.push(dead("This item is no longer available.")); continue; }
     const hasVariants = (p.variants ?? []).length > 0;
     const variant = hasVariants ? p.variants.find((v) => v.sku === vs) : null;

@@ -16,7 +16,7 @@ export function breadcrumbLd(base: string, items: { name: string; path: string }
 
 export function productLd(base: string, p: PublicProductDetail) {
   const url = abs(base, `/product/${p.slug}`);
-  const availability = (inStock: boolean) => `https://schema.org/${inStock ? "InStock" : "OutOfStock"}`;
+  const availability = (inStock: boolean) => `https://schema.org/${p.upcoming ? "PreOrder" : inStock ? "InStock" : "OutOfStock"}`;
   const offers = p.variants.length
     ? (() => {
         const prices = p.variants.map((v) => v.salePrice ?? v.price);

@@ -70,7 +70,7 @@ async function Content({ params }: Props) {
             {p.shortDescription && <p className="mt-3 text-lg text-muted">{p.shortDescription}</p>}
           </div>
           <div className="rounded-2xl border border-sandal-200 bg-dawn p-5 sm:p-6">
-            <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} variants={p.variants} />
+            <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} upcoming={p.upcoming} variants={p.variants} />
           </div>
           <ul className="grid gap-3 text-sm sm:grid-cols-2">
             <li className="flex items-center gap-3 rounded-xl border border-sandal-200 bg-white px-4 py-3"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>

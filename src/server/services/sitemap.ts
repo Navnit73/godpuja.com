@@ -19,7 +19,7 @@ export async function findSitemapEntries(now = new Date()): Promise<SitemapEntry
   const inactive = cats.filter((c) => c.isActive === false).map((c) => c.path);
   const hidden = (path: string) => inactive.some((p) => path === p || path.startsWith(p + "/"));
   const hiddenIds = cats.filter((c) => hidden(c.path)).map((c) => c._id);
-  const products = await Product.find({ status: "active", "seo.noindex": { $ne: true }, ...(hiddenIds.length ? { category: { $nin: hiddenIds } } : {}) })
+  const products = await Product.find({ status: { $in: ["active", "upcoming"] }, "seo.noindex": { $ne: true }, ...(hiddenIds.length ? { category: { $nin: hiddenIds } } : {}) })
     .select("slug updatedAt").sort({ updatedAt: -1 }).limit(MAX_URLS).lean();
 
   const out: SitemapEntry[] = [{ path: "/", lastModified: now }];

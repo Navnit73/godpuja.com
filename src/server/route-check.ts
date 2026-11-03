@@ -50,7 +50,7 @@ export async function checkPath(path: string): Promise<RouteVerdict> {
   if (first === "product") {
     const slug = rest.join("/");
     if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
-    return (await cached(`p:${slug}`, async () => !!(await Product.exists({ slug, status: "active" })))) ? { kind: "ok" } : { kind: "notFound" };
+    return (await cached(`p:${slug}`, async () => !!(await Product.exists({ slug, status: { $in: ["active", "upcoming"] } })))) ? { kind: "ok" } : { kind: "notFound" };
   }
   if (first === "category") {
     const p = rest.join("/");

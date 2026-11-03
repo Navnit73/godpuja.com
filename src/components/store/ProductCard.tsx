@@ -16,7 +16,8 @@ export default function ProductCard({ p }: { p: PublicProduct }) {
             : <div className="aspect-square w-full" aria-hidden="true" />}
           <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
             {off > 0 && <span className="badge bg-kumkum-700 text-white">{off}% off</span>}
-            {!p.inStock && <span className="badge bg-surface text-danger">Out of stock</span>}
+            {p.upcoming && <span className="badge bg-saffron-700 text-white">Coming soon</span>}
+            {!p.upcoming && !p.inStock && <span className="badge bg-surface text-danger">Out of stock</span>}
           </div>
         </div>
         <div className="flex flex-1 flex-col gap-2 px-1 pt-3">

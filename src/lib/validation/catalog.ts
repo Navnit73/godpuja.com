@@ -55,7 +55,7 @@ export const productInputSchema = z.object({
   salePrice: paise.nullable(),
   stock: z.number().int().min(0).max(10_000_000),
   lowStockThreshold: z.number().int().min(0).max(100000),
-  status: z.enum(["draft", "active", "archived"]),
+  status: z.enum(["draft", "active", "upcoming", "archived"]),
   isFeatured: z.boolean(),
   attributes: z.array(z.object({ name: z.string().trim().min(1).max(60), value: z.string().trim().min(1).max(200) })).max(20),
   variants: z.array(variant).max(50, "At most 50 variants"),
@@ -72,7 +72,7 @@ export const productInputSchema = z.object({
   });
   const skus = [p.sku, ...p.variants.map((v) => v.sku)];
   if (new Set(skus).size !== skus.length) ctx.addIssue({ code: "custom", path: ["variants"], message: "SKUs must be unique (including the product SKU)" });
-  if (p.status === "active" && !p.category) ctx.addIssue({ code: "custom", path: ["category"], message: "Choose a category before activating" });
+  if ((p.status === "active" || p.status === "upcoming") && !p.category) ctx.addIssue({ code: "custom", path: ["category"], message: "Choose a category before publishing" });
   if (p.status === "active" && p.price <= 0) ctx.addIssue({ code: "custom", path: ["price"], message: "Set a price before activating" });
 });
 export const updateProductSchema = productInputSchema.safeExtend({ baseUpdatedAt: z.iso.datetime({ offset: true }) });
@@ -81,7 +81,7 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 
 export const listProductsSchema = z.object({
   q: z.string().trim().max(100).optional(),
-  status: z.enum(["draft", "active", "archived"]).optional(),
+  status: z.enum(["draft", "active", "upcoming", "archived"]).optional(),
   category: id.optional(),
   lowStock: z.enum(["1"]).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),

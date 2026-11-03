@@ -124,7 +124,7 @@ export default function ProductEditor({ product, categories, canWrite }: { produ
             {categories.map((c) => <option key={c.id} value={c.id}>{"— ".repeat(c.level - 1)}{c.name}</option>)}
           </Select>
           <Select label="Status" value={f.status} error={e("status")} onChange={(ev) => set({ status: ev.target.value as Form["status"] })}>
-            <option value="draft">Draft (hidden)</option><option value="active">Active (on the storefront)</option><option value="archived">Archived (hidden)</option>
+            <option value="draft">Draft (hidden)</option><option value="active">Active (on the storefront)</option><option value="upcoming">Upcoming (shown as coming soon, not purchasable)</option><option value="archived">Archived (hidden)</option>
           </Select>
           <div className="sm:col-span-2"><Input label="Short description" value={f.shortDescription} error={e("shortDescription")} maxLength={300} onChange={(ev) => set({ shortDescription: ev.target.value })} /></div>
           <div className="sm:col-span-2">

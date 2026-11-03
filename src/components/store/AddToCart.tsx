@@ -7,11 +7,11 @@ import { formatPaise } from "@/lib/money";
 import { CartIcon } from "./Icons";
 
 type Variant = { sku: string; options: Record<string, string>; price: number; salePrice: number | null; inStock: boolean };
-type Props = { productId: string; price: number; salePrice: number | null; inStock: boolean; variants: Variant[] };
+type Props = { productId: string; price: number; salePrice: number | null; inStock: boolean; upcoming?: boolean; variants: Variant[] };
 
 const label = (v: Variant) => Object.entries(v.options).map(([k, val]) => `${k}: ${val}`).join(", ");
 
-export default function AddToCart({ productId, price, salePrice, inStock, variants }: Props) {
+export default function AddToCart({ productId, price, salePrice, inStock, upcoming = false, variants }: Props) {
   const firstAvailable = variants.find((v) => v.inStock) ?? variants[0];
   const [sku, setSku] = useState<string>(firstAvailable?.sku ?? "");
   const [qty, setQty] = useState(1);
@@ -39,7 +39,9 @@ export default function AddToCart({ productId, price, salePrice, inStock, varian
         </div>
       )}
 
-      {available ? (
+      {upcoming ? (
+        <p className="font-medium text-primary">Coming soon — this item will be available to order shortly.</p>
+      ) : available ? (
         <div className="space-y-2">
           <span id="qty-label" className="label">Quantity</span>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">

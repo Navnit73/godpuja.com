@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema(
     effectivePrice: { type: Number, default: 0, min: 0 }, // salePrice ?? price; denormalised for filter/sort
     stock: { type: Number, default: 0, min: 0 }, // used only when there are no variants
     lowStockThreshold: { type: Number, default: 5, min: 0 },
-    status: { type: String, enum: ["draft", "active", "archived"], default: "draft" },
+    status: { type: String, enum: ["draft", "active", "upcoming", "archived"], default: "draft" },
     isFeatured: { type: Boolean, default: false },
     attributes: [{ _id: false, name: String, value: String }],
     variants: { type: [variantSchema], default: [] },

@@ -16,11 +16,12 @@ export function LogoMark({ className = "h-9 w-9" }: { className?: string }) {
 }
 
 /** `tone="light"` is for dark surfaces (footer). */
-export default function Logo({ tone = "dark" }: { tone?: "dark" | "light" }) {
+/** `compact`: slightly smaller below the `xs` breakpoint (site header on 320px phones). */
+export default function Logo({ tone = "dark", compact = false }: { tone?: "dark" | "light"; compact?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2.5">
-      <LogoMark />
-      <span className={`font-serif text-2xl font-semibold ${tone === "light" ? "text-sandal-50" : "text-kumkum-900"}`}>
+    <span className={`inline-flex items-center ${compact ? "gap-2 xs:gap-2.5" : "gap-2.5"}`}>
+      <LogoMark className={compact ? "h-8 w-8 xs:h-9 xs:w-9" : undefined} />
+      <span className={`font-serif font-semibold ${compact ? "text-xl xs:text-2xl" : "text-2xl"} ${tone === "light" ? "text-sandal-50" : "text-kumkum-900"}`}>
         God<span className={tone === "light" ? "text-gold-300" : "text-primary"}>Puja</span>
       </span>
     </span>

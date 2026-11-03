@@ -48,7 +48,10 @@ Layout follows the owner's e-commerce reference (top bar, search header, categor
 | `section-title`, `eyebrow` | storefront section headings (serif 3xl/4xl) and small uppercase labels |
 | `btn-light`, `btn-ghost-light` | buttons on dark/gradient panels |
 | `icon-btn` | 44px round header actions (search, account, cart) |
-| `product-tile` | product card: `rounded-2xl`, sandal border, image on `sandal-100` plate, lift on hover |
+| `product-tile` | product card: `rounded-2xl`, sandal border, image on `sandal-100` plate, lift on hover (`-translate-y-1` + `elev-2`; the one storefront card allowed a hover shadow) |
+| `summary-plain` | `<summary>` without the disclosure triangle; listing toolbar "Price" popover (`chip` summary, `elev-4` panel, `Popover` closes on Esc/outside click) |
+| `pb-safe` | bottom padding that clears the iOS home indicator; product page mobile sticky buy bar (`surface`, top `border`, `elev-4`, shown only while the main buy row is off screen; `body.has-buy-bar` adds bottom padding so it never hides the footer) |
+| `scrollbar-none` | hides the scrollbar on horizontal rails (homepage product rails below `sm`: `snap-x`, cards `w-5/12`, a peek of the next card signals scrolling) |
 | `chip` | subcategory / filter pills |
 
 Radius additions for the storefront: `rounded-2xl` (product tiles, banners, panels) and `rounded-3xl` (hero, offer). All new text/background pairs are covered in `tests/contrast.test.ts`.
@@ -64,7 +67,7 @@ Radius additions for the storefront: `rounded-2xl` (product tiles, banners, pane
 - Spacing: Tailwind 4px scale; allowed steps 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 12, 16, 24. No arbitrary values (`w-[…]`, `grid-cols-[…]`). Section vertical rhythm: `py-16` desktop, `py-10` mobile.
 - Radius: `rounded-md` (inputs, small controls), `rounded-xl` (cards, modals), `rounded-full` (buttons, badges). No other radii.
 - Containers: storefront listings `max-w-6xl` (1152), CMS page content `max-w-4xl`, admin content `max-w-7xl`. Horizontal padding `px-4` mobile, `px-6` ≥ sm.
-- Breakpoints: Tailwind defaults — sm 640, md 768, lg 1024, xl 1280.
+- Breakpoints: Tailwind defaults — sm 640, md 768, lg 1024, xl 1280 — plus `xs` 360 (small phones; header logo/gaps tighten below it so 320px fits). Pages must never be wider than the screen: `body` has `overflow-x: clip` as a safety net, and anything absolutely positioned inside a horizontal rail needs a positioned ancestor inside the rail (`product-tile` is `relative`).
 
 ## Elevation
 

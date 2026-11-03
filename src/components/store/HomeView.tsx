@@ -13,6 +13,9 @@ function Cta({ href, children, variant = "btn-primary" }: { href: string; childr
     ? <a href={href} target="_blank" rel="noopener noreferrer" className={`${variant} gap-2`}>{children}<span className="sr-only"> (opens in a new tab)</span></a>
     : <Link href={href} className={`${variant} gap-2`}>{children}</Link>;
 }
+// Vertical rhythm: plain sections stack to ~64/96px gaps; tinted bands carry their own, larger padding.
+const PAD = "py-8 sm:py-12";
+const BAND = "py-12 sm:py-16";
 const Wrap = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => <div className={`mx-auto w-full max-w-7xl px-4 sm:px-6 ${className}`}>{children}</div>;
 const Html = ({ html, className = "" }: { html: string; className?: string }) => <div className={`content ${className}`} dangerouslySetInnerHTML={{ __html: html }} />; // sanitised in the service
 
@@ -45,9 +48,9 @@ function Block({ s }: { s: PublicHomeSection }) {
                 <LotusOrnament className={`mb-4 h-4 w-20 text-gold-300 ${s.imageUrl ? "" : "mx-auto"}`} />
                 <h1 id={`h-${s.id}`} className="text-4xl font-semibold text-white sm:text-5xl lg:text-6xl">{s.heading}</h1>
                 {s.subheading && <p className="mt-4 text-lg text-sandal-100">{s.subheading}</p>}
-                <div className={`mt-8 flex flex-wrap gap-3 ${s.imageUrl ? "" : "justify-center"}`}>
-                  {s.ctaLabel && <Cta href={s.ctaUrl} variant="btn-light">{s.ctaLabel}<ArrowRight /></Cta>}
-                  {s.secondaryCtaLabel && <Cta href={s.secondaryCtaUrl} variant="btn-ghost-light">{s.secondaryCtaLabel}</Cta>}
+                <div className={`mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap ${s.imageUrl ? "" : "sm:justify-center"}`}>
+                  {s.ctaLabel && <Cta href={s.ctaUrl} variant="btn-light min-h-12 w-full sm:w-auto">{s.ctaLabel}<ArrowRight /></Cta>}
+                  {s.secondaryCtaLabel && <Cta href={s.secondaryCtaUrl} variant="btn-ghost-light min-h-12 w-full sm:w-auto">{s.secondaryCtaLabel}</Cta>}
                 </div>
               </div>
               {s.imageUrl && (
@@ -63,25 +66,35 @@ function Block({ s }: { s: PublicHomeSection }) {
     case "banner": {
       const n = s.items.length;
       return (
-        <Wrap className="py-8 sm:py-10"><ul className={`grid gap-4 sm:gap-5 ${n === 2 ? "sm:grid-cols-2" : n >= 3 ? "md:grid-cols-2" : ""}`}>
+        <Wrap className={PAD}><ul className={`grid gap-4 sm:gap-5 ${n === 2 ? "sm:grid-cols-2" : n >= 3 ? "md:grid-cols-2" : ""}`}>
           {s.items.map((b, i) => {
             const tall = n === 3 && i === 0;
+            // Image stays unobstructed (banner artwork is usually centred); the caption sits in a dusk strip below it.
             const inner = (
               <>
-                <img {...responsive(b.imageUrl, "(min-width: 640px) 50vw, 100vw", 640)} alt={b.imageAlt} loading="lazy" decoding="async" referrerPolicy="no-referrer"
-                  className={`w-full object-cover transition-transform duration-500 ease-standard group-hover:scale-105 ${tall ? "aspect-16/7 md:absolute md:inset-0 md:aspect-auto md:h-full" : "aspect-16/7"}`} />
-                {(b.heading || b.text) && (
-                  <div className="absolute inset-0 flex flex-col justify-end bg-linear-to-t from-kumkum-950 via-kumkum-950/40 to-transparent p-5 text-white sm:p-6">
-                    {b.heading && <p className="font-serif text-2xl font-semibold sm:text-3xl">{b.heading}</p>}
-                    {b.text && <p className="mt-1 max-w-md text-sm text-sandal-100">{b.text}</p>}
-                    {b.linkUrl && <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-surface px-4 py-1.5 text-xs font-semibold text-kumkum-900" aria-hidden="true">Explore <ArrowRight className="h-3.5 w-3.5" /></span>}
+                <div className={`relative overflow-hidden ${tall ? "md:flex-1" : ""}`}>
+                  <img {...responsive(b.imageUrl, "(min-width: 640px) 50vw, 100vw", 640)} alt={b.imageAlt} loading="lazy" decoding="async" referrerPolicy="no-referrer"
+                    className={`aspect-16/7 w-full object-cover transition-transform duration-500 ease-standard group-hover:scale-105 ${tall ? "md:absolute md:inset-0 md:aspect-auto md:h-full" : ""}`} />
+                </div>
+                {(b.heading || b.text || b.linkUrl) && (
+                  <div className="relative isolate flex items-center justify-between gap-4 overflow-hidden bg-dusk px-5 py-4 text-white sm:px-6 sm:py-5">
+                    <div className="pattern-rangoli absolute inset-0 -z-10" aria-hidden="true" />
+                    <div className="min-w-0">
+                      {b.heading && <p className="font-serif text-xl font-semibold leading-tight sm:text-2xl">{b.heading}</p>}
+                      {b.text && <p className="mt-1 text-sm text-sandal-100">{b.text}</p>}
+                    </div>
+                    {b.linkUrl && (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-4 py-2 text-xs font-semibold text-kumkum-900 transition-colors duration-200 ease-standard group-hover:bg-gold-100" aria-hidden="true">
+                        <span className="hidden sm:inline">Explore</span><ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 ease-standard group-hover:translate-x-0.5" />
+                      </span>
+                    )}
                   </div>
                 )}
               </>
             );
-            const cls = "group relative block h-full";
+            const cls = "group relative flex h-full flex-col";
             return (
-              <li key={i} className={`relative overflow-hidden rounded-2xl bg-sandal-100 ${tall ? "md:row-span-2" : ""}`}>
+              <li key={i} className={`relative overflow-hidden rounded-2xl border border-sandal-200 bg-sandal-100 transition-shadow duration-200 ease-standard hover:shadow-elev-2 ${tall ? "md:row-span-2" : ""}`}>
                 {b.linkUrl ? (external(b.linkUrl) ? <a href={b.linkUrl} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a> : <Link href={b.linkUrl} className={cls}>{inner}</Link>) : <div className={cls}>{inner}</div>}
               </li>
             );
@@ -91,18 +104,18 @@ function Block({ s }: { s: PublicHomeSection }) {
     }
     case "featuredCategories":
       return (
-        <Wrap className="py-10 sm:py-12">
+        <Wrap className={PAD}>
           <Heading title={s.heading} />
           <ul className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 sm:gap-x-6 lg:grid-cols-6">
             {s.categories.map((c) => (
               <li key={c.id}>
                 <Link href={`/category/${c.path}`} className="group flex flex-col items-center gap-3 text-center">
-                  <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:ring-2 group-hover:ring-gold-400">
+                  <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:-translate-y-1 group-hover:shadow-elev-2 group-hover:ring-2 group-hover:ring-gold-400">
                     {c.image.url
                       ? <img {...responsive(c.image.url, "(min-width: 1024px) 160px, 33vw", 320)} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full rounded-full object-cover" />
                       : <span className="flex aspect-square w-full items-center justify-center rounded-full bg-saffron-50 font-serif text-4xl font-semibold text-primary" aria-hidden="true">{c.name.charAt(0)}</span>}
                   </span>
-                  <span className="text-sm font-medium text-foreground group-hover:text-primary sm:text-base">{c.name}</span>
+                  <span className="text-sm font-medium text-foreground transition-colors group-hover:text-primary sm:text-base">{c.name}</span>
                 </Link>
               </li>
             ))}
@@ -112,27 +125,30 @@ function Block({ s }: { s: PublicHomeSection }) {
     case "featuredProducts": case "latestProducts": case "bestSellers":
       return (
         <section className={s.type === "latestProducts" ? "bg-dawn" : ""}>
-          <Wrap className="py-10 sm:py-14">
+          <Wrap className={s.type === "latestProducts" ? BAND : PAD}>
             <Heading title={s.heading} href={s.viewAll} />
-            <ul aria-label={s.heading || "Products"} className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">{s.products.map((p) => <ProductCard key={p.id} p={p} />)}</ul>
+            {/* Below sm: a swipeable rail (next card peeks in) instead of a 4-row grid; from sm up: the grid. */}
+            <ul aria-label={s.heading || "Products"} className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
+              {s.products.map((p) => <ProductCard key={p.id} p={p} className="w-5/12 shrink-0 snap-start sm:w-auto" />)}
+            </ul>
           </Wrap>
         </section>
       );
     case "richText":
-      return <Wrap className="max-w-4xl py-10"><Html html={s.html} /></Wrap>;
+      return <Wrap className={`max-w-4xl ${PAD}`}><Html html={s.html} /></Wrap>;
     case "imageText":
-      return <Wrap className="max-w-6xl py-10 sm:py-14"><PageSection s={s} /></Wrap>;
+      return <Wrap className={`max-w-6xl ${PAD}`}><PageSection s={s} /></Wrap>;
     case "testimonials":
       return (
-        <section className="bg-dawn"><Wrap className="py-12 sm:py-16">
+        <section className="bg-dawn"><Wrap className={BAND}>
           <Heading title={s.heading} center />
           <ul className="grid gap-5 md:grid-cols-3">
             {s.items.map((t, i) => (
-              <li key={i} className="relative rounded-2xl border border-sandal-200 bg-surface p-6">
+              <li key={i} className="relative flex flex-col rounded-2xl border border-sandal-200 bg-surface p-6 transition-colors duration-200 ease-standard hover:border-gold-300">
                 <QuoteIcon className="h-8 w-8 text-gold-300" />
-                <figure className="mt-3">
-                  <blockquote className="text-base leading-relaxed text-foreground">{t.quote}</blockquote>
-                  <figcaption className="mt-5 flex items-center gap-3 border-t border-sandal-200 pt-4 text-sm">
+                <figure className="mt-3 flex flex-1 flex-col">
+                  <blockquote className="mb-5 text-base leading-relaxed text-foreground">{t.quote}</blockquote>
+                  <figcaption className="mt-auto flex items-center gap-3 border-t border-sandal-200 pt-4 text-sm">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sacred font-serif text-lg font-semibold text-white" aria-hidden="true">{t.author.charAt(0)}</span>
                     <span><span className="block font-semibold">{t.author}</span>{t.role && <span className="text-muted">{t.role}</span>}</span>
                   </figcaption>
@@ -144,11 +160,11 @@ function Block({ s }: { s: PublicHomeSection }) {
       );
     case "offer":
       return (
-        <Wrap className="py-8 sm:py-10">
+        <Wrap className={PAD}>
           <section aria-label="Offer" className="relative isolate overflow-hidden rounded-3xl bg-dusk text-white">
             <div className="pattern-rangoli absolute inset-0 -z-10" aria-hidden="true" />
             <Mandala className="absolute -right-16 top-1/2 -z-10 h-80 w-80 -translate-y-1/2 text-gold-300 opacity-20" />
-            <div className="flex flex-col items-start justify-between gap-6 px-6 py-8 sm:px-10 md:flex-row md:items-center">
+            <div className="flex flex-col items-start justify-between gap-6 px-6 py-8 sm:px-10 sm:py-10 md:flex-row md:items-center">
               <div>
                 <p className="font-serif text-3xl font-semibold sm:text-4xl">{s.heading}</p>
                 {s.text && <p className="mt-2 max-w-xl text-sandal-100">{s.text}</p>}
@@ -163,14 +179,14 @@ function Block({ s }: { s: PublicHomeSection }) {
       );
     case "latestPosts":
       return (
-        <Wrap className="py-10 sm:py-14">
+        <Wrap className={PAD}>
           <Heading title={s.heading} href={s.viewAll} />
           <ul aria-label={s.heading || "Latest posts"} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{s.posts.map((p) => <PostCard key={p.id} p={p} showKind={s.showKind} />)}</ul>
         </Wrap>
       );
     case "custom": {
       const tone = s.tone === "soft" ? "bg-sandal-100" : s.tone === "accent" ? "bg-dawn" : "";
-      return <section className={tone}><Wrap className="max-w-4xl py-10 sm:py-14"><Html html={s.html} /></Wrap></section>;
+      return <section className={tone}><Wrap className={`max-w-4xl ${tone ? BAND : PAD}`}><Html html={s.html} /></Wrap></section>;
     }
   }
 }
@@ -178,7 +194,7 @@ function Block({ s }: { s: PublicHomeSection }) {
 export default function HomeView({ sections }: { sections: PublicHomeSection[] }) {
   const hasHero = sections.some((s) => s.type === "hero");
   return (
-    <main id="main" tabIndex={-1} className="flex-1 pb-6">
+    <main id="main" tabIndex={-1} className="flex-1 pb-8 sm:pb-12">
       {!hasHero && <h1 className="sr-only">GodPuja</h1>}
       {sections.map((s) => <Block key={s.id} s={s} />)}
     </main>

@@ -7,6 +7,21 @@ import { cart, MAX_QTY, useCart } from "@/lib/cart";
 import { formatPaise } from "@/lib/money";
 import type { CartValidation } from "@/lib/storefront-api";
 import { sized } from "@/lib/image";
+import { CloseIcon } from "@/components/store/Icons";
+
+/** − [n] + control; 44px touch targets on mobile, 40px from sm up. */
+function QtyStepper({ name, value, max, onChange }: { name: string; value: number; max: number; onChange: (q: number) => void }) {
+  const set = (q: number) => onChange(Math.min(max, Math.max(1, Math.trunc(q) || 1)));
+  const btn = "h-11 w-11 text-lg text-foreground hover:bg-sandal-100 focus-visible:bg-sandal-100 disabled:opacity-40 sm:h-10 sm:w-10";
+  return (
+    <div role="group" aria-label={`Quantity for ${name}`} className="inline-flex items-center overflow-hidden rounded-full border border-input-border bg-surface focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+      <button type="button" aria-label={`Decrease quantity of ${name}`} disabled={value <= 1} className={btn} onClick={() => set(value - 1)}>−</button>
+      <input type="number" inputMode="numeric" aria-label={`Quantity of ${name}`} min={1} max={max} value={value} onChange={(e) => set(Number(e.target.value))}
+        className="qty-input h-11 w-10 border-0 bg-transparent text-center text-base font-medium text-foreground outline-none sm:h-10" />
+      <button type="button" aria-label={`Increase quantity of ${name}`} disabled={value >= max} className={btn} onClick={() => set(value + 1)}>+</button>
+    </div>
+  );
+}
 
 /** Server-validated cart: prices and stock always come from the API, never from the browser. */
 export function useValidatedCart() {
@@ -47,35 +62,47 @@ export default function CartClient() {
     );
   }
   if (error) return <p role="alert" className="alert-error">{error}</p>;
-  if (loading || !data) return <p role="status" className="text-muted">Loading your cart…</p>;
+  if (loading || !data) return (
+    <div role="status" className="space-y-3"><span className="sr-only">Loading your cart…</span>
+      {lines.map((_, n) => <div key={n} className="panel flex animate-pulse gap-3 p-3" aria-hidden="true"><div className="h-20 w-20 rounded-xl bg-sandal-100" /><div className="flex-1 space-y-2 py-1"><div className="h-4 w-2/3 rounded-full bg-sandal-100" /><div className="h-3 w-1/4 rounded-full bg-sandal-100" /></div></div>)}
+    </div>
+  );
 
   const buyable = data.items.filter((i) => i.available);
+  const remove = (productId: string, variantSku: string | null, name: string) => { cart.remove(productId, variantSku); setAnnounce(`${name} removed from your cart`); };
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
+    <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[1fr_20rem]">
       <p role="status" aria-live="polite" className="sr-only">{announce}</p>
       <div className="space-y-4">
         {data.issues.length > 0 && (
           <ul role="status" className="alert-error space-y-1">{data.issues.map((i, n) => <li key={n}>{i.message}</li>)}</ul>
         )}
-        <ul className="space-y-3">
+        <ul aria-label="Items in your cart" className="space-y-3">
           {data.items.map((i) => (
-            <li key={`${i.productId}:${i.variantSku}`} className={`panel flex gap-4 p-3 ${i.available ? "" : "opacity-70"}`}>
-              {i.image ? <img src={sized(i.image.url, 192)} alt={i.image.alt} loading="lazy" referrerPolicy="no-referrer" className="h-24 w-24 shrink-0 rounded-md object-cover" /> : <div className="h-24 w-24 shrink-0 rounded-md bg-sandal-100" aria-hidden="true" />}
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{i.available ? <Link href={`/product/${i.slug}`} className="hover:text-primary">{i.name}</Link> : i.name}</p>
-                {Object.keys(i.options).length > 0 && <p className="text-sm text-muted">{Object.entries(i.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>}
-                {i.available ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <label className="text-sm" htmlFor={`q-${i.productId}-${i.variantSku}`}>Qty</label>
-                    <input id={`q-${i.productId}-${i.variantSku}`} type="number" min={1} max={Math.min(MAX_QTY, i.maxQty)} value={i.qty} className="input h-9 w-20"
-                      onChange={(e) => { cart.setQty(i.productId, i.variantSku, Math.min(Math.min(MAX_QTY, i.maxQty), Math.max(1, Math.trunc(Number(e.target.value) || 1)))); }} />
-                    <button type="button" className="btn-ghost btn-sm" onClick={() => { cart.remove(i.productId, i.variantSku); setAnnounce(`${i.name} removed from your cart`); }}>Remove<span className="sr-only"> {i.name}</span></button>
+            <li key={`${i.productId}:${i.variantSku}`} className={`panel flex gap-3 p-3 sm:gap-4 ${i.available ? "" : "opacity-70"}`}>
+              {i.image ? <img src={sized(i.image.url, 192)} alt={i.image.alt} loading="lazy" referrerPolicy="no-referrer" className="h-16 w-16 shrink-0 rounded-xl bg-sandal-100 object-cover xs:h-20 xs:w-20 sm:h-24 sm:w-24" /> : <div className="h-16 w-16 shrink-0 rounded-xl bg-sandal-100 xs:h-20 xs:w-20 sm:h-24 sm:w-24" aria-hidden="true" />}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 font-medium leading-snug">{i.available ? <Link href={`/product/${i.slug}`} className="hover:text-primary">{i.name}</Link> : i.name}</p>
+                    {Object.keys(i.options).length > 0 && <p className="mt-0.5 text-sm text-muted">{Object.entries(i.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>}
+                    {i.available && <p className="mt-0.5 text-xs text-muted">{formatPaise(i.unitPrice)} each</p>}
                   </div>
-                ) : (
-                  <button type="button" className="btn-outline btn-sm mt-2" onClick={() => { cart.remove(i.productId, i.variantSku); setAnnounce(`${i.name} removed from your cart`); }}>Remove unavailable item<span className="sr-only"> {i.name}</span></button>
-                )}
+                  {i.available && (
+                    <button type="button" className="icon-btn -mr-2 -mt-2 text-muted hover:text-danger" onClick={() => remove(i.productId, i.variantSku, i.name)}>
+                      <CloseIcon className="h-5 w-5" /><span className="sr-only">Remove {i.name}</span>
+                    </button>
+                  )}
+                </div>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-3">
+                  {i.available ? (
+                    <QtyStepper name={i.name} value={i.qty} max={Math.min(MAX_QTY, i.maxQty)} onChange={(q) => cart.setQty(i.productId, i.variantSku, q)} />
+                  ) : (
+                    <button type="button" className="btn-outline btn-sm" onClick={() => remove(i.productId, i.variantSku, i.name)}>Remove<span className="sr-only"> unavailable item {i.name}</span></button>
+                  )}
+                  <p className="shrink-0 text-right font-semibold">{i.available ? formatPaise(i.lineTotal) : <span className="text-sm font-medium text-danger">Unavailable</span>}</p>
+                </div>
               </div>
-              <p className="shrink-0 text-right font-semibold">{i.available ? formatPaise(i.lineTotal) : "—"}</p>
             </li>
           ))}
         </ul>

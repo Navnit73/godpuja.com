@@ -9,6 +9,9 @@
   tulsi    (green)    → subtle secondary / success
 */
 @theme {
+  /* xs: small phones (>= 360px). Below it the header logo and gaps tighten so a 320px screen fits. */
+  --breakpoint-xs: 22.5rem;
+
   /* Saffron */
   --color-saffron-50: #fff7ed;
   --color-saffron-100: #ffedd5;
@@ -129,6 +132,9 @@
   /* Dark panels: the gold-600 focus ring is only ~3:1 there, so switch to light gold (>= 9:1). */
   .bg-dusk, .bg-sacred, .bg-tulsi, .bg-kumkum-950 { --accent: var(--color-gold-300); }
   body {
+    /* Safety net: a stray wide element must never widen the mobile layout viewport (page zooms out / pans sideways).
+       clip (not hidden) keeps position: sticky working. */
+    overflow-x: clip;
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
@@ -238,7 +244,35 @@
 
 /* Product tile: white card, image sits on a soft sandal plate */
 @utility product-tile {
-  @apply flex flex-col overflow-hidden rounded-2xl border border-sandal-200 bg-surface p-3 transition-colors duration-200 ease-standard hover:border-saffron-300;
+  /* relative: contains absolutely positioned children (sr-only text, badges) so they can't escape a scrolling rail */
+  position: relative;
+  @apply flex flex-col overflow-hidden rounded-2xl border border-sandal-200 bg-surface p-3 transition-all duration-200 ease-standard hover:-translate-y-1 hover:border-saffron-300 hover:shadow-elev-2;
+}
+
+/* <summary> styled as a control: drop the disclosure triangle (listing toolbar "Price" popover). */
+@utility summary-plain {
+  list-style: none;
+  &::-webkit-details-marker { display: none; }
+}
+
+/* Bottom-fixed bars (mobile buy bar): clear the iOS home indicator. */
+@utility pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Set by AddToCart while the mobile buy bar exists: keeps the page end (footer) clear of the fixed bar. */
+@media (max-width: 767px) { body.has-buy-bar { padding-bottom: 4.5rem; } }
+
+/* Number input inside a − / + stepper: hide the native spinner. */
+@utility qty-input {
+  appearance: textfield;
+  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { appearance: none; margin: 0; }
+}
+
+/* Horizontal rails (mobile product carousels): keep native scrolling, hide the bar. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 
 /* Flat storefront card: border, no shadow (storefront has no elevated cards; shadows stay for menus/modals). */

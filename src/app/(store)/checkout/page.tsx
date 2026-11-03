@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import DynamicMarker from "@/components/DynamicMarker";
 import PageBand from "@/components/store/PageBand";
 import CheckoutClient from "./CheckoutClient";
 
@@ -11,6 +12,7 @@ export default function CheckoutPage() {
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       <CheckoutClient />
       </div>
+      <DynamicMarker />
     </main>
   );
 }

@@ -25,11 +25,11 @@ export function HeaderShell({ desktopNav, mobileNav, user = null }: { desktopNav
         </p>
       </section>
       <header className="sticky top-0 z-30 border-b border-sandal-200 bg-surface">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:px-6 md:h-20 md:gap-8">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-0 px-3 xs:gap-3 xs:px-4 sm:px-6 md:h-20 md:gap-8">
           {mobileNav}
-          <Link href="/" aria-label="GodPuja home" className="shrink-0"><Logo /></Link>
+          <Link href="/" aria-label="GodPuja home" className="shrink-0"><Logo compact /></Link>
           <HeaderSearch className="hidden max-w-xl flex-1 md:block" />
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center xs:gap-1">
             <Link href="/search" className="icon-btn md:hidden"><SearchIcon /><span className="sr-only">Search</span></Link>
             <AccountMenu user={user} />
             <CartLink />

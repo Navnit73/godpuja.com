@@ -7,6 +7,8 @@ import { Product } from "@/server/models/Product";
 import { createCategory, updateCategory } from "@/server/services/categories";
 import { findPublicHomepage, getHomepage, updateHomepage } from "@/server/services/homepage";
 import { createProduct } from "@/server/services/products";
+import { Page } from "@/server/models/Page";
+import { createPage, setPublishState } from "@/server/services/pages";
 import { ApiError } from "@/server/api";
 import { can } from "@/server/auth/permissions";
 import { MAX_RAILS, defaultData, homeSectionSchema, homepageInputSchema, updateHomepageSchema, type HomeSection, type SectionType } from "@/lib/validation/homepage";
@@ -38,6 +40,10 @@ describe("homepage validation", () => {
     expect(ok(sec("testimonials", { items: [{ quote: "Great", author: "Asha", role: "" }] }))).toBe(true);
     expect(ok(sec("offer", { heading: "Diwali sale" }))).toBe(true);
     expect(ok(sec("custom"))).toBe(true);
+    expect(ok(sec("latestPosts"))).toBe(true);
+    expect(ok(sec("latestPosts", { kind: "all", limit: 12 }))).toBe(true);
+    expect(ok(sec("latestPosts", { limit: 13 }))).toBe(false);
+    expect(ok(sec("latestPosts", { kind: "page" }))).toBe(false);
   });
   it("enforces required content, alt text, link pairs and limits", () => {
     expect(ok(sec("hero"))).toBe(false); // heading required
@@ -140,6 +146,22 @@ describe("homepage service (godpuja_test)", () => {
     const names = async () => ((await findPublicHomepage())!.sections as unknown as { products: { name: string }[] }[]).map((r) => r.products.map((p) => p.name).join(","));
     const first = await names();
     for (let i = 0; i < 3; i++) expect(await names()).toEqual(first);
+  });
+
+  it("latest posts: shows live posts of the chosen kind with a view-all link; hidden when there are none", async () => {
+    await Page.deleteMany({});
+    await updateHomepage({ sections: [sec("latestPosts", { kind: "blog", limit: 2 }), sec("latestPosts", { kind: "guide" })], baseUpdatedAt: null });
+    expect((await findPublicHomepage())!.sections).toHaveLength(0);
+    for (const slug of ["blog/a", "blog/b", "blog/c"]) {
+      const p = await createPage({ kind: "blog", title: slug, slug, description: "", seo: { ...emptySeo }, sections: [] });
+      await setPublishState(p.id, { action: "publish" });
+    }
+    await createPage({ kind: "guide", title: "Draft guide", slug: "guides/draft", description: "", seo: { ...emptySeo }, sections: [] });
+    const out = (await findPublicHomepage())!.sections;
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ type: "latestPosts", viewAll: "/blog", showKind: false });
+    expect((out[0] as { posts: unknown[] }).posts).toHaveLength(2);
+    await Page.deleteMany({});
   });
 
   it("offers disappear after expiry without an edit", async () => {

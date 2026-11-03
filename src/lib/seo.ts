@@ -13,6 +13,7 @@ export function buildPageMetadata(page: PublicPage, siteUrl: string): Metadata {
   const description = page.seo.description || page.description || undefined;
   const canonical = page.seo.canonical || pageUrl(siteUrl, page.slug);
   const noindex = page.isPreview || page.seo.noindex;
+  const image = page.seo.ogImage || (page.kind !== "page" ? page.coverImageUrl : "");
   return {
     title,
     description,
@@ -20,9 +21,10 @@ export function buildPageMetadata(page: PublicPage, siteUrl: string): Metadata {
     robots: noindex ? { index: false, follow: false } : undefined,
     referrer: page.isPreview ? "no-referrer" : undefined,
     openGraph: {
-      type: "website", title, description, url: canonical,
-      images: page.seo.ogImage ? [{ url: page.seo.ogImage }] : undefined,
+      type: page.kind === "page" ? "website" : "article", title, description, url: canonical,
+      images: image ? [{ url: image }] : undefined,
+      ...(page.kind !== "page" && page.publishedAt ? { publishedTime: page.publishedAt } : {}),
     },
-    twitter: { card: page.seo.ogImage ? "summary_large_image" : "summary", title, description, images: page.seo.ogImage ? [page.seo.ogImage] : undefined },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image ? [image] : undefined },
   };
 }

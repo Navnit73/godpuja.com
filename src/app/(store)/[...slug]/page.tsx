@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import JsonLd from "@/components/JsonLd";
 import PageView from "@/components/store/PageView";
+import { articleLd, breadcrumbLd } from "@/lib/jsonld";
 import { buildPageMetadata } from "@/lib/seo";
 import { validateSlug } from "@/lib/slug";
 import { env } from "@/server/env";
 import { getPublicPage } from "@/server/public/pages";
+import { getSiteSettings } from "@/server/public/settings";
 
 type Params = PageProps<"/[...slug]">["params"];
 
@@ -30,7 +33,19 @@ async function Content({ params }: { params: Params }) {
   // Known limitation: unknown slugs render the 404 UI (with noindex) but the HTTP status is 200
   // because the static shell streams first. Proper 404 status is handled in Stage 10 (proxy lookup).
   if (!page) notFound();
-  return <PageView page={page} />;
+  if (page.kind === "page") return <PageView page={page} />;
+  const base = env().SITE_URL;
+  const s = await getSiteSettings();
+  const section = page.kind === "blog" ? { name: "Blog", path: "/blog" } : { name: "Guides", path: "/guides" };
+  return (
+    <>
+      <JsonLd data={[
+        articleLd(base, { title: page.title, slug: page.slug, description: page.description, image: page.coverImageUrl, publishedAt: page.publishedAt, siteName: s.siteName }),
+        breadcrumbLd(base, [{ name: "Home", path: "/" }, section, { name: page.title, path: `/${page.slug}` }]),
+      ]} />
+      <PageView page={page} />
+    </>
+  );
 }
 
 export default function CmsPage({ params }: { params: Params }) {

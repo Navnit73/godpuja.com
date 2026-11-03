@@ -36,7 +36,7 @@ async function cached(key: string, check: () => Promise<boolean>): Promise<boole
 }
 
 const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const STATIC = new Set(["cart", "checkout", "search", "login", "page-not-found"]);
+const STATIC = new Set(["cart", "checkout", "search", "login", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
 
 export type RouteVerdict = { kind: "ok" } | { kind: "notFound" };
 

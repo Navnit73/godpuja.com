@@ -9,6 +9,8 @@ export const NAV_GROUPS: NavGroup[] = ["Overview", "Content", "Commerce", "Setti
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin", permission: "dashboard:read", icon: "dashboard", group: "Overview" },
   { label: "Pages", href: "/admin/pages", permission: "pages:read", icon: "pages", group: "Content" },
+  { label: "Blog", href: "/admin/blog", permission: "pages:read", icon: "blog", group: "Content" },
+  { label: "Guides", href: "/admin/guides", permission: "pages:read", icon: "guides", group: "Content" },
   { label: "Homepage", href: "/admin/homepage", permission: "home:write", icon: "home", group: "Content" },
   { label: "Categories", href: "/admin/categories", permission: "categories:write", icon: "categories", group: "Commerce" },
   { label: "Products", href: "/admin/products", permission: "products:read", icon: "products", group: "Commerce" },
@@ -25,6 +27,8 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   admin: "Admin",
   users: "Users & roles",
   pages: "Pages",
+  blog: "Blog",
+  guides: "Guides",
   navigation: "Navigation",
   seo: "SEO",
   homepage: "Homepage",
@@ -34,5 +38,5 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   orders: "Orders",
   media: "Media",
   footer: "Footer",
-  new: "New page",
+  new: "New",
 };

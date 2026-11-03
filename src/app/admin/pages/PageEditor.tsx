@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ImagePicker from "@/components/admin/ImagePicker";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import Modal from "@/components/ui/Modal";
@@ -12,7 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import { formatDateTime, istInputToIso } from "@/lib/format";
 import { slugify } from "@/lib/slug";
-import { emptySeo, pageInputSchema, type PageInput, type SectionInput } from "@/lib/validation/pages";
+import { KIND_META, emptySeo, pageInputSchema, type PageInput, type PageKind, type SectionInput } from "@/lib/validation/pages";
 import type { AdminPage } from "@/server/services/pages";
 
 const newId = () => crypto.randomUUID().slice(0, 12);
@@ -26,7 +27,11 @@ const SECTION_LABEL: Record<SectionInput["type"], string> = { richtext: "Rich te
 
 type Err = { message?: string } | undefined;
 
-export default function PageEditor({ page, canPublish, readOnly = false }: { page: AdminPage | null; canPublish: boolean; readOnly?: boolean }) {
+export default function PageEditor({ page, kind, canPublish, readOnly = false }: { page: AdminPage | null; kind: PageKind; canPublish: boolean; readOnly?: boolean }) {
+  const km = KIND_META[kind];
+  const noun = km.label.toLowerCase();
+  const isPost = kind !== "page";
+  const autoSlug = (title: string) => (km.prefix ? `${km.prefix}/${slugify(title)}` : slugify(title));
   const router = useRouter();
   const toast = useToast();
   const [meta, setMeta] = useState(page);
@@ -35,14 +40,16 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
   const [scheduleAt, setScheduleAt] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pickCover, setPickCover] = useState(false);
 
   const form = useForm<PageInput>({
     resolver: zodResolver(pageInputSchema),
     defaultValues: page
-      ? { title: page.title, slug: page.slug, description: page.description, sections: page.sections, seo: page.seo }
-      : { title: "", slug: "", description: "", sections: [], seo: emptySeo },
+      ? { kind, title: page.title, slug: page.slug, description: page.description, coverImageUrl: page.coverImageUrl, coverImageAlt: page.coverImageAlt, sections: page.sections, seo: page.seo }
+      : { kind, title: "", slug: km.prefix ? `${km.prefix}/` : "", description: "", coverImageUrl: "", coverImageAlt: "", sections: [], seo: emptySeo },
   });
   const { register, handleSubmit, control, setValue, setError, reset, formState: { errors, isSubmitting, isDirty } } = form;
+  const coverUrl = useWatch({ control, name: "coverImageUrl" });
   // keyName avoids RHF overwriting our section `id` field.
   const { fields, append, remove, move } = useFieldArray({ control, name: "sections", keyName: "_key" });
   const sectionErrors = errors.sections as unknown as Array<Record<string, unknown>> | undefined;
@@ -58,7 +65,7 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
   }, [isDirty]);
 
   const titleReg = register("title", {
-    onChange: (e) => { if (!slugTouched) setValue("slug", slugify(e.target.value), { shouldValidate: false }); },
+    onChange: (e) => { if (!slugTouched) setValue("slug", autoSlug(e.target.value), { shouldValidate: false }); },
   });
   const slugReg = register("slug", { onChange: () => setSlugTouched(true) });
 
@@ -69,12 +76,12 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
         const saved = await api.patch<AdminPage>(`/admin/pages/${page.id}`, { ...values, baseUpdatedAt: meta?.updatedAt ?? page.updatedAt });
         setMeta(saved);
         reset(values);
-        toast("Page saved");
+        toast(`${km.label} saved`);
         router.refresh();
       } else {
         const created = await api.post<AdminPage>("/admin/pages", values);
-        toast("Page created as draft");
-        router.replace(`/admin/pages/${created.id}`);
+        toast(`${km.label} created as draft`);
+        router.replace(`${km.admin}/${created.id}`);
       }
     } catch (e) {
       if (e instanceof ApiClientError) {
@@ -126,8 +133,8 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
     setBusy("delete");
     try {
       await api.delete(`/admin/pages/${page.id}`);
-      toast("Page deleted");
-      router.replace("/admin/pages");
+      toast(`${km.label} deleted`);
+      router.replace(km.admin);
       router.refresh();
     } catch (e) {
       toast(e instanceof ApiClientError ? e.message : "Could not delete", "error");
@@ -146,14 +153,29 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
         <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="basics">
           <h2 id="basics" className="font-sans text-lg font-semibold">Basics</h2>
           <Input label="Title" error={errors.title?.message} {...titleReg} />
-          <Input label="URL slug" hint="English lowercase letters, numbers and hyphens (also for Hindi titles). Use / for sub-pages, e.g. services/graha-shanti."
+          <Input label="URL slug" hint={isPost
+            ? `Starts with ${km.prefix}/, then English lowercase letters, numbers and hyphens, e.g. ${km.prefix}/diwali-puja-vidhi.`
+            : "English lowercase letters, numbers and hyphens (also for Hindi titles). Use / for sub-pages, e.g. services/graha-shanti."}
             error={errors.slug?.message} {...slugReg} />
           <div>
-            <label htmlFor="description" className="label">Description</label>
+            <label htmlFor="description" className="label">{isPost ? "Summary" : "Description"}</label>
             <textarea id="description" rows={2} className="input h-auto py-2" aria-invalid={!!errors.description}
               {...register("description")} />
+            {isPost && <p className="mt-1 text-xs text-muted">Shown on the listing cards and the homepage. Up to 300 characters.</p>}
             {errors.description && <p className="field-error">{errors.description.message}</p>}
           </div>
+          {isPost && (
+            <div className="space-y-3">
+              <Input label="Cover image URL" placeholder="https://…" hint="Shown on cards and at the top of the post." error={errors.coverImageUrl?.message} {...register("coverImageUrl")} />
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setPickCover(true)}>Choose from library</Button>
+                  {!!coverUrl && <Button variant="ghost" size="sm" onClick={() => { setValue("coverImageUrl", "", { shouldDirty: true }); setValue("coverImageAlt", "", { shouldDirty: true }); }}>Remove image</Button>}
+                </div>
+              )}
+              {!!coverUrl && <Input label="Cover image description (alt text)" error={errors.coverImageAlt?.message} {...register("coverImageAlt")} />}
+            </div>
+          )}
         </section>
 
         <section className="space-y-4" aria-labelledby="sections">
@@ -229,7 +251,7 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
       <aside className="space-y-6 lg:sticky lg:top-20" aria-label="Page actions">
         {!readOnly && (
           <div className="card space-y-3 p-5 hover:shadow-elev-1">
-            <Button type="submit" loading={isSubmitting} className="w-full">{page ? "Save changes" : "Create page"}</Button>
+            <Button type="submit" loading={isSubmitting} className="w-full">{page ? "Save changes" : `Create ${noun}`}</Button>
             {isDirty && page && <p className="text-xs text-warning">You have unsaved changes.</p>}
           </div>
         )}
@@ -244,17 +266,17 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
             </div>
             {meta.status === "scheduled" && <p className="text-sm text-muted">Goes live {formatDateTime(meta.publishAt)}</p>}
             {meta.status === "published" && <p className="text-sm text-muted">Published {formatDateTime(meta.publishedAt)}</p>}
-            {live && <Link href={`/${meta.slug}`} target="_blank" className="text-sm text-primary underline underline-offset-2">View live page ↗</Link>}
+            {live && <Link href={`/${meta.slug}`} target="_blank" className="text-sm text-primary underline underline-offset-2">View live {noun} ↗</Link>}
 
             {canPublish && !readOnly ? (
               <>
                 {isDirty && <p className="text-xs text-muted">Save your changes before publishing.</p>}
                 <div className="flex flex-wrap gap-2">
                   {meta.status !== "published" && (
-                    <Button size="sm" disabled={isDirty} loading={busy === "publish"} onClick={() => publish({ action: "publish" }, "Page published")}>Publish now</Button>
+                    <Button size="sm" disabled={isDirty} loading={busy === "publish"} onClick={() => publish({ action: "publish" }, `${km.label} published`)}>Publish now</Button>
                   )}
                   {meta.status !== "draft" && (
-                    <Button size="sm" variant="outline" disabled={isDirty} loading={busy === "unpublish"} onClick={() => publish({ action: "unpublish" }, "Page moved to draft")}>Unpublish</Button>
+                    <Button size="sm" variant="outline" disabled={isDirty} loading={busy === "unpublish"} onClick={() => publish({ action: "unpublish" }, `${km.label} moved to draft`)}>Unpublish</Button>
                   )}
                 </div>
                 {live ? (
@@ -264,7 +286,7 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
                   <label htmlFor="schedule-at" className="label">Schedule (India Standard Time)</label>
                   <input id="schedule-at" type="datetime-local" className="input" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} />
                   <Button size="sm" variant="outline" className="mt-2" disabled={isDirty || !scheduleAt} loading={busy === "schedule"}
-                    onClick={() => publish({ action: "schedule", publishAt: istInputToIso(scheduleAt) }, "Page scheduled")}>Schedule</Button>
+                    onClick={() => publish({ action: "schedule", publishAt: istInputToIso(scheduleAt) }, `${km.label} scheduled`)}>Schedule</Button>
                 </div>
                 )}
               </>
@@ -288,12 +310,17 @@ export default function PageEditor({ page, canPublish, readOnly = false }: { pag
 
         {page && !readOnly && (
           <div className="card p-5 hover:shadow-elev-1">
-            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>Delete page</Button>
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>Delete {noun}</Button>
           </div>
         )}
       </aside>
 
-      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete this page?">
+      <ImagePicker open={pickCover} onClose={() => setPickCover(false)} onPick={(url, alt) => {
+        setValue("coverImageUrl", url, { shouldDirty: true, shouldValidate: true });
+        setValue("coverImageAlt", alt, { shouldDirty: true, shouldValidate: true });
+      }} />
+
+      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title={`Delete this ${noun}?`}>
         <p className="text-sm text-muted">“{page?.title}” will be removed permanently and its URL will stop working.</p>
         <div className="mt-6 flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>

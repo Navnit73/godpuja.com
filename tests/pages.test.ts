@@ -4,7 +4,7 @@ import { connectDB } from "@/server/db";
 import { Page } from "@/server/models/Page";
 import { renderMarkdown } from "@/server/markdown";
 import {
-  createPage, deletePage, findPreviewPage, findPublicPage, getPage, isLive, listPages, rotatePreviewToken,
+  createPage, deletePage, findPreviewPage, findPublicPage, findPublicPosts, getPage, isLive, listPages, rotatePreviewToken,
   setPublishState, updatePage,
 } from "@/server/services/pages";
 import { ApiError } from "@/server/api";
@@ -111,6 +111,20 @@ describe("validation", () => {
     expect(updatePageSchema.safeParse(base()).success).toBe(false);
     const parsed = updatePageSchema.parse({ ...base(), baseUpdatedAt: new Date().toISOString(), status: "published", previewToken: "x".repeat(32), _id: "1" });
     for (const k of ["status", "previewToken", "_id"]) expect(k in parsed).toBe(false);
+  });
+  it("blog posts and guides live under their prefix; plain pages may not use it; cover needs alt text", () => {
+    const ok = (o: Partial<PageInput>) => pageInputSchema.safeParse(base(o)).success;
+    expect(ok({ kind: "blog", slug: "blog/diwali-tips" })).toBe(true);
+    expect(ok({ kind: "guide", slug: "guides/how-to/aarti" })).toBe(true);
+    expect(ok({ kind: "blog", slug: "diwali-tips" })).toBe(false);
+    expect(ok({ kind: "blog", slug: "blog" })).toBe(false);
+    expect(ok({ kind: "guide", slug: "blog/x" })).toBe(false);
+    expect(ok({ slug: "blog/x" })).toBe(false); // kind omitted = page
+    expect(ok({ kind: "page", slug: "guides" })).toBe(false);
+    expect(ok({ kind: "blog", slug: "blog/x", coverImageUrl: "https://x.com/a.png" })).toBe(false);
+    expect(ok({ kind: "blog", slug: "blog/x", coverImageUrl: "https://x.com/a.png", coverImageAlt: "Diya" })).toBe(true);
+    expect(ok({ kind: "blog", slug: "blog/x", coverImageUrl: "javascript:alert(1)", coverImageAlt: "x" })).toBe(false);
+    expect(updatePageSchema.safeParse({ ...base({ kind: "blog", slug: "about" }), baseUpdatedAt: new Date().toISOString() }).success).toBe(false);
   });
   it("list query bounded", () => {
     expect(listPagesSchema.safeParse({ limit: "999" }).success).toBe(false);
@@ -257,6 +271,31 @@ describe("pages service (godpuja_test)", () => {
     expect((await listPages({ page: 1, limit: 50, q: "PAGE-3" })).total).toBe(1);
     expect((await listPages({ page: 1, limit: 50, q: ".*" })).total).toBe(0);
     expect((await listPages({ page: 1, limit: 50, status: "published" })).items[0].live).toBe(true);
+  });
+
+  it("kinds: listing filters by kind (legacy docs without kind count as pages); posts list newest first, live only", async () => {
+    await createPage(base());
+    await Page.collection.insertOne({ title: "Legacy", slug: "legacy", previewToken: "legacy-token-".padEnd(32, "x"), status: "draft", sections: [], createdAt: new Date(), updatedAt: new Date() });
+    const b1 = await createPage(base({ kind: "blog", title: "First", slug: "blog/first", description: "One", coverImageUrl: "https://x.com/a.png", coverImageAlt: "Diya" }));
+    const b2 = await createPage(base({ kind: "blog", title: "Second", slug: "blog/second" }));
+    await createPage(base({ kind: "blog", title: "Draft", slug: "blog/draft" }));
+    const g = await createPage(base({ kind: "guide", title: "Guide", slug: "guides/aarti" }));
+    expect((await listPages({ page: 1, limit: 50, kind: "page" })).items.map((i) => i.slug).sort()).toEqual(["about", "legacy"]);
+    expect((await listPages({ page: 1, limit: 50, kind: "blog" })).total).toBe(3);
+    expect((await getPage(b1.id)).kind).toBe("blog");
+
+    await setPublishState(b1.id, { action: "publish" });
+    await new Promise((r) => setTimeout(r, 5));
+    await setPublishState(b2.id, { action: "publish" });
+    await setPublishState(g.id, { action: "publish" });
+    const blog = await findPublicPosts("blog");
+    expect(blog.items.map((p) => p.slug)).toEqual(["blog/second", "blog/first"]);
+    expect(blog.items[1]).toMatchObject({ kind: "blog", excerpt: "One", coverImageUrl: "https://x.com/a.png", coverImageAlt: "Diya" });
+    expect((await findPublicPosts("guide")).items.map((p) => p.slug)).toEqual(["guides/aarti"]);
+    expect((await findPublicPosts("all", { limit: 2 })).items).toHaveLength(2);
+    expect((await findPublicPosts("blog", { page: 2, limit: 1 })).items.map((p) => p.slug)).toEqual(["blog/first"]);
+    const pub = await findPublicPage("blog/first");
+    expect(pub).toMatchObject({ kind: "blog", coverImageUrl: "https://x.com/a.png", publishedAt: expect.any(String) });
   });
 
   it("enforces unique slug at the database level (race safety)", async () => {

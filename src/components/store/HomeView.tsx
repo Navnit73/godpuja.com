@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- remote CMS images from any host; Cloudinary ones are resized via lib/image */
 import Link from "next/link";
 import type { PublicHomeSection } from "@/server/services/homepage";
+import PostCard from "./PostCard";
 import ProductCard from "./ProductCard";
 import { Section as PageSection } from "./PageView";
 import { responsive } from "@/lib/image";
@@ -158,6 +159,13 @@ function Block({ s }: { s: PublicHomeSection }) {
               </div>
             </div>
           </section>
+        </Wrap>
+      );
+    case "latestPosts":
+      return (
+        <Wrap className="py-10 sm:py-14">
+          <Heading title={s.heading} href={s.viewAll} />
+          <ul aria-label={s.heading || "Latest posts"} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{s.posts.map((p) => <PostCard key={p.id} p={p} showKind={s.showKind} />)}</ul>
         </Wrap>
       );
     case "custom": {

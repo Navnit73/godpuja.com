@@ -41,6 +41,8 @@ const SPECS: Record<SectionType, Spec> = {
     fields: [{ key: "quote", label: "Quote", kind: "textarea", max: 400 }, text("author", "Name", 80), text("role", "Role / place", 80)] } },
   offer: { fields: [text("heading", "Heading", 100), text("text", "Text", 300), text("code", "Offer code", 30), text("ctaLabel", "Button label", 40), { key: "ctaUrl", label: "Button link", kind: "text", hint: LINK_HINT },
     { key: "expiresAt", label: "Hide after (IST)", kind: "datetime", hint: "Optional; the offer disappears by itself" }] },
+  latestPosts: { fields: [text("heading", "Heading", 80), { key: "kind", label: "Show", kind: "select", options: [["blog", "Blog posts"], ["guide", "Guides"], ["all", "Blog posts and guides"]] },
+    { key: "limit", label: "How many (1–12)", kind: "number" }] },
   custom: { fields: [{ key: "markdown", label: "Content (Markdown)", kind: "markdown", max: 20000 }, { key: "tone", label: "Background", kind: "select", options: [["plain", "Plain"], ["soft", "Soft sand"], ["accent", "Saffron tint"]] }] },
 };
 

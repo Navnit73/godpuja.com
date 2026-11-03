@@ -1,5 +1,5 @@
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
-import { findPublicPage } from "../services/pages";
+import { findPublicPage, findPublicPosts } from "../services/pages";
 import { invalidateFooter } from "./footer";
 import { invalidateMenus } from "./menus";
 
@@ -14,6 +14,14 @@ export async function getPublicPage(slug: string) {
   // Misses are cached briefly so junk URLs cannot fill the cache for an hour.
   cacheLife(page ? { stale: 60, revalidate: 60, expire: 3600 } : { stale: 15, revalidate: 15, expire: 60 });
   return page;
+}
+
+/** Cached blog / guide listing. Same 60 s window as pages so scheduled posts appear on time. */
+export async function getPublicPosts(kind: "blog" | "guide", page: number, limit = 12) {
+  "use cache";
+  cacheTag("pages");
+  cacheLife({ stale: 60, revalidate: 60, expire: 3600 });
+  return findPublicPosts(kind, { page, limit });
 }
 
 /** Call after any admin write that changes what the public sees. `expire: 0` => next request is fresh. */

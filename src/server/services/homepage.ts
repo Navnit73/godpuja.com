@@ -4,6 +4,7 @@ import { connectDB } from "../db";
 import { renderMarkdown } from "../markdown";
 import { Category } from "../models/Category";
 import { Homepage, type HomepageDoc } from "../models/Homepage";
+import { findPublicPosts, type PostCard } from "./pages";
 import { findRail, loadCategoryIndex, type PublicProduct } from "./products";
 import { homeSectionSchema, type HomepageInput, type HomeSection, type UpdateHomepageInput } from "@/lib/validation/homepage";
 
@@ -46,7 +47,8 @@ export type PublicHomeSection =
   | { id: string; type: "imageText"; heading: string; bodyHtml: string; imageUrl: string; imageAlt: string; imagePosition: "left" | "right"; ctaLabel: string; ctaUrl: string }
   | { id: string; type: "testimonials"; heading: string; items: { quote: string; author: string; role: string }[] }
   | { id: string; type: "offer"; heading: string; text: string; code: string; ctaLabel: string; ctaUrl: string }
-  | { id: string; type: "custom"; html: string; tone: "plain" | "soft" | "accent" };
+  | { id: string; type: "custom"; html: string; tone: "plain" | "soft" | "accent" }
+  | { id: string; type: "latestPosts"; heading: string; posts: PostCard[]; viewAll: string | null; showKind: boolean };
 export type PublicHomepage = { sections: PublicHomeSection[] };
 
 const isRail = (s: HomeSection): s is Extract<HomeSection, { type: "featuredProducts" | "latestProducts" | "bestSellers" }> =>
@@ -86,7 +88,11 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
   const catPath = index?.catPath ?? new Map<string, string>();
 
   const railResults = new Map<string, PublicProduct[]>();
-  await Promise.all(sections.filter(isRail).map(async (s) => railResults.set(s.id, await findRail({ kind: s.type, category: s.data.category, limit: s.data.limit }, catPath, index?.hidden))));
+  const postResults = new Map<string, PostCard[]>();
+  await Promise.all([
+    ...sections.filter(isRail).map(async (s) => railResults.set(s.id, await findRail({ kind: s.type, category: s.data.category, limit: s.data.limit }, catPath, index?.hidden))),
+    ...sections.flatMap((s) => (s.type === "latestPosts" ? [s] : [])).map(async (s) => postResults.set(s.id, (await findPublicPosts(s.data.kind, { limit: s.data.limit }, now)).items)),
+  ]);
 
   const out: PublicHomeSection[] = [];
   for (const s of sections) {
@@ -112,6 +118,12 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
         break;
       }
       case "custom": if (s.data.markdown.trim()) out.push({ id: s.id, type: "custom", html: renderMarkdown(s.data.markdown), tone: s.data.tone }); break;
+      case "latestPosts": {
+        const posts = postResults.get(s.id) ?? [];
+        const viewAll = s.data.kind === "blog" ? "/blog" : s.data.kind === "guide" ? "/guides" : null;
+        if (posts.length) out.push({ id: s.id, type: "latestPosts", heading: s.data.heading, posts, viewAll, showKind: s.data.kind === "all" });
+        break;
+      }
     }
   }
   return { sections: out };

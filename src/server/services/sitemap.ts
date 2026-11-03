@@ -13,7 +13,7 @@ const MAX_URLS = 50_000; // sitemap protocol limit per file
 export async function findSitemapEntries(now = new Date()): Promise<SitemapEntry[]> {
   await connectDB();
   const [pages, cats] = await Promise.all([
-    Page.find({ $or: [{ status: "published" }, { status: "scheduled", publishAt: { $lte: now } }], "seo.noindex": { $ne: true } }).select("slug updatedAt").lean(),
+    Page.find({ $or: [{ status: "published" }, { status: "scheduled", publishAt: { $lte: now } }], "seo.noindex": { $ne: true } }).select("kind slug updatedAt").lean(),
     Category.find().select("path isActive seo.noindex updatedAt").lean(),
   ]);
   const inactive = cats.filter((c) => c.isActive === false).map((c) => c.path);
@@ -24,6 +24,11 @@ export async function findSitemapEntries(now = new Date()): Promise<SitemapEntry
 
   const out: SitemapEntry[] = [{ path: "/", lastModified: now }];
   for (const p of pages) if (p.slug !== "home") out.push({ path: `/${p.slug}`, lastModified: p.updatedAt });
+  // Index pages for blog / guides, listed once there is at least one live item; lastModified = newest item.
+  for (const [kind, path] of [["blog", "/blog"], ["guide", "/guides"]] as const) {
+    const items = pages.filter((p) => p.kind === kind);
+    if (items.length) out.push({ path, lastModified: new Date(Math.max(...items.map((p) => p.updatedAt.getTime()))) });
+  }
   for (const c of cats) if (!hidden(c.path) && !c.seo?.noindex) out.push({ path: `/category/${c.path}`, lastModified: c.updatedAt });
   for (const p of products) out.push({ path: `/product/${p.slug}`, lastModified: p.updatedAt });
   return out.slice(0, MAX_URLS);

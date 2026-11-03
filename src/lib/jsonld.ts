@@ -32,6 +32,16 @@ export function productLd(base: string, p: PublicProductDetail) {
   };
 }
 
+export function articleLd(base: string, a: { title: string; slug: string; description: string; image: string; publishedAt: string | null; siteName: string }) {
+  return {
+    "@context": "https://schema.org", "@type": "BlogPosting", headline: a.title, url: abs(base, `/${a.slug}`),
+    mainEntityOfPage: abs(base, `/${a.slug}`), publisher: { "@type": "Organization", name: a.siteName },
+    ...(a.description ? { description: a.description } : {}),
+    ...(a.image ? { image: [a.image] } : {}),
+    ...(a.publishedAt ? { datePublished: a.publishedAt } : {}),
+  };
+}
+
 export function siteLd(base: string, s: { siteName: string; logoUrl: string; sameAs: string[] }) {
   const url = abs(base, "/");
   return [

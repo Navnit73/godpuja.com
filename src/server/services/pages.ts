@@ -7,15 +7,18 @@ import { renderMarkdown } from "../markdown";
 import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 
 const pagePath = (slug: string) => (slug === "home" ? "/" : `/${slug}`);
-import type { ListPagesInput, PageInput, PublishInput } from "@/lib/validation/pages";
+import type { ListPagesInput, PageInput, PageKind, PublishInput } from "@/lib/validation/pages";
 
 export type PageStatus = "draft" | "published" | "scheduled";
 
 export type AdminPage = {
   id: string;
+  kind: PageKind;
   title: string;
   slug: string;
   description: string;
+  coverImageUrl: string;
+  coverImageAlt: string;
   status: PageStatus;
   publishAt: string | null;
   publishedAt: string | null;
@@ -26,7 +29,7 @@ export type AdminPage = {
   updatedAt: string;
 };
 
-export type PageListItem = Pick<AdminPage, "id" | "title" | "slug" | "status" | "publishAt" | "updatedAt"> & { live: boolean };
+export type PageListItem = Pick<AdminPage, "id" | "kind" | "title" | "slug" | "status" | "publishAt" | "updatedAt"> & { live: boolean };
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const newToken = () => crypto.randomBytes(24).toString("base64url");
@@ -36,6 +39,10 @@ const iso = (d?: Date | null) => (d ? d.toISOString() : null);
 export const isLive = (p: { status: PageStatus; publishAt?: Date | null }, now = new Date()) =>
   p.status === "published" || (p.status === "scheduled" && !!p.publishAt && p.publishAt <= now);
 
+/** Documents saved before `kind` existed have no field; they are plain pages. */
+export const kindFilter = (kind: PageKind): mongoose.QueryFilter<PageDoc> => (kind === "page" ? { kind: { $in: ["page", null] } } : { kind });
+const kindOf = (k: unknown): PageKind => (k === "blog" || k === "guide" ? k : "page");
+
 const liveFilter = (now: Date): mongoose.QueryFilter<PageDoc> => ({
   $or: [{ status: "published" as const }, { status: "scheduled" as const, publishAt: { $lte: now } }],
 });
@@ -43,9 +50,12 @@ const liveFilter = (now: Date): mongoose.QueryFilter<PageDoc> => ({
 function toAdmin(p: PageDoc): AdminPage {
   return {
     id: String(p._id),
+    kind: kindOf(p.kind),
     title: p.title,
     slug: p.slug,
     description: p.description ?? "",
+    coverImageUrl: p.coverImageUrl ?? "",
+    coverImageAlt: p.coverImageAlt ?? "",
     status: p.status,
     publishAt: iso(p.publishAt),
     publishedAt: iso(p.publishedAt),
@@ -64,9 +74,9 @@ function dupSlug(err: unknown): never {
   throw err;
 }
 
-export async function listPages({ q, status, page, limit }: ListPagesInput) {
+export async function listPages({ q, status, kind, page, limit }: ListPagesInput) {
   await connectDB();
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = kind ? { ...kindFilter(kind) } : {};
   if (status) filter.status = status;
   if (q) {
     const rx = new RegExp(escapeRegex(q), "i");
@@ -74,11 +84,11 @@ export async function listPages({ q, status, page, limit }: ListPagesInput) {
   }
   const now = new Date();
   const [rows, total] = await Promise.all([
-    Page.find(filter).select("title slug status publishAt updatedAt").sort({ updatedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Page.find(filter).select("kind title slug status publishAt updatedAt").sort({ updatedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Page.countDocuments(filter),
   ]);
   const items: PageListItem[] = rows.map((p) => ({
-    id: String(p._id), title: p.title, slug: p.slug, status: p.status, publishAt: iso(p.publishAt),
+    id: String(p._id), kind: kindOf(p.kind), title: p.title, slug: p.slug, status: p.status, publishAt: iso(p.publishAt),
     updatedAt: p.updatedAt.toISOString(), live: isLive(p, now),
   }));
   return { items, total, page, limit, pages: Math.max(1, Math.ceil(total / limit)) };
@@ -93,9 +103,12 @@ export async function getPage(id: string): Promise<AdminPage> {
 }
 
 const normalise = (i: PageInput) => ({
+  kind: i.kind ?? "page",
   title: i.title,
   slug: i.slug,
   description: i.description,
+  coverImageUrl: i.coverImageUrl ?? "",
+  coverImageAlt: i.coverImageUrl ? (i.coverImageAlt ?? "") : "",
   sections: i.sections.map((s) => ({ ...s, data: { ...s.data } })),
   seo: { ...i.seo },
 });
@@ -189,9 +202,14 @@ export type PublicSection =
     };
 
 export type PublicPage = {
+  kind: PageKind;
   title: string;
   slug: string;
   description: string;
+  coverImageUrl: string;
+  coverImageAlt: string;
+  /** When it went (or goes) live; null for drafts seen via preview. */
+  publishedAt: string | null;
   sections: PublicSection[];
   seo: PageInput["seo"];
   isPreview: boolean;
@@ -212,7 +230,10 @@ function toPublic(p: PageDoc, isPreview: boolean): PublicPage {
     }
   }
   const seo = toAdmin(p).seo;
-  return { title: p.title, slug: p.slug, description: p.description ?? "", sections, seo, isPreview };
+  return {
+    kind: kindOf(p.kind), title: p.title, slug: p.slug, description: p.description ?? "", coverImageUrl: p.coverImageUrl ?? "",
+    coverImageAlt: p.coverImageAlt ?? "", publishedAt: iso(p.publishedAt), sections, seo, isPreview,
+  };
 }
 
 export async function findPublicPage(slug: string, now = new Date()): Promise<PublicPage | null> {
@@ -228,3 +249,25 @@ export async function findPreviewPage(token: string): Promise<PublicPage | null>
   return p ? toPublic(p, true) : null;
 }
 
+
+/** Card data for blog / guide listings (index pages and the homepage "Latest posts" section). */
+export type PostCard = {
+  id: string; kind: Exclude<PageKind, "page">; title: string; slug: string; excerpt: string;
+  coverImageUrl: string; coverImageAlt: string; publishedAt: string | null;
+};
+
+/** Live posts of one kind (or both), newest first. `page` is 1-based. */
+export async function findPublicPosts(kind: Exclude<PageKind, "page"> | "all", { page = 1, limit = 12 } = {}, now = new Date()) {
+  await connectDB();
+  const filter: mongoose.QueryFilter<PageDoc> = { ...(kind === "all" ? { kind: { $in: ["blog", "guide"] } } : { kind }), ...liveFilter(now) };
+  const [rows, total] = await Promise.all([
+    Page.find(filter).select("kind title slug description coverImageUrl coverImageAlt publishedAt")
+      .sort({ publishedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Page.countDocuments(filter),
+  ]);
+  const items: PostCard[] = rows.map((p) => ({
+    id: String(p._id), kind: p.kind === "guide" ? "guide" : "blog", title: p.title, slug: p.slug, excerpt: p.description ?? "",
+    coverImageUrl: p.coverImageUrl ?? "", coverImageAlt: p.coverImageAlt ?? "", publishedAt: iso(p.publishedAt),
+  }));
+  return { items, total, page, pages: Math.max(1, Math.ceil(total / limit)) };
+}

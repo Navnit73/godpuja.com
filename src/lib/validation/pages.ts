@@ -44,7 +44,22 @@ export const seoSchema = z.object({
   noindex: z.boolean(),
 });
 
-export const pageInputSchema = z.object({
+/**
+ * Content kinds share one model and editor. Blog posts and guides live under a fixed URL prefix
+ * (/blog/…, /guides/…) whose index pages list them; plain pages may not use those prefixes.
+ */
+export const PAGE_KINDS = ["page", "blog", "guide"] as const;
+export type PageKind = (typeof PAGE_KINDS)[number];
+export const KIND_META: Record<PageKind, { label: string; plural: string; prefix: string; admin: string }> = {
+  page: { label: "Page", plural: "Pages", prefix: "", admin: "/admin/pages" },
+  blog: { label: "Blog post", plural: "Blog", prefix: "blog", admin: "/admin/blog" },
+  guide: { label: "Guide", plural: "Guides", prefix: "guides", admin: "/admin/guides" },
+};
+export const kindOfPrefix = (first: string): PageKind | null => (first === "blog" ? "blog" : first === "guides" ? "guide" : null);
+
+const pageFields = z.object({
+  /** Optional for backwards compatibility; missing means "page". */
+  kind: z.enum(PAGE_KINDS).optional(),
   title: z.string().trim().min(2, "Enter a title").max(120),
   slug: z
     .string()
@@ -57,6 +72,9 @@ export const pageInputSchema = z.object({
       if (msg) ctx.addIssue({ code: "custom", message: msg });
     }),
   description: z.string().trim().max(300),
+  /** Card / header image for blog posts and guides. "" = none. */
+  coverImageUrl: optionalUrl.optional(),
+  coverImageAlt: z.string().trim().max(200).optional(),
   sections: z
     .array(sectionSchema)
     .max(50, "At most 50 sections")
@@ -64,8 +82,22 @@ export const pageInputSchema = z.object({
   seo: seoSchema,
 });
 
+function checkKind(v: z.infer<typeof pageFields>, ctx: z.RefinementCtx) {
+  const kind = v.kind ?? "page";
+  const first = v.slug.split("/")[0];
+  const prefix = KIND_META[kind].prefix;
+  if (prefix && (first !== prefix || !v.slug.includes("/"))) {
+    ctx.addIssue({ code: "custom", path: ["slug"], message: `${KIND_META[kind].label} URLs start with ${prefix}/, e.g. ${prefix}/my-title` });
+  } else if (!prefix && kindOfPrefix(first)) {
+    ctx.addIssue({ code: "custom", path: ["slug"], message: `"${first}" is used for ${KIND_META[kindOfPrefix(first)!].plural.toLowerCase()}; choose another URL` });
+  }
+  if (v.coverImageUrl && !v.coverImageAlt) ctx.addIssue({ code: "custom", path: ["coverImageAlt"], message: "Describe the image for accessibility" });
+}
+
+export const pageInputSchema = pageFields.superRefine(checkKind);
+
 /** Edits carry the `updatedAt` the editor loaded, so concurrent saves are detected (optimistic concurrency). */
-export const updatePageSchema = pageInputSchema.extend({ baseUpdatedAt: z.iso.datetime({ offset: true }) });
+export const updatePageSchema = pageFields.extend({ baseUpdatedAt: z.iso.datetime({ offset: true }) }).superRefine(checkKind);
 
 export const publishSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("publish") }),
@@ -79,6 +111,7 @@ export const publishSchema = z.discriminatedUnion("action", [
 export const listPagesSchema = z.object({
   q: z.string().trim().max(100).optional(),
   status: z.enum(["draft", "published", "scheduled"]).optional(),
+  kind: z.enum(PAGE_KINDS).optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

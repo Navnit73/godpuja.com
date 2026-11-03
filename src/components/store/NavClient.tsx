@@ -25,6 +25,8 @@ function NavLink({ item, className, onNavigate }: { item: PublicMenuItem; classN
 }
 
 const linkCls = "rounded-full px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:bg-saffron-50 aria-[current=page]:text-primary";
+const pill = "flex items-center rounded-full transition-colors hover:bg-saffron-50 has-[[aria-current=page]]:bg-saffron-50 has-[[aria-current=page]]:text-primary has-[[aria-expanded=true]]:bg-saffron-50";
+const pillLink = "block rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:text-primary aria-[current=page]:text-primary";
 const subLinkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary";
 
 function DesktopItem({ item }: { item: PublicMenuItem }) {
@@ -42,14 +44,14 @@ function DesktopItem({ item }: { item: PublicMenuItem }) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
-  if (!item.children.length) return <li><NavLink item={item} className={`block ${linkCls}`} /></li>;
+  if (!item.children.length) return <li className={pill}><NavLink item={item} className={pillLink} /></li>;
   return (
     <li ref={ref} className="relative"
       onKeyDown={(e) => { if (e.key === "Escape" && open) { setOpen(false); toggleBtn.current?.focus(); } }}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
-      <div className="flex items-center">
-        <NavLink item={item} className={`block ${linkCls} pr-1`} />
-        <button ref={toggleBtn} type="button" className="rounded-full p-2 text-muted hover:bg-saffron-50 hover:text-primary" aria-expanded={open} aria-controls={panelId}
+      <div className={pill}>
+        <NavLink item={item} className={`${pillLink} pr-1.5`} />
+        <button ref={toggleBtn} type="button" className="mr-1.5 rounded-full p-1.5 text-muted transition-colors hover:text-primary" aria-expanded={open} aria-controls={panelId}
           aria-label={`${item.label} submenu`} onClick={() => setOpen((o) => !o)}>
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
@@ -90,7 +92,7 @@ export function DesktopNav({ items }: { items: PublicMenuItem[] }) {
   if (!items.length) return null;
   return (
     <nav aria-label="Main" className="hidden border-t border-sandal-200 md:block">
-      <ul className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-1 px-4 py-1.5 sm:px-6">{items.map((i) => <DesktopItem key={i.id} item={i} />)}</ul>
+      <ul className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-1 gap-y-0.5 px-4 py-2 sm:px-6 [&>li:first-child]:-ml-4">{items.map((i) => <DesktopItem key={i.id} item={i} />)}</ul>
     </nav>
   );
 }

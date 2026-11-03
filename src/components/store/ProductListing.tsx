@@ -12,14 +12,14 @@ export default function ProductListing({ base, query, result, hiddenFields = {},
   return (
     <section aria-labelledby="listing-heading">
       <h2 id="listing-heading" className="sr-only">{heading}</h2>
-      <form method="get" action={base} aria-label="Sort and filter products" className="mb-6 flex flex-wrap items-end gap-3 rounded-2xl border border-sandal-200 bg-surface p-4 shadow-elev-1">
+      <form method="get" action={base} aria-label="Sort and filter products" className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-3 rounded-2xl border border-sandal-200 bg-sandal-100 p-4 sm:p-5">
         {Object.entries(hiddenFields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
         <div><label htmlFor="sort" className="label">Sort by</label>
-          <select id="sort" name="sort" defaultValue={query.sort} className="input">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
-        <div><label htmlFor="min" className="label">Min price (₹)</label><input id="min" name="min" inputMode="numeric" pattern="\d*" defaultValue={query.minPrice !== undefined ? query.minPrice / 100 : ""} className="input w-28" /></div>
-        <div><label htmlFor="max" className="label">Max price (₹)</label><input id="max" name="max" inputMode="numeric" pattern="\d*" defaultValue={query.maxPrice !== undefined ? query.maxPrice / 100 : ""} className="input w-28" /></div>
-        <button type="submit" className="btn-outline h-10">Apply</button>
-        {filtered && <Link href={listingHref(base, { ...query, minPrice: undefined, maxPrice: undefined, page: 1 }, hiddenFields)} className="btn-ghost h-10">Clear price filter</Link>}
+          <select id="sort" name="sort" defaultValue={query.sort} className="input rounded-full px-4 pr-8">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+        <div><label htmlFor="min" className="label">Min price (₹)</label><input id="min" name="min" inputMode="numeric" pattern="\d*" defaultValue={query.minPrice !== undefined ? query.minPrice / 100 : ""} className="input w-28 rounded-full px-4" /></div>
+        <div><label htmlFor="max" className="label">Max price (₹)</label><input id="max" name="max" inputMode="numeric" pattern="\d*" defaultValue={query.maxPrice !== undefined ? query.maxPrice / 100 : ""} className="input w-28 rounded-full px-4" /></div>
+        <button type="submit" className="btn-primary h-10">Apply filters</button>
+        {filtered && <Link href={listingHref(base, { ...query, minPrice: undefined, maxPrice: undefined, page: 1 }, hiddenFields)} className="btn-outline h-10">Clear price filter</Link>}
       </form>
 
       <p role="status" className="mb-4 text-sm text-muted">{result.total} {result.total === 1 ? "product" : "products"}</p>

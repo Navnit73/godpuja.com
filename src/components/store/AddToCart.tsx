@@ -40,17 +40,21 @@ export default function AddToCart({ productId, price, salePrice, inStock, varian
       )}
 
       {available ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label htmlFor="qty" className="label">Quantity</label>
-            <input id="qty" type="number" min={1} max={MAX_QTY} value={qty} className="input w-24" onChange={(e) => { setQty(Math.min(MAX_QTY, Math.max(1, Math.trunc(Number(e.target.value) || 1)))); setAdded(false); }} />
+        <div className="space-y-2">
+          <span id="qty-label" className="label">Quantity</span>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+            <div role="group" aria-labelledby="qty-label" className="inline-flex h-12 w-fit items-center rounded-full border border-sandal-200 bg-white">
+              <button type="button" aria-label="Decrease quantity" disabled={qty <= 1} className="h-12 w-12 rounded-l-full text-xl hover:bg-sandal-100 disabled:opacity-40" onClick={() => { setQty((q) => Math.max(1, q - 1)); setAdded(false); }}>−</button>
+              <input id="qty" aria-label="Quantity" inputMode="numeric" type="number" min={1} max={MAX_QTY} value={qty} className="h-12 w-12 border-0 bg-transparent text-center text-base font-medium outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" onChange={(e) => { setQty(Math.min(MAX_QTY, Math.max(1, Math.trunc(Number(e.target.value) || 1)))); setAdded(false); }} />
+              <button type="button" aria-label="Increase quantity" disabled={qty >= MAX_QTY} className="h-12 w-12 rounded-r-full text-xl hover:bg-sandal-100 disabled:opacity-40" onClick={() => { setQty((q) => Math.min(MAX_QTY, q + 1)); setAdded(false); }}>+</button>
+            </div>
+            <button type="button" className="btn-primary h-12 flex-1 gap-2 px-8 text-base" onClick={() => { cart.add(productId, v ? v.sku : null, qty); setAdded(true); }}><CartIcon className="h-5 w-5" />Add to cart</button>
           </div>
-          <button type="button" className="btn-primary h-10 gap-2 px-8" onClick={() => { cart.add(productId, v ? v.sku : null, qty); setAdded(true); }}><CartIcon className="h-4 w-4" />Add to cart</button>
         </div>
       ) : (
         <p className="font-medium text-danger">Out of stock</p>
       )}
-      <p role="status" aria-live="polite" className="min-h-6 text-sm text-success">
+      <p role="status" aria-live="polite" className={added ? "rounded-lg bg-success/10 px-3 py-2 text-sm text-success" : "sr-only"}>
         {added && <>Added to your cart. <Link href="/cart" className="font-medium underline">View cart</Link></>}
       </p>
     </div>

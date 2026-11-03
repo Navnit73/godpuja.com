@@ -35,7 +35,7 @@ function Block({ s }: { s: PublicHomeSection }) {
     case "hero":
       return (
         <Wrap className="pt-4 sm:pt-6">
-          <section aria-labelledby={`h-${s.id}`} className="relative isolate overflow-hidden rounded-3xl bg-sacred text-white shadow-elev-2">
+          <section aria-labelledby={`h-${s.id}`} className="relative isolate overflow-hidden rounded-3xl bg-sacred text-white">
             <div className="pattern-rangoli absolute inset-0 -z-10" aria-hidden="true" />
             <Mandala className="absolute -right-24 -top-24 -z-10 h-96 w-96 text-gold-300 opacity-25 md:-right-16 md:h-128 md:w-128" />
             <Mandala className="absolute -bottom-32 -left-28 -z-10 h-80 w-80 text-gold-300 opacity-15" />
@@ -52,7 +52,7 @@ function Block({ s }: { s: PublicHomeSection }) {
               {s.imageUrl && (
                 <div className="relative">
                   <div className="absolute -inset-3 rounded-3xl border border-gold-300 opacity-40" aria-hidden="true" />
-                  <img {...responsive(s.imageUrl, "(min-width: 768px) 50vw, 100vw", 640)} alt={s.imageAlt} fetchPriority="high" referrerPolicy="no-referrer" className="relative aspect-4/3 w-full rounded-2xl object-cover shadow-elev-4" />
+                  <img {...responsive(s.imageUrl, "(min-width: 768px) 50vw, 100vw", 640)} alt={s.imageAlt} fetchPriority="high" referrerPolicy="no-referrer" className="relative aspect-4/3 w-full rounded-2xl object-cover" />
                 </div>
               )}
             </div>
@@ -80,7 +80,7 @@ function Block({ s }: { s: PublicHomeSection }) {
             );
             const cls = "group relative block h-full";
             return (
-              <li key={i} className={`relative overflow-hidden rounded-2xl bg-sandal-100 shadow-elev-1 ${tall ? "md:row-span-2" : ""}`}>
+              <li key={i} className={`relative overflow-hidden rounded-2xl bg-sandal-100 ${tall ? "md:row-span-2" : ""}`}>
                 {b.linkUrl ? (external(b.linkUrl) ? <a href={b.linkUrl} target="_blank" rel="noopener noreferrer" className={cls}>{inner}</a> : <Link href={b.linkUrl} className={cls}>{inner}</Link>) : <div className={cls}>{inner}</div>}
               </li>
             );
@@ -96,7 +96,7 @@ function Block({ s }: { s: PublicHomeSection }) {
             {s.categories.map((c) => (
               <li key={c.id}>
                 <Link href={`/category/${c.path}`} className="group flex flex-col items-center gap-3 text-center">
-                  <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:-translate-y-1 group-hover:shadow-elev-3 group-hover:ring-2 group-hover:ring-gold-400">
+                  <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:ring-2 group-hover:ring-gold-400">
                     {c.image.url
                       ? <img {...responsive(c.image.url, "(min-width: 1024px) 160px, 33vw", 320)} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full rounded-full object-cover" />
                       : <span className="flex aspect-square w-full items-center justify-center rounded-full bg-saffron-50 font-serif text-4xl font-semibold text-primary" aria-hidden="true">{c.name.charAt(0)}</span>}
@@ -127,7 +127,7 @@ function Block({ s }: { s: PublicHomeSection }) {
           <Heading title={s.heading} center />
           <ul className="grid gap-5 md:grid-cols-3">
             {s.items.map((t, i) => (
-              <li key={i} className="relative rounded-2xl border border-sandal-200 bg-surface p-6 shadow-elev-1">
+              <li key={i} className="relative rounded-2xl border border-sandal-200 bg-surface p-6">
                 <QuoteIcon className="h-8 w-8 text-gold-300" />
                 <figure className="mt-3">
                   <blockquote className="text-base leading-relaxed text-foreground">{t.quote}</blockquote>
@@ -144,7 +144,7 @@ function Block({ s }: { s: PublicHomeSection }) {
     case "offer":
       return (
         <Wrap className="py-8 sm:py-10">
-          <section aria-label="Offer" className="relative isolate overflow-hidden rounded-3xl bg-dusk text-white shadow-elev-2">
+          <section aria-label="Offer" className="relative isolate overflow-hidden rounded-3xl bg-dusk text-white">
             <div className="pattern-rangoli absolute inset-0 -z-10" aria-hidden="true" />
             <Mandala className="absolute -right-16 top-1/2 -z-10 h-80 w-80 -translate-y-1/2 text-gold-300 opacity-20" />
             <div className="flex flex-col items-start justify-between gap-6 px-6 py-8 sm:px-10 md:flex-row md:items-center">

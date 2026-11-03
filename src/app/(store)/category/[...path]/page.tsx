@@ -56,7 +56,7 @@ async function Content({ params, searchParams }: Props) {
         crumbs={[{ name: "Home", href: "/" }, ...cat.breadcrumbs.map((b, i, a) => ({ name: b.name, href: i < a.length - 1 ? `/category/${b.path}` : undefined }))]}>
         {cat.children.length > 0 && (
           <nav aria-label="Subcategories" className="mt-5"><ul className="flex flex-wrap gap-2">
-            {cat.children.map((c) => <li key={c.id}><Link href={`/category/${c.path}`} className="chip">{c.name}</Link></li>)}
+            {cat.children.map((c) => <li key={c.id}><Link href={`/category/${c.path}`} className="chip-dark">{c.name}</Link></li>)}
           </ul></nav>
         )}
       </PageBand>

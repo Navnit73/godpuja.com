@@ -39,7 +39,7 @@ export default function CartClient() {
 
   if (lines.length === 0) {
     return (
-      <div className="card px-6 py-16 text-center hover:shadow-elev-1">
+      <div className="panel px-6 py-16 text-center">
         <p className="text-lg font-semibold">Your cart is empty</p>
         <p className="mt-1 text-sm text-muted">Find something for your next puja.</p>
         <Link href="/" className="btn-primary mt-5">Continue shopping</Link>
@@ -59,7 +59,7 @@ export default function CartClient() {
         )}
         <ul className="space-y-3">
           {data.items.map((i) => (
-            <li key={`${i.productId}:${i.variantSku}`} className={`card flex gap-4 p-3 hover:shadow-elev-1 ${i.available ? "" : "opacity-70"}`}>
+            <li key={`${i.productId}:${i.variantSku}`} className={`panel flex gap-4 p-3 ${i.available ? "" : "opacity-70"}`}>
               {i.image ? <img src={sized(i.image.url, 192)} alt={i.image.alt} loading="lazy" referrerPolicy="no-referrer" className="h-24 w-24 shrink-0 rounded-md object-cover" /> : <div className="h-24 w-24 shrink-0 rounded-md bg-sandal-100" aria-hidden="true" />}
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{i.available ? <Link href={`/product/${i.slug}`} className="hover:text-primary">{i.name}</Link> : i.name}</p>
@@ -81,7 +81,7 @@ export default function CartClient() {
         </ul>
       </div>
 
-      <aside aria-labelledby="summary" className="card h-fit space-y-3 p-5 hover:shadow-elev-1">
+      <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatPaise(data.pricing.subtotal)}</dd></div>

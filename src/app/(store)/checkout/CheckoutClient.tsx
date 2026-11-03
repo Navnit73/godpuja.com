@@ -57,12 +57,12 @@ export default function CheckoutClient() {
   }, [errs]);
 
   if (lines.length === 0) {
-    return <div className="card px-6 py-16 text-center hover:shadow-elev-1"><p className="text-lg font-semibold">Your cart is empty</p><Link href="/" className="btn-primary mt-5">Continue shopping</Link></div>;
+    return <div className="panel px-6 py-16 text-center"><p className="text-lg font-semibold">Your cart is empty</p><Link href="/" className="btn-primary mt-5">Continue shopping</Link></div>;
   }
   if (error) return <p role="alert" className="alert-error">{error}</p>;
   if (loading || !data) return <p role="status" className="text-muted">Loading…</p>;
   const buyable = data.items.filter((i) => i.available);
-  if (buyable.length === 0) return <div className="card px-6 py-16 text-center hover:shadow-elev-1"><p className="text-lg font-semibold">Nothing in your cart can be purchased right now</p><Link href="/cart" className="btn-primary mt-5">Back to cart</Link></div>;
+  if (buyable.length === 0) return <div className="panel px-6 py-16 text-center"><p className="text-lg font-semibold">Nothing in your cart can be purchased right now</p><Link href="/cart" className="btn-primary mt-5">Back to cart</Link></div>;
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -124,7 +124,7 @@ export default function CheckoutClient() {
         </div>
       </div>
 
-      <aside aria-labelledby="summary" className="card h-fit space-y-3 p-5 hover:shadow-elev-1">
+      <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
         <ul className="space-y-1 text-sm">{buyable.map((i) => <li key={`${i.productId}:${i.variantSku}`} className="flex justify-between gap-3"><span>{i.name} × {i.qty}</span><span>{formatPaise(i.lineTotal)}</span></li>)}</ul>
         <dl className="space-y-2 border-t border-border pt-3 text-sm">

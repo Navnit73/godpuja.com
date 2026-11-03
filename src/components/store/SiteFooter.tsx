@@ -83,9 +83,11 @@ export function FooterView({ f }: { f: PublicFooter }) {
             </nav>
           ))}
           {f.newsletter.enabled && (
-            <div className="rounded-2xl bg-surface p-5 text-foreground shadow-elev-3 md:col-span-2 lg:col-span-4">
-              <h2 className="font-serif text-2xl font-semibold">{f.newsletter.heading || "Newsletter"}</h2>
-              {f.newsletter.text && <p className="mb-3 mt-1 text-muted">{f.newsletter.text}</p>}
+            <div className="grid items-center gap-4 rounded-2xl bg-surface p-5 text-foreground sm:p-6 md:col-span-2 lg:col-span-12 lg:grid-cols-2 lg:gap-10">
+              <div>
+                <h2 className="font-serif text-2xl font-semibold">{f.newsletter.heading || "Newsletter"}</h2>
+                {f.newsletter.text && <p className="mt-1 text-muted">{f.newsletter.text}</p>}
+              </div>
               <NewsletterForm />
             </div>
           )}

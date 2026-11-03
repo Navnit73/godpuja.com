@@ -62,7 +62,7 @@ async function Content({ params }: Props) {
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/category/${c.path}` })), { name: p.name }]} />
       <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
         <ProductGallery images={p.images} name={p.name} />
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
             {p.brand && <p className="eyebrow">{p.brand}</p>}
             <h1 className="mt-1 text-4xl font-semibold sm:text-5xl">{p.name}</h1>
@@ -73,19 +73,20 @@ async function Content({ params }: Props) {
             <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} variants={p.variants} />
           </div>
           <ul className="grid gap-3 text-sm sm:grid-cols-2">
-            <li className="flex items-center gap-2.5"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>
-            <li className="flex items-center gap-2.5"><TruckIcon className="h-5 w-5 shrink-0 text-primary" />{p.freeShipping ? <span className="font-medium text-success">Free shipping</span> : "Packed with care"}</li>
+            <li className="flex items-center gap-3 rounded-xl border border-sandal-200 bg-white px-4 py-3"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>
+            <li className="flex items-center gap-3 rounded-xl border border-sandal-200 bg-white px-4 py-3"><TruckIcon className="h-5 w-5 shrink-0 text-primary" />{p.freeShipping ? <span className="font-medium text-success">Free shipping</span> : "Packed with care"}</li>
           </ul>
-          <p className="text-sm text-muted">SKU: {p.sku}</p>
           {p.attributes.length > 0 && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 border-t border-border pt-4 text-sm">
-              {p.attributes.map((a, i) => <div key={i} className="contents"><dt className="font-medium">{a.name}</dt><dd className="text-muted">{a.value}</dd></div>)}
+            <dl className="divide-y divide-sandal-200 overflow-hidden rounded-xl border border-sandal-200 bg-white text-sm">
+              {p.attributes.map((a, i) => <div key={i} className="grid grid-cols-[8rem_1fr] gap-4 px-4 py-2.5"><dt className="font-medium">{a.name}</dt><dd className="text-muted">{a.value}</dd></div>)}
+              <div className="grid grid-cols-[8rem_1fr] gap-4 px-4 py-2.5"><dt className="font-medium">SKU</dt><dd className="text-muted">{p.sku}</dd></div>
             </dl>
           )}
+          {p.attributes.length === 0 && <p className="text-sm text-muted">SKU: {p.sku}</p>}
         </div>
       </div>
       {p.descriptionHtml && (
-        <section aria-labelledby="about" className="mt-14 max-w-3xl">
+        <section aria-labelledby="about" className="mt-14 max-w-3xl border-t border-sandal-200 pt-10">
           <h2 id="about" className="section-title">About this product</h2>
           <LotusOrnament className="mb-5 mt-2 h-4 w-16 text-accent" />
           <div className="content" dangerouslySetInnerHTML={{ __html: p.descriptionHtml }} />

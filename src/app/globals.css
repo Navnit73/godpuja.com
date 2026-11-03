@@ -235,7 +235,17 @@
 
 /* Product tile: white card, image sits on a soft sandal plate */
 @utility product-tile {
-  @apply flex flex-col overflow-hidden rounded-2xl border border-sandal-200 bg-surface p-3 transition-all duration-200 ease-standard hover:-translate-y-0.5 hover:border-saffron-200 hover:shadow-elev-3;
+  @apply flex flex-col overflow-hidden rounded-2xl border border-sandal-200 bg-surface p-3 transition-colors duration-200 ease-standard hover:border-saffron-300;
+}
+
+/* Flat storefront card: border, no shadow (storefront has no elevated cards; shadows stay for menus/modals). */
+@utility panel {
+  @apply rounded-2xl border border-sandal-200 bg-surface;
+}
+
+/* Pill on dark (dusk) bands */
+@utility chip-dark {
+  @apply inline-flex min-h-9 items-center rounded-full border border-white/25 px-4 text-sm font-medium text-sandal-100 transition-colors hover:border-gold-300 hover:text-gold-300;
 }
 
 @utility chip {

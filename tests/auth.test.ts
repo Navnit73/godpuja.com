@@ -13,13 +13,13 @@ describe("permissions", () => {
     expect(isStaff("customer")).toBe(false);
   });
   it("editor can edit pages but not orders or users", () => {
-    expect(can("editor", "pages:write")).toBe(true);
-    expect(can("editor", "orders:read")).toBe(false);
-    expect(can("editor", "users:write")).toBe(false);
+    expect(can("content_manager", "pages:write")).toBe(true);
+    expect(can("content_manager", "orders:read")).toBe(false);
+    expect(can("content_manager", "users:write")).toBe(false);
   });
   it("manager handles orders but not pages", () => {
-    expect(can("manager", "orders:write")).toBe(true);
-    expect(can("manager", "pages:write")).toBe(false);
+    expect(can("store_manager", "orders:write")).toBe(true);
+    expect(can("store_manager", "pages:write")).toBe(false);
   });
   it("only superadmin manages users", () => {
     expect(can("superadmin", "users:write")).toBe(true);

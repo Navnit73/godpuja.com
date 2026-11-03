@@ -174,8 +174,8 @@ describe("SEO data (godpuja_test)", () => {
 
 describe("SEO permissions", () => {
   it("seo:write is for editor/admin/superadmin", () => {
-    expect(can("editor", "seo:write")).toBe(true);
-    expect(can("manager", "seo:write")).toBe(false);
+    expect(can("content_manager", "seo:write")).toBe(true);
+    expect(can("store_manager", "seo:write")).toBe(false);
     expect(can("customer", "seo:write")).toBe(false);
   });
 });

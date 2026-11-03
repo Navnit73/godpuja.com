@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { ApiError } from "../api";
 import { connectDB } from "../db";
+import { normalizeRole } from "@/lib/roles";
 import { User } from "../models/User";
 import { can, type Permission } from "./permissions";
 import { getSession, type Session } from "./session";
@@ -9,9 +10,11 @@ import { getSession, type Session } from "./session";
 export async function resolveUser(session: Session | null) {
   if (!session || !mongoose.isValidObjectId(session.uid)) return null;
   await connectDB();
-  const user = await User.findById(session.uid).select("name email role isActive tokenVersion").lean();
+  const user = await User.findById(session.uid).select("name email role isActive tokenVersion templeIds").lean();
   if (!user || !user.isActive || (user.tokenVersion ?? 0) !== session.tv) return null;
-  return user;
+  const role = normalizeRole(user.role); // tolerate rows not yet migrated by scripts/migrate-stage12.ts
+  if (!role) return null;
+  return { ...user, role, templeIds: (user.templeIds ?? []).map(String) };
 }
 
 /** Current user from cookie session + DB (never trusts the JWT role). Null if signed out/revoked. */

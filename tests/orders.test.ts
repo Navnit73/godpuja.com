@@ -35,7 +35,7 @@ const prod = (over: Partial<ProductInput> = {}): ProductInput => ({
   price: 10000, salePrice: null, stock: 10, lowStockThreshold: 5, status: "active", isFeatured: false, attributes: [], variants: [],
   shipping: { weightGrams: 0, length: 0, width: 0, height: 0, freeShipping: false }, seo: { ...emptySeo }, ...over,
 });
-const addr = { name: "Asha Rao", line1: "12 MG Road", city: "Pune", state: "Maharashtra", pincode: "411001", country: "IN" as const };
+const addr = { name: "Asha Rao", line1: "12 MG Road", city: "Pune", state: "Maharashtra", postalCode: "411001", country: "IN" };
 const body = (items: { productId: string; variantSku?: string; qty: number }[], over: Record<string, unknown> = {}) => ({
   items, email: "Asha@Example.com", phone: "+91 98765 43210", shippingAddress: addr, billingSameAsShipping: true, paymentMethod: "cod", ...over,
 });
@@ -62,8 +62,11 @@ describe("order validation", () => {
   it("rejects bad phones, pincodes, emails, countries, quantities and missing billing", () => {
     for (const phone of ["12345", "abcdefghij", "+91 98765 4321098765432", ""]) expect(ok({ phone }), phone).toBe(false);
     for (const phone of ["9876543210", "+91 98765-43210"]) expect(ok({ phone }), phone).toBe(true);
-    for (const pincode of ["12345", "1234567", "abcdef", "41100 "]) expect(ok({ shippingAddress: { ...addr, pincode } }), pincode).toBe(pincode === "41100 " ? false : false);
-    expect(ok({ shippingAddress: { ...addr, country: "US" } })).toBe(false);
+    for (const postalCode of ["12345", "1234567", "abcdef", "41100 ", ""]) expect(ok({ shippingAddress: { ...addr, postalCode } }), postalCode).toBe(false);
+    for (const country of ["XX", "EU", "india", ""]) expect(ok({ shippingAddress: { ...addr, country } }), country).toBe(false);
+    // Schema accepts any real country; WHERE we ship is enforced at checkout (assertShippable, Stage 12).
+    expect(ok({ shippingAddress: { ...addr, country: "US", state: "NY", postalCode: "10001" } })).toBe(true);
+    expect(ok({ shippingAddress: { ...addr, country: "US" } })).toBe(false); // 411001 is not a ZIP code
     expect(ok({ shippingAddress: { ...addr, name: "A" } })).toBe(false);
     expect(ok({ email: "nope" })).toBe(false);
     expect(ok({ billingSameAsShipping: false })).toBe(false);
@@ -154,7 +157,7 @@ describe("pricing, shipping and helpers", () => {
     expect(TRANSITIONS.confirmed).toEqual(["processing", "cancelled"]);
     expect(TRANSITIONS.processing).toEqual(["shipped", "cancelled"]);
     expect(TRANSITIONS.shipped).toEqual(["delivered"]);
-    expect(TRANSITIONS.delivered).toEqual(["returned"]);
+    expect(TRANSITIONS.delivered).toEqual(["return_requested", "returned"]);
     expect(TRANSITIONS.cancelled).toEqual([]);
     expect(TRANSITIONS.returned).toEqual([]);
   });
@@ -368,7 +371,7 @@ describe("orders (godpuja_test)", () => {
       const r1 = await call({ "idempotency-key": k }, payload);
       expect(r1.status).toBe(201);
       const j1 = await r1.json();
-      expect(Object.keys(j1.data).sort()).toEqual(["accessToken", "orderId", "orderNumber", "payment", "status"]);
+      expect(Object.keys(j1.data).sort()).toEqual(["accessToken", "currency", "orderId", "orderNumber", "payment", "status"]);
       expect(j1.data).toMatchObject({ status: "confirmed", payment: { method: "cod", status: "pending" } });
       const r2 = await call({ "idempotency-key": k }, payload);
       expect(r2.status).toBe(200);
@@ -417,7 +420,7 @@ describe("orders (godpuja_test)", () => {
       await changeStatus(r.orderId, "shipped", undefined, ACTOR);
       const o = await changeStatus(r.orderId, "delivered", undefined, ACTOR);
       expect(o.status).toBe("delivered");
-      expect(o.allowedNext).toEqual(["returned"]);
+      expect(o.allowedNext).toEqual(["return_requested", "returned"]);
       expect(o.history.map((h) => h.status)).toEqual(["confirmed", "processing", "shipped", "delivered"]);
       expect(o.history[1]).toMatchObject({ kind: "status", note: "Packing", by: { name: "Tester" } });
     });
@@ -649,7 +652,7 @@ describe("orders (godpuja_test)", () => {
       let csv = "";
       for await (const chunk of exportOrderRows(listOrdersSchema.parse({}))) csv += chunk;
       const lines = csv.trim().split("\r\n");
-      expect(lines[0]).toBe("Order,Placed (UTC),Status,Payment,Name,Email,Phone,City,State,PIN,Items,Subtotal,Shipping,Total,Refunded");
+      expect(lines[0]).toBe("Order,Placed (UTC),Status,Payment,Name,Email,Phone,City,State,Postal code,Country,Items,Currency,Subtotal,Shipping,Total,Refunded");
       expect(lines).toHaveLength(3);
       expect(csv).toContain(",'+91 92222 33333,"); // a phone starting with + is prefixed too (safe by default)
       expect(csv).toContain("Beta =Cmd"); // only a leading formula character matters
@@ -702,10 +705,10 @@ describe("orders (godpuja_test)", () => {
 
 describe("order permissions", () => {
   it("matrix", () => {
-    for (const role of ["superadmin", "admin", "manager"] as const) { expect(can(role, "orders:read")).toBe(true); expect(can(role, "orders:write")).toBe(true); }
-    expect(can("editor", "orders:read")).toBe(false);
+    for (const role of ["superadmin", "admin", "store_manager"] as const) { expect(can(role, "orders:read")).toBe(true); expect(can(role, "orders:write")).toBe(true); }
+    expect(can("content_manager", "orders:read")).toBe(false);
     expect(can("customer", "orders:read")).toBe(false);
-    expect(can("manager", "orders:refund")).toBe(false); // refunds are admin-only
+    expect(can("store_manager", "orders:refund")).toBe(false); // refunds are admin-only
     expect(can("admin", "orders:refund")).toBe(true);
     expect(can("superadmin", "orders:refund")).toBe(true);
   });

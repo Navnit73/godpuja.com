@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import EmptyState from "@/components/ui/EmptyState";
 import Forbidden from "@/components/ui/Forbidden";
 import PageHeader from "@/components/ui/PageHeader";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import { listProductsSchema } from "@/lib/validation/catalog";
 import { currentUser } from "@/server/auth/guard";
 import { can } from "@/server/auth/permissions";
@@ -64,7 +64,7 @@ export default async function ProductsList({ searchParams }: PageProps<"/admin/p
                   <td className="font-medium"><Link href={`/admin/products/${p.id}`} className="hover:text-primary">{p.name}</Link></td>
                   <td className="text-muted">{p.sku}</td>
                   <td className="text-muted">{p.category ?? "—"}</td>
-                  <td className="whitespace-nowrap">{p.salePrice != null ? <><span>{formatPaise(p.salePrice)}</span> <s className="text-muted">{formatPaise(p.price)}</s></> : formatPaise(p.price)}</td>
+                  <td className="whitespace-nowrap">{p.salePrice != null ? <><span>{formatMoney(p.salePrice)}</span> <s className="text-muted">{formatMoney(p.price)}</s></> : formatMoney(p.price)}</td>
                   <td>{p.stock}{p.lowStock && <span className="badge-danger ml-2">Low</span>}</td>
                   <td>{p.status === "active" ? <span className="badge-success">Active</span> : p.status === "draft" ? <span className="badge-muted">Draft</span> : p.status === "upcoming" ? <span className="badge bg-gold-100 text-gold-700">Upcoming</span> : <span className="badge-primary">Archived</span>}</td>
                 </tr>

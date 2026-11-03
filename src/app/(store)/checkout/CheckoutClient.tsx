@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api";
 import { cart } from "@/lib/cart";
-import { formatPaise } from "@/lib/money";
+import { addressRule } from "@/lib/address";
+import { formatMoney } from "@/lib/money";
 import type { Address, CheckoutResult } from "@/lib/storefront-api";
 import { useValidatedCart } from "../cart/CartClient";
 
-const blank: Address = { name: "", line1: "", line2: "", city: "", state: "", pincode: "", country: "IN" };
+type Country = { code: string; name: string };
+const blank = (country: string): Address => ({ name: "", line1: "", line2: "", city: "", state: "", postalCode: "", country });
+const currencyName = (code: string) => { try { return new Intl.DisplayNames(["en"], { type: "currency" }).of(code) ?? code; } catch { return code; } };
 
 function Field({ id, label, value, onChange, error, ...rest }: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
   return (
@@ -21,29 +24,42 @@ function Field({ id, label, value, onChange, error, ...rest }: { id: string; lab
   );
 }
 
-function AddressFields({ prefix, a, set, errs }: { prefix: string; a: Address; set: (a: Address) => void; errs: Record<string, string> }) {
+function AddressFields({ prefix, a, set, errs, countries }: { prefix: string; a: Address; set: (a: Address) => void; errs: Record<string, string>; countries: Country[] }) {
   const e = (k: string) => errs[`${prefix}.${k}`];
   const up = (k: keyof Address) => (v: string) => set({ ...a, [k]: v });
+  const rule = addressRule(a.country);
+  const countryErr = e("country");
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <label htmlFor={`${prefix}-country`} className="label">Country</label>
+        {countries.length === 1
+          ? <p id={`${prefix}-country`} className="text-sm">{countries[0].name}{prefix === "shippingAddress" && <span className="text-muted"> — we currently deliver only here</span>}</p>
+          : <select id={`${prefix}-country`} className="input" autoComplete="country" value={a.country} aria-invalid={!!countryErr} aria-describedby={countryErr ? `${prefix}-country-err` : undefined}
+              onChange={(ev) => set({ ...a, country: ev.target.value, state: "", postalCode: "" })}>
+              {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            </select>}
+        {countryErr && <p id={`${prefix}-country-err`} className="field-error">{countryErr}</p>}
+      </div>
       <div className="sm:col-span-2"><Field id={`${prefix}-name`} label="Full name" autoComplete="name" value={a.name} onChange={up("name")} error={e("name")} /></div>
       <div className="sm:col-span-2"><Field id={`${prefix}-line1`} label="Address" autoComplete="address-line1" value={a.line1} onChange={up("line1")} error={e("line1")} /></div>
       <div className="sm:col-span-2"><Field id={`${prefix}-line2`} label="Apartment, landmark (optional)" autoComplete="address-line2" value={a.line2 ?? ""} onChange={up("line2")} error={e("line2")} /></div>
       <Field id={`${prefix}-city`} label="City" autoComplete="address-level2" value={a.city} onChange={up("city")} error={e("city")} />
-      <Field id={`${prefix}-state`} label="State" autoComplete="address-level1" value={a.state} onChange={up("state")} error={e("state")} />
-      <Field id={`${prefix}-pincode`} label="PIN code" inputMode="numeric" maxLength={6} autoComplete="postal-code" value={a.pincode} onChange={up("pincode")} error={e("pincode")} />
+      <Field id={`${prefix}-state`} label={rule.stateLabel} autoComplete="address-level1" value={a.state} onChange={up("state")} error={e("state")} />
+      <Field id={`${prefix}-postalCode`} label={rule.postalLabel} inputMode={a.country === "IN" || a.country === "US" ? "numeric" : "text"} maxLength={12} autoComplete="postal-code" value={a.postalCode} onChange={up("postalCode")} error={e("postalCode")} />
     </div>
   );
 }
 
-export default function CheckoutClient() {
+export default function CheckoutClient({ shipTo, billTo }: { shipTo: Country[]; billTo: Country[] }) {
   const router = useRouter();
+  const home = shipTo[0]?.code ?? "IN";
   const { lines, loading, data, error } = useValidatedCart();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [ship, setShip] = useState<Address>(blank);
+  const [ship, setShip] = useState<Address>(() => blank(home));
   const [same, setSame] = useState(true);
-  const [bill, setBill] = useState<Address>(blank);
+  const [bill, setBill] = useState<Address>(() => blank(home));
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [errs, setErrs] = useState<Record<string, string>>({});
@@ -105,12 +121,12 @@ export default function CheckoutClient() {
         </fieldset>
 
         <fieldset className="space-y-4"><legend className="mb-2 font-sans text-xl font-semibold">Shipping address</legend>
-          <AddressFields prefix="shippingAddress" a={ship} set={setShip} errs={errs} />
+          <AddressFields prefix="shippingAddress" a={ship} set={setShip} errs={errs} countries={shipTo} />
         </fieldset>
 
         <fieldset className="space-y-4"><legend className="mb-2 font-sans text-xl font-semibold">Billing address</legend>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={same} onChange={(e) => setSame(e.target.checked)} /> Same as shipping address</label>
-          {!same && <AddressFields prefix="billingAddress" a={bill} set={setBill} errs={errs} />}
+          {!same && <AddressFields prefix="billingAddress" a={bill} set={setBill} errs={errs} countries={billTo} />}
         </fieldset>
 
         <fieldset className="space-y-3"><legend className="mb-2 font-sans text-xl font-semibold">Payment</legend>
@@ -126,12 +142,14 @@ export default function CheckoutClient() {
 
       <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
-        <ul className="space-y-1 text-sm">{buyable.map((i) => <li key={`${i.productId}:${i.variantSku}`} className="flex justify-between gap-3"><span>{i.name} × {i.qty}</span><span>{formatPaise(i.lineTotal)}</span></li>)}</ul>
+        <ul className="space-y-1 text-sm">{buyable.map((i) => <li key={`${i.productId}:${i.variantSku}`} className="flex justify-between gap-3"><span>{i.name} × {i.qty}</span><span>{formatMoney(i.lineTotal, data.pricing.currency)}</span></li>)}</ul>
         <dl className="space-y-2 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatPaise(data.pricing.subtotal)}</dd></div>
-          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatPaise(data.pricing.shipping)}</dd></div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatPaise(data.pricing.total)}</dd></div>
+          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatMoney(data.pricing.subtotal, data.pricing.currency)}</dd></div>
+          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatMoney(data.pricing.shipping, data.pricing.currency)}</dd></div>
+          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatMoney(data.pricing.total, data.pricing.currency)}</dd></div>
         </dl>
+        {/* PRD v1.1 §5.4 / §13: state the transaction currency before the customer commits. */}
+        <p className="text-xs text-muted">You pay in {currencyName(data.pricing.currency)} ({data.pricing.currency}). Prices include all taxes.</p>
         <button type="submit" className="btn-primary w-full" disabled={busy}>{busy ? "Placing order…" : "Place order"}</button>
         <Link href="/cart" className="btn-ghost w-full">Back to cart</Link>
       </aside>

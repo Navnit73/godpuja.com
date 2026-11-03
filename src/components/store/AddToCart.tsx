@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { cart, MAX_QTY } from "@/lib/cart";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import { CartIcon } from "./Icons";
 
 type Variant = { sku: string; options: Record<string, string>; price: number; salePrice: number | null; inStock: boolean };
@@ -44,8 +44,8 @@ export default function AddToCart({ productId, price, salePrice, inStock, upcomi
     <div className="space-y-4">
       <div>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-3xl font-semibold text-primary">{formatPaise(unit)}</span>
-          {was != null && <s className="text-base text-muted"><span className="sr-only">Was </span>{formatPaise(was)}</s>}
+          <span className="text-3xl font-semibold text-primary">{formatMoney(unit)}</span>
+          {was != null && <s className="text-base text-muted"><span className="sr-only">Was </span>{formatMoney(was)}</s>}
           {was != null && was > 0 && <span className="badge bg-kumkum-700 text-white">{Math.round((1 - unit / was) * 100)}% off</span>}
         </p>
         <p className="mt-1 text-xs text-muted">Inclusive of all taxes</p>
@@ -84,8 +84,8 @@ export default function AddToCart({ productId, price, salePrice, inStock, upcomi
           className={`pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-sandal-200 bg-surface px-4 pt-3 shadow-elev-4 transition-transform duration-200 ease-standard md:hidden ${bar ? "translate-y-0" : "translate-y-full"}`}>
           <div className="flex items-center gap-3">
             <p className="flex min-w-0 flex-col leading-tight">
-              <span className="text-lg font-semibold text-primary">{formatPaise(unit)}</span>
-              {was != null && <s className="text-xs text-muted"><span className="sr-only">Was </span>{formatPaise(was)}</s>}
+              <span className="text-lg font-semibold text-primary">{formatMoney(unit)}</span>
+              {was != null && <s className="text-xs text-muted"><span className="sr-only">Was </span>{formatMoney(was)}</s>}
             </p>
             {added
               ? <Link href="/cart" className="btn-outline h-11 flex-1 gap-2"><CartIcon className="h-5 w-5" />View cart</Link>

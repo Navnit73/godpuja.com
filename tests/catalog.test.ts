@@ -386,12 +386,12 @@ describe("request body limits", () => {
 
 describe("catalog permissions", () => {
   it("matrix", () => {
-    expect(can("editor", "products:write")).toBe(false);
-    expect(can("manager", "products:write")).toBe(true);
-    expect(can("manager", "inventory:write")).toBe(true);
-    expect(can("manager", "categories:write")).toBe(false);
+    expect(can("content_manager", "products:write")).toBe(false);
+    expect(can("store_manager", "products:write")).toBe(true);
+    expect(can("store_manager", "inventory:write")).toBe(true);
+    expect(can("store_manager", "categories:write")).toBe(true); // PRD v1.1 §12: store manager owns categories
     expect(can("admin", "categories:write")).toBe(true);
-    expect(can("editor", "media:write")).toBe(true);
+    expect(can("content_manager", "media:write")).toBe(true);
     expect(can("customer", "products:read")).toBe(false);
   });
 });

@@ -10,6 +10,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "migrate:stage12": "tsx scripts/migrate-stage12.ts",
     "audit:browser": "node scripts/browser-audit.mjs",
     "audit:a11y": "node scripts/a11y-audit.mjs",
     "seed:bench": "tsx scripts/seed-bench.ts",

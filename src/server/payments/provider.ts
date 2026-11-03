@@ -11,12 +11,19 @@ import type { OrderDoc } from "../models/Order";
  */
 export interface PaymentProvider {
   id: string;
+  /**
+   * true for offline methods (cash on delivery): the order is `confirmed` at once and payment is collected later.
+   * false for online gateways: the order starts as `pending_payment` and is confirmed only when payment succeeds
+   * (webhook or admin), so no order looks paid before it is (PRD v1.1 §5.4).
+   */
+  confirmsOnPlacement: boolean;
   /** Called inside the checkout transaction after the order document is built (not yet saved). */
-  createPayment(order: Pick<OrderDoc, "orderNumber" | "pricing" | "email">): Promise<{ providerOrderId?: string; status: "pending" | "paid" }>;
+  createPayment(order: Pick<OrderDoc, "orderNumber" | "pricing" | "email" | "currency">): Promise<{ providerOrderId?: string; status: "pending" | "paid" }>;
 }
 
 const cod: PaymentProvider = {
   id: "cod",
+  confirmsOnPlacement: true,
   // Cash on delivery: nothing to create; payment stays pending until an admin marks it paid.
   createPayment: async () => ({ status: "pending" }),
 };

@@ -5,7 +5,7 @@ import Forbidden from "@/components/ui/Forbidden";
 import PageHeader from "@/components/ui/PageHeader";
 import { currentUser } from "@/server/auth/guard";
 import { can } from "@/server/auth/permissions";
-import { ROLES } from "@/lib/roles";
+import { ROLE_LABELS, ROLES } from "@/lib/roles";
 import { listUsers } from "@/server/services/users";
 import { listUsersSchema } from "@/lib/validation/users";
 import UsersClient from "./UsersClient";
@@ -50,7 +50,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
           <label htmlFor="role" className="label">Role</label>
           <select id="role" name="role" defaultValue={query.role ?? ""} className="input">
             <option value="">All roles</option>
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
           </select>
         </div>
         <button type="submit" className="btn-outline h-10">Filter</button>

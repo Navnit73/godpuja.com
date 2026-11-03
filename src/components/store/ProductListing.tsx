@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listingHref, SORTS } from "@/lib/listing";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import type { PublicProductsInput } from "@/lib/validation/catalog";
 import type { PublicProduct } from "@/server/services/products";
 import { ChevronDown, CloseIcon } from "./Icons";
@@ -15,8 +15,8 @@ type Result = { items: PublicProduct[]; total: number; page: number; pages: numb
 export default function ProductListing({ base, query, result, hiddenFields = {}, heading = "Products" }: { base: string; query: PublicProductsInput; result: Result; hiddenFields?: Record<string, string>; heading?: string }) {
   const filtered = query.minPrice !== undefined || query.maxPrice !== undefined;
   const clearHref = listingHref(base, { ...query, minPrice: undefined, maxPrice: undefined, page: 1 }, hiddenFields);
-  const priceLabel = query.minPrice !== undefined && query.maxPrice !== undefined ? `${formatPaise(query.minPrice)} – ${formatPaise(query.maxPrice)}`
-    : query.minPrice !== undefined ? `From ${formatPaise(query.minPrice)}` : query.maxPrice !== undefined ? `Up to ${formatPaise(query.maxPrice)}` : "";
+  const priceLabel = query.minPrice !== undefined && query.maxPrice !== undefined ? `${formatMoney(query.minPrice)} – ${formatMoney(query.maxPrice)}`
+    : query.minPrice !== undefined ? `From ${formatMoney(query.minPrice)}` : query.maxPrice !== undefined ? `Up to ${formatMoney(query.maxPrice)}` : "";
   return (
     <section aria-labelledby="listing-heading">
       <h2 id="listing-heading" className="sr-only">{heading}</h2>

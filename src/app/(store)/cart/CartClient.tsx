@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiClientError } from "@/lib/api";
 import { cart, MAX_QTY, useCart } from "@/lib/cart";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import type { CartValidation } from "@/lib/storefront-api";
 import { sized } from "@/lib/image";
 import { CloseIcon } from "@/components/store/Icons";
@@ -86,7 +86,7 @@ export default function CartClient() {
                   <div className="min-w-0">
                     <p className="line-clamp-2 font-medium leading-snug">{i.available ? <Link href={`/product/${i.slug}`} className="hover:text-primary">{i.name}</Link> : i.name}</p>
                     {Object.keys(i.options).length > 0 && <p className="mt-0.5 text-sm text-muted">{Object.entries(i.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>}
-                    {i.available && <p className="mt-0.5 text-xs text-muted">{formatPaise(i.unitPrice)} each</p>}
+                    {i.available && <p className="mt-0.5 text-xs text-muted">{formatMoney(i.unitPrice)} each</p>}
                   </div>
                   {i.available && (
                     <button type="button" className="icon-btn -mr-2 -mt-2 text-muted hover:text-danger" onClick={() => remove(i.productId, i.variantSku, i.name)}>
@@ -100,7 +100,7 @@ export default function CartClient() {
                   ) : (
                     <button type="button" className="btn-outline btn-sm" onClick={() => remove(i.productId, i.variantSku, i.name)}>Remove<span className="sr-only"> unavailable item {i.name}</span></button>
                   )}
-                  <p className="shrink-0 text-right font-semibold">{i.available ? formatPaise(i.lineTotal) : <span className="text-sm font-medium text-danger">Unavailable</span>}</p>
+                  <p className="shrink-0 text-right font-semibold">{i.available ? formatMoney(i.lineTotal) : <span className="text-sm font-medium text-danger">Unavailable</span>}</p>
                 </div>
               </div>
             </li>
@@ -111,11 +111,11 @@ export default function CartClient() {
       <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
         <dl className="space-y-2 text-sm">
-          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatPaise(data.pricing.subtotal)}</dd></div>
-          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatPaise(data.pricing.shipping)}</dd></div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatPaise(data.pricing.total)}</dd></div>
+          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatMoney(data.pricing.subtotal)}</dd></div>
+          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatMoney(data.pricing.shipping)}</dd></div>
+          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatMoney(data.pricing.total)}</dd></div>
         </dl>
-        <p className="text-xs text-muted">Inclusive of all taxes.{data.pricing.shipping > 0 && data.pricing.freeShippingOver > 0 && <> Free shipping on orders over {formatPaise(data.pricing.freeShippingOver)}.</>}</p>
+        <p className="text-xs text-muted">Inclusive of all taxes.{data.pricing.shipping > 0 && data.pricing.freeShippingOver > 0 && <> Free shipping on orders over {formatMoney(data.pricing.freeShippingOver)}.</>}</p>
         {buyable.length > 0
           ? <Link href="/checkout" className="btn-primary w-full">Checkout</Link>
           : <p className="text-sm text-danger">Nothing in your cart can be purchased right now.</p>}

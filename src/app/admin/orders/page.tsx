@@ -5,7 +5,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import Forbidden from "@/components/ui/Forbidden";
 import PageHeader from "@/components/ui/PageHeader";
 import { formatDateTime } from "@/lib/format";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import { listOrdersSchema } from "@/lib/validation/orders";
 import { currentUser } from "@/server/auth/guard";
 import { can } from "@/server/auth/permissions";
@@ -66,7 +66,7 @@ export default async function OrdersList({ searchParams }: PageProps<"/admin/ord
                   <td className="whitespace-nowrap text-muted">{formatDateTime(o.createdAt)}</td>
                   <td>{o.name}<span className="block text-xs text-muted">{o.email}</span></td>
                   <td>{o.itemCount}</td>
-                  <td className="whitespace-nowrap">{formatPaise(o.total)}</td>
+                  <td className="whitespace-nowrap">{formatMoney(o.total, o.currency)}</td>
                   <td><StatusBadge status={o.status} /></td>
                   <td><PaymentBadge status={o.paymentStatus} /></td>
                 </tr>

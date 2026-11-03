@@ -1,6 +1,6 @@
 # GodPuja — CMS + E-commerce Platform PRD
 
-Source brief: [prd.md](prd.md). This is the working PRD. Status: **Stage 0 complete (documentation)**.
+Source briefs: [prd.md](prd.md) (original CMS + e-commerce brief, Stages 0–11) and **[docs/PRD_v1.1.md](docs/PRD_v1.1.md) (owner PRD v1.1, product source of truth from 2026-11-03)**. This is the working PRD: it maps v1.1 onto our stack and stages — see [§16](#16-prd-v11-adoption-scope-stack-mapping-and-gaps). Where §1–15 below conflict with v1.1, v1.1 + §16 win.
 
 ## 1. Vision & Objectives
 
@@ -14,6 +14,8 @@ Objectives:
 5. Consistent, calm, minimal UI built on one token set (see [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md)).
 
 Non-goals (v1): visual drag-and-drop page builder, multi-vendor, multi-language, multi-currency, native apps.
+
+> **Superseded by PRD v1.1 (§16):** the product is now a *global* platform with five pillars (Shop, Temples & Donations, Pooja Vidhi, Aarti & Mantras, Book a Pooja). Multi-currency and multi-language are no longer non-goals — they are Phase 3, but data must be global-ready now (ISO currency codes, international addresses, UTC + IANA timezones). Still non-goals: open seller marketplace, native apps, visual page builder.
 
 ## 2. Existing Codebase Audit (Stage 0)
 
@@ -128,3 +130,86 @@ Tracked in [PROJECT_TRACKER.md](PROJECT_TRACKER.md). Each stage ends with `docs/
 | 4 | Guest checkout allowed? | Stage 9 | Yes |
 | 5 | Currency / tax / shipping rules | Stage 9 | INR, tax-inclusive, flat + free-over-threshold shipping |
 | 6 | Email provider for order mails / newsletter | Stage 9 | Resend |
+| 7 | Adopt PRD v1.1; keep current tech stack | 2026-11-03 | **Decided by owner: yes, keep stack** (see §16.1) |
+| 8 | Payment gateway(s) — PRD v1.1 suggests Stripe + regional (UPI) | Stage 13 | **Open — still blocking all paid flows** |
+| 9 | Base accounting currency + launch countries | Stage 12 | Proposed: INR base; India first, other countries activated when shipping/payment are ready (v1.1 §23) |
+| 10 | Brand palette: v1.1 §17 suggests ivory/sand/muted gold/terracotta/charcoal; current tokens are saffron/kumkum/gold/sandal/tulsi | Before Stage 17 release | Proposed: keep current tokens, re-check against v1.1 direction with designer |
+| 11 | Store URLs: v1.1 uses `/shop/...`, we use `/category/...` | Stage 14 | Proposed: switch to `/shop/...` with 301s from `/category/...` via redirect table |
+| 12 | Temple / Pandit / donation payment model (merchant of record, settlement, refunds) | Stage 20 | **Open — owner + legal** (v1.1 §6.8, §7, §14.1) |
+| 13 | Aarti/Mantra audio sourcing and licences | Stage 16 | **Open — content/legal**; module ships lyrics-only until rights are recorded |
+
+## 16. PRD v1.1 adoption: scope, stack mapping and gaps
+
+Owner decision (2026-11-03): adopt [PRD v1.1](docs/PRD_v1.1.md) as the product spec and **stay on the current tech stack**. v1.1 §14 lists recommended technologies; the table below records how each is satisfied in our stack instead.
+
+### 16.1 Stack mapping (v1.1 §14 → ours)
+
+| v1.1 layer | v1.1 recommendation | Our stack (retained) | How the v1.1 requirement is met |
+|---|---|---|---|
+| Frontend | Next.js, React, TS | Next.js 16 App Router, React 19, TS | Same. |
+| UI | Tailwind + shadcn/ui | Tailwind v4 + own UI kit (`src/components/ui`) | Accessible components already axe-tested; no shadcn needed. |
+| Commerce | Shopify or Medusa | In-app commerce (products, inventory, cart, orders in MongoDB) | This *is* the "one authoritative commerce engine"; no second commerce DB. |
+| Database | PostgreSQL | MongoDB Atlas + Mongoose | Relations via ObjectId refs validated in services; unique indexes for slugs/idempotency keys; multi-document transactions (replica set) for orders, slot reservations and payments. |
+| Auth | Auth.js / Supabase Auth | `jose` JWT cookie + bcrypt + `tokenVersion` revocation | Add email verification, password reset and OAuth (Google first) in-house using `jose` for OIDC token verification. |
+| CMS | Sanity / Payload | In-app CMS (`Page` model, sections, publish/schedule/preview) | Extend with structured Pooja Vidhi and Aarti/Mantra models. |
+| Storage | S3 / Cloudinary | Cloudinary | Same (audio uploads added for Aarti). |
+| Search | Meilisearch / Algolia | MongoDB text indexes | Per-domain text indexes (products, temples, content); Atlas Search later if relevance is insufficient — stays inside MongoDB. |
+| Payments | Stripe + regional | Provider adapter (`src/server/payments/provider.ts`), COD + signed webhook today | Gateway choice still open (decision 8). New `Payment` ledger shared by orders, bookings and donations. |
+| Maps | Google Maps or equivalent | None yet | Lat/lng on temples + directions link / embed; no SDK needed initially. |
+| Email | Resend / SES | Resend (decided, not yet wired) | Wire in Stage 13 with a `Notification` log. |
+| Hosting | Managed | Pending owner decision | Unchanged. |
+
+**Bounded domains (v1.1 §14):** each new domain gets its own models + `src/server/services/<domain>.ts` and talks to others only through service functions, sharing `User` identity: `temples`, `templeServices` / `slots`, `bookings`, `donations`, `pandits`, `devotional` (Aarti/Mantra). Product, booking and donation payments are separate `kind`s in one immutable `Payment` ledger with separate reporting (v1.1 §14.1).
+
+**Double-booking prevention (v1.1 §15.1, §21.1 #7):** same pattern as inventory — a `slots` document per temple-service-slot with `capacity` and `reserved`; reservation is a conditional `findOneAndUpdate({ reserved: { $lt: capacity } }, { $inc: { reserved: n } })` inside the booking-creation transaction, plus an idempotency key unique index.
+
+### 16.2 What already satisfies v1.1
+
+| v1.1 area | Status |
+|---|---|
+| §4 Homepage — reorder / enable / disable modules via CMS | Done (Stage 7) — new section types needed for temples, aarti, pandit promo |
+| §5.1–5.3 Catalogue, variants, per-product attributes, search/filter/sort, related | Done (Stages 6, 8) |
+| §5.4 Cart, guest checkout, admin order processing, refunds (record-only), CSV export | Done (Stage 9), COD only |
+| §8 Pooja Vidhi — draft/preview/schedule/publish, SEO fields | Partial — `Page.kind = "guide"`, markdown body only |
+| §18 SEO — metadata, canonicals, sitemap, robots, JSON-LD, redirects | Done (Stage 10) |
+| §19.1 Security — hashing, RBAC, validation, rate limits, CSP, audit log | Done (Stage 11) for current scope |
+| §17.2 Accessibility basics | Done (Stage 11) |
+
+### 16.3 Gaps (drive Stages 12–23)
+
+1. **Global-ready money and addresses** — prices are integer paise with no currency code; `Address` hardcodes `country: "IN"` and `pincode` (`src/lib/storefront-api.ts`, `src/server/services/orders.ts`); `money.ts` formats INR only. v1.1 §13 needs ISO currency codes, international addresses, UTC + IANA timezones.
+2. **Order statuses** — orders start at `confirmed` (correct for COD). v1.1 §5.4 needs `pending_payment`, `payment_failed`, `return_requested`, `refunded` so gateway orders never look paid before payment.
+3. **Roles** — 5 flat roles; v1.1 §12 needs 8 incl. temple-scoped `temple_operator` (tenant authorization, §15.1).
+4. **Customer accounts** — email verification, password reset, OAuth, order history, saved addresses, wishlist, profile preferences (v1.1 §11).
+5. **Store completion** — coupons, tax, reviews/ratings, recently viewed, shipment tracking, return requests, invoices (v1.1 §5).
+6. **Notifications** — no emails yet (orders, bookings, donations, account).
+7. **Payment gateway** — blocked on owner (decision 8).
+8. **Pooja Vidhi structured content** — samagri, steps, mantras, related aarti/products, author/reviewer (v1.1 §8).
+9. **Aarti & Mantras** — not started; audio player + rights metadata with expiry (v1.1 §9).
+10. **Temples, temple services, slots, bookings, operator portal** — not started (v1.1 §6).
+11. **Donations** — not started (v1.1 §7).
+12. **Pandits + home/online booking** — not started (v1.1 §10).
+13. **Privacy workflows** — data access/deletion, retention for devotee data (v1.1 §19.2).
+14. **Analytics** — GA4 / Search Console (v1.1 §16).
+
+### 16.4 Revised stage plan
+
+Detailed scope and exit criteria in [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). The old Stage 12 (E2E & release) becomes **Stage 17 — Phase 1 release**, because v1.1 Phase 1 also includes customer accounts, Pooja Vidhi and Aarti/Mantra.
+
+| Stage | v1.1 phase | Scope |
+|---|---|---|
+| 12 | Phase 1 | Global-ready foundations: currency codes, international addresses, order statuses, timezone utils, roles + scoped permissions |
+| 13 | Phase 1 | Customer accounts + email notifications + payment gateway adapter (when decided) |
+| 14 | Phase 1 | Store completion: coupons, tax, reviews, wishlist, tracking, returns, `/shop` URLs |
+| 15 | Phase 1 | Pooja Vidhi structured content |
+| 16 | Phase 1 | Aarti & Mantras + audio player + rights metadata |
+| 17 | Phase 1 | Homepage pillar tiles, GA4, privacy pages, E2E, Phase 1 release |
+| 18 | Phase 2 | Temple directory & profiles + verification |
+| 19 | Phase 2 | Temple services, schedules, slots; temple operator portal |
+| 20 | Phase 2 | Shared booking foundation + temple booking journey |
+| 21 | Phase 2 | Donations |
+| 22 | Phase 2 | Pandits + home/venue/online booking (request-and-confirm) |
+| 23 | Phase 2 | Phase 2 E2E (v1.1 §21.1 scenarios 5–13) + release |
+| — | Phase 3 | Hindi + more languages, multi-currency display, broader shipping/payments, automated availability, playlists, personalization |
+
+P1 pillars (Temples, Book a Pooja) appear on the homepage and in navigation from Stage 17 with a "coming soon" state, satisfying v1.1 §4.1 / §21 before Phase 2 ships.

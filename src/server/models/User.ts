@@ -1,6 +1,6 @@
 import mongoose, { type InferSchemaType, type Model } from "mongoose";
 
-import { ROLES, type Role } from "@/lib/roles";
+import { LEGACY_ROLES, ROLES, type Role } from "@/lib/roles";
 export { ROLES };
 export type { Role };
 
@@ -13,8 +13,8 @@ const addressSchema = new mongoose.Schema(
     line2: String,
     city: String,
     state: String,
-    pincode: String,
-    country: { type: String, default: "IN" },
+    postalCode: String,
+    country: { type: String, default: "IN" }, // ISO 3166-1 alpha-2
     isDefault: { type: Boolean, default: false },
   },
   { _id: true },
@@ -25,7 +25,10 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 100 },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true, select: false },
-    role: { type: String, enum: ROLES, default: "customer", index: true },
+    // Legacy names stay valid until scripts/migrate-stage12.ts rewrites them; normalizeRole() maps them on read.
+    role: { type: String, enum: [...ROLES, ...Object.keys(LEGACY_ROLES)], default: "customer", index: true },
+    /** Temples a scoped role (temple_operator) may manage. Ignored for other roles. PRD v1.1 §12. */
+    templeIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
     phone: { type: String, trim: true },
     addresses: [addressSchema],
     isActive: { type: Boolean, default: true },
@@ -36,7 +39,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export type UserDoc = InferSchemaType<typeof userSchema> & { _id: mongoose.Types.ObjectId };
+export type UserDoc = Omit<InferSchemaType<typeof userSchema>, "role"> & { _id: mongoose.Types.ObjectId; role: Role | keyof typeof LEGACY_ROLES };
 
 // In dev, HMR keeps the previously compiled model (with the old schema); drop it so schema edits apply.
 if (process.env.NODE_ENV !== "production") delete mongoose.models.User;

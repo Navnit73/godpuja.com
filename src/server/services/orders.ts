@@ -3,10 +3,14 @@ import mongoose, { type ClientSession } from "mongoose";
 import { ApiError } from "../api";
 import { connectDB } from "../db";
 import { Counter } from "../models/Counter";
+import { env } from "../env";
 import { Order, type Actor, type Address, type OrderDoc, type OrderItem, type OrderStatus, type PaymentStatus } from "../models/Order";
 import { Product } from "../models/Product";
 import { getProvider } from "../payments/provider";
 import { CART_FIELDS, computePricing, hiddenCategorySet, mergeLines, resolveLines } from "./cart";
+import { countryName, normalizeAddress } from "@/lib/address";
+import { BASE_CURRENCY, formatMoney, minorToDecimal } from "@/lib/money";
+import { dayRangeUtc } from "@/lib/time";
 import type { CheckoutInput, ListOrdersInput } from "@/lib/validation/orders";
 
 const SYSTEM: Actor = { id: null, name: "System" };
@@ -32,7 +36,7 @@ export async function nextOrderNumber(now = new Date()) {
 
 // ---------- checkout ----------
 export type CheckoutResult = {
-  orderId: string; orderNumber: string; accessToken: string; status: OrderStatus; payment: { method: string; status: PaymentStatus }; created: boolean;
+  orderId: string; orderNumber: string; accessToken: string; status: OrderStatus; currency: string; payment: { method: string; status: PaymentStatus }; created: boolean;
 };
 
 function hashRequest(input: CheckoutInput) {
@@ -44,11 +48,20 @@ function replayOf(existing: OrderDoc, requestHash: string): CheckoutResult {
   if (existing.requestHash !== requestHash) {
     throw new ApiError("CONFLICT", "This Idempotency-Key was already used for a different order. Generate a new key for a new checkout.");
   }
-  return { orderId: String(existing._id), orderNumber: existing.orderNumber, accessToken: existing.accessToken, status: existing.status, payment: { method: existing.payment.method, status: existing.payment.status }, created: false };
+  return { orderId: String(existing._id), orderNumber: existing.orderNumber, accessToken: existing.accessToken, status: existing.status, currency: currencyOf(existing), payment: { method: existing.payment.method, status: existing.payment.status }, created: false };
 }
 
-const addr = (a: Checkout["shippingAddress"]): Address => ({ name: a.name, line1: a.line1, ...(a.line2 ? { line2: a.line2 } : {}), city: a.city, state: a.state, pincode: a.pincode, country: "IN" });
-type Checkout = CheckoutInput;
+const addr = (a: CheckoutInput["shippingAddress"]): Address => ({ name: a.name, line1: a.line1, ...(a.line2 ? { line2: a.line2 } : {}), city: a.city, state: a.state, postalCode: a.postalCode, country: a.country });
+/** Orders from before Stage 12 have no currency field: they were all INR. */
+const currencyOf = (o: Pick<OrderDoc, "currency">) => o.currency ?? "INR";
+
+/** Countries we deliver to (env SHIPPING_COUNTRIES). Billing addresses may be anywhere. */
+export const shippingCountries = () => env().SHIPPING_COUNTRIES;
+export function assertShippable(country: string) {
+  if (shippingCountries().includes(country)) return;
+  const name = countryName(country) ?? country;
+  throw new ApiError("VALIDATION_ERROR", `We do not deliver to ${name} yet.`, { "shippingAddress.country": `We do not deliver to ${name} yet` });
+}
 
 /**
  * Place an order. Everything that must be consistent happens in ONE transaction: re-price from the database,
@@ -57,6 +70,7 @@ type Checkout = CheckoutInput;
  * returns the original order without touching stock again.
  */
 export async function placeOrder(input: CheckoutInput, idempotencyKey: string): Promise<CheckoutResult> {
+  assertShippable(input.shippingAddress.country);
   await connectDB();
   const requestHash = hashRequest(input);
   const prior = await Order.findOne({ idempotencyKey }).lean();
@@ -97,17 +111,19 @@ export async function placeOrder(input: CheckoutInput, idempotencyKey: string): 
         unitPrice: l.unitPrice, qty: l.qty, lineTotal: l.lineTotal,
       }));
       const shipping = addr(input.shippingAddress);
-      const pay = await provider.createPayment({ orderNumber, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, email: input.email });
+      const currency = BASE_CURRENCY;
+      const pay = await provider.createPayment({ orderNumber, currency, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, email: input.email });
+      const status: OrderStatus = pay.status === "paid" || provider.confirmsOnPlacement ? "confirmed" : "pending_payment";
       const now = new Date();
       const [doc] = await Order.create([{
         orderNumber, idempotencyKey, requestHash, accessToken, email: input.email, phone: input.phone, shippingAddress: shipping,
         billingAddress: input.billingSameAsShipping || !input.billingAddress ? shipping : addr(input.billingAddress), customerNote: input.notes ?? "",
-        items, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, status: "confirmed",
+        items, currency, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, status,
         payment: { provider: provider.id, method: input.paymentMethod, ...(pay.providerOrderId ? { providerOrderId: pay.providerOrderId } : {}), status: pay.status, ...(pay.status === "paid" ? { paidAt: now } : {}) },
-        history: [{ kind: "created", status: "confirmed", note: "Order placed", by: SYSTEM, at: now }],
+        history: [{ kind: "created", status, note: status === "pending_payment" ? "Order placed, awaiting payment" : "Order placed", by: SYSTEM, at: now }],
       }], { session });
       const o = doc.toObject() as OrderDoc;
-      result = { orderId: String(o._id), orderNumber: o.orderNumber, accessToken: o.accessToken, status: o.status, payment: { method: o.payment.method, status: o.payment.status }, created: true };
+      result = { orderId: String(o._id), orderNumber: o.orderNumber, accessToken: o.accessToken, status: o.status, currency: o.currency, payment: { method: o.payment.method, status: o.payment.status }, created: true };
     });
     return result;
   } catch (err) {
@@ -124,7 +140,7 @@ export async function placeOrder(input: CheckoutInput, idempotencyKey: string): 
 
 // ---------- customer view (guest token) ----------
 export type CustomerOrder = {
-  orderNumber: string; status: OrderStatus; createdAt: string; email: string; phone: string;
+  orderNumber: string; status: OrderStatus; createdAt: string; email: string; phone: string; currency: string;
   items: { name: string; sku: string; variantSku: string | null; options: Record<string, string>; image: { url: string; alt: string } | null; slug: string; unitPrice: number; qty: number; lineTotal: number }[];
   pricing: OrderDoc["pricing"]; payment: { method: string; status: PaymentStatus }; shippingAddress: Address; billingAddress: Address;
 };
@@ -136,12 +152,12 @@ export async function getCustomerOrder(id: string, token: string): Promise<Custo
   const notFound = new ApiError("NOT_FOUND", "Order not found");
   if (!isId(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) throw notFound;
   await connectDB();
-  const o = await Order.findById(id).select("orderNumber status createdAt email phone items pricing payment shippingAddress billingAddress accessToken").lean();
+  const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken").lean();
   if (!o || !safeEqual(o.accessToken, token)) throw notFound;
   return {
-    orderNumber: o.orderNumber, status: o.status, createdAt: o.createdAt.toISOString(), email: o.email, phone: o.phone,
+    orderNumber: o.orderNumber, status: o.status, createdAt: o.createdAt.toISOString(), email: o.email, phone: o.phone, currency: currencyOf(o),
     items: o.items.map((i) => ({ name: i.name, sku: i.sku, variantSku: i.variantSku, options: i.options, image: i.image, slug: i.slug, unitPrice: i.unitPrice, qty: i.qty, lineTotal: i.lineTotal })),
-    pricing: o.pricing, payment: { method: o.payment.method, status: o.payment.status }, shippingAddress: o.shippingAddress, billingAddress: o.billingAddress,
+    pricing: o.pricing, payment: { method: o.payment.method, status: o.payment.status }, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
   };
 }
 
@@ -155,21 +171,30 @@ export type AdminOrder = Omit<OrderDoc, "_id" | "accessToken" | "requestHash" | 
   history: { kind: string; status: OrderStatus; note: string; by: Actor; at: string }[];
   allowedNext: OrderStatus[]; refundable: number;
 };
-export type OrderListItem = { id: string; orderNumber: string; createdAt: string; status: OrderStatus; paymentStatus: PaymentStatus; total: number; itemCount: number; name: string; email: string };
+export type OrderListItem = { id: string; orderNumber: string; createdAt: string; status: OrderStatus; paymentStatus: PaymentStatus; currency: string; total: number; itemCount: number; name: string; email: string };
 
-/** Allowed order status transitions. Cancelling is only possible before shipping and returns the stock. */
+/**
+ * Status moves an admin may make by hand. Cancelling is only possible before shipping and returns the stock.
+ * Not listed here because they are driven by payment updates (changePayment / webhook) or refunds:
+ * pending_payment|payment_failed → confirmed (payment received), pending_payment → payment_failed,
+ * cancelled|returned → refunded (refunded in full).
+ */
 export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending_payment: ["cancelled"],
+  payment_failed: ["cancelled"],
   confirmed: ["processing", "cancelled"],
   processing: ["shipped", "cancelled"],
   shipped: ["delivered"],
-  delivered: ["returned"],
-  cancelled: [],
+  delivered: ["return_requested", "returned"],
+  return_requested: ["returned", "delivered"], // delivered = return declined
   returned: [],
+  cancelled: [],
+  refunded: [],
 };
 
 const toAdmin = (o: OrderDoc): AdminOrder => ({
-  id: String(o._id), orderNumber: o.orderNumber, email: o.email, phone: o.phone, shippingAddress: o.shippingAddress, billingAddress: o.billingAddress,
-  customerNote: o.customerNote ?? "", pricing: o.pricing, status: o.status, refundedTotal: o.refundedTotal ?? 0,
+  id: String(o._id), orderNumber: o.orderNumber, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
+  customerNote: o.customerNote ?? "", currency: currencyOf(o), pricing: o.pricing, status: o.status, refundedTotal: o.refundedTotal ?? 0,
   createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString(),
   items: o.items.map((i) => ({ ...i, product: String(i.product) })),
   payment: { provider: o.payment.provider, method: o.payment.method, providerOrderId: o.payment.providerOrderId ?? null, providerPaymentId: o.payment.providerPaymentId ?? null, status: o.payment.status, paidAt: iso(o.payment.paidAt) },
@@ -185,8 +210,9 @@ export function buildOrderFilter(q: Pick<ListOrdersInput, "q" | "status" | "paym
   if (q.status) filter.status = q.status;
   if (q.payment) filter["payment.status"] = q.payment;
   if (q.from || q.to) {
-    // Dates are India Standard Time days, like everywhere else in the admin.
-    filter.createdAt = { ...(q.from ? { $gte: new Date(`${q.from}T00:00:00+05:30`) } : {}), ...(q.to ? { $lte: new Date(`${q.to}T23:59:59.999+05:30`) } : {}) };
+    // Whole local days in the admin time zone (env ADMIN_TIMEZONE, default Asia/Kolkata).
+    const tz = env().ADMIN_TIMEZONE;
+    filter.createdAt = { ...(q.from ? { $gte: dayRangeUtc(q.from, tz).start } : {}), ...(q.to ? { $lte: dayRangeUtc(q.to, tz).end } : {}) };
   }
   if (q.q) {
     const t = q.q.trim();
@@ -206,11 +232,11 @@ export async function listOrders(q: ListOrdersInput) {
   await connectDB();
   const filter = buildOrderFilter(q);
   const [rows, total] = await Promise.all([
-    Order.find(filter).select("orderNumber createdAt status payment.status pricing.total items.qty shippingAddress.name email").sort({ createdAt: -1, _id: -1 }).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
+    Order.find(filter).select("orderNumber createdAt status payment.status currency pricing.total items.qty shippingAddress.name email").sort({ createdAt: -1, _id: -1 }).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
     Order.countDocuments(filter),
   ]);
   const items: OrderListItem[] = rows.map((o) => ({
-    id: String(o._id), orderNumber: o.orderNumber, createdAt: o.createdAt.toISOString(), status: o.status, paymentStatus: o.payment.status, total: o.pricing.total,
+    id: String(o._id), orderNumber: o.orderNumber, createdAt: o.createdAt.toISOString(), status: o.status, paymentStatus: o.payment.status, currency: currencyOf(o), total: o.pricing.total,
     itemCount: o.items.reduce((n, i) => n + i.qty, 0), name: o.shippingAddress.name, email: o.email,
   }));
   return { items, total, page: q.page, limit: q.limit, pages: Math.max(1, Math.ceil(total / q.limit)) };
@@ -271,7 +297,11 @@ export async function changeStatus(id: string, to: OrderStatus, note: string | u
   return getAdminOrder(id);
 }
 
-/** COD: an admin records the cash as received (or a failed attempt). Paid can only be undone through a refund. */
+/**
+ * An admin records a payment outcome (COD cash received, a failed attempt, or a gateway payment confirmed by hand).
+ * Marking paid confirms an order that was waiting for payment; marking failed moves pending_payment to payment_failed.
+ * Paid can only be undone through a refund.
+ */
 export async function changePayment(id: string, to: "paid" | "failed", actor: Actor): Promise<AdminOrder> {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
@@ -281,14 +311,23 @@ export async function changePayment(id: string, to: "paid" | "failed", actor: Ac
   const cur = await Order.findById(id).select("status").lean();
   if (!cur) throw new ApiError("NOT_FOUND", "Order not found");
   const refused = `Payment cannot be marked ${to} for this order (it may be cancelled, already paid, or changed by someone else).`;
-  if (cur.status === "cancelled") throw new ApiError("CONFLICT", refused);
+  if (cur.status === "cancelled" || cur.status === "refunded") throw new ApiError("CONFLICT", refused);
+  const next = paymentDrivenStatus(cur.status, to);
   const at = new Date();
+  const history: OrderDoc["history"] = [{ kind: "payment", status: cur.status, note: `Payment marked ${to}`, by: actor, at }];
+  if (next !== cur.status) history.push({ kind: "status", status: next, note: to === "paid" ? "Payment received" : "Payment failed", by: actor, at });
   const res = await Order.updateOne(
     { _id: id, status: cur.status, "payment.status": { $in: from } },
-    { $set: { "payment.status": to, ...(to === "paid" ? { "payment.paidAt": at } : {}) }, $push: { history: { kind: "payment", status: cur.status, note: `Payment marked ${to}`, by: actor, at } } },
+    { $set: { "payment.status": to, status: next, ...(to === "paid" ? { "payment.paidAt": at } : {}) }, $push: { history: { $each: history } } },
   );
   if (res.matchedCount === 0) await missingOrConflict(id, refused);
   return getAdminOrder(id);
+}
+
+/** Order status after a payment outcome: payment confirms an order that was waiting for it; a failure is recorded on pending_payment. */
+export function paymentDrivenStatus(status: OrderStatus, outcome: "paid" | "failed"): OrderStatus {
+  if (outcome === "paid") return status === "pending_payment" || status === "payment_failed" ? "confirmed" : status;
+  return status === "pending_payment" ? "payment_failed" : status;
 }
 
 export async function addNote(id: string, text: string, actor: Actor): Promise<AdminOrder> {
@@ -303,25 +342,30 @@ export async function addNote(id: string, text: string, actor: Actor): Promise<A
 /**
  * Record a refund (no gateway call). Compare-and-set loop on `refundedTotal`: concurrent refunds cannot together
  * exceed the order total, because each write only applies if nobody changed the refunded amount since it was read.
- * `amount` omitted = refund whatever remains.
+ * `amount` omitted = refund whatever remains. A cancelled or returned order refunded in full moves to `refunded`.
  */
 export async function refundOrder(id: string, amount: number | undefined, reason: string, actor: Actor, session?: ClientSession): Promise<AdminOrder> {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
   for (let attempt = 0; attempt < 6; attempt++) {
-    const o = await Order.findById(id).session(session ?? null).select("pricing payment status refundedTotal").lean();
+    const o = await Order.findById(id).session(session ?? null).select("pricing currency payment status refundedTotal").lean();
     if (!o) throw new ApiError("NOT_FOUND", "Order not found");
     if (!["paid", "partially_refunded"].includes(o.payment.status)) throw new ApiError("CONFLICT", "Only paid orders can be refunded.");
     const refunded = o.refundedTotal ?? 0;
     const remaining = o.pricing.total - refunded;
     const amt = amount ?? remaining;
-    if (amt < 1 || amt > remaining) throw new ApiError("VALIDATION_ERROR", `You can refund at most ${(remaining / 100).toFixed(2)} (₹) on this order.`, { amount: "More than the refundable amount" });
+    const cur = currencyOf(o);
+    if (amt < 1 || amt > remaining) throw new ApiError("VALIDATION_ERROR", `You can refund at most ${formatMoney(remaining, cur)} on this order.`, { amount: "More than the refundable amount" });
     const newTotal = refunded + amt;
     const payStatus: PaymentStatus = newTotal === o.pricing.total ? "refunded" : "partially_refunded";
+    const closes = payStatus === "refunded" && (o.status === "cancelled" || o.status === "returned");
     const at = new Date();
+    const history: OrderDoc["history"] = [{ kind: "refund", status: o.status, note: `Refunded ${formatMoney(amt, cur)}: ${reason}`, by: actor, at }];
+    if (closes) history.push({ kind: "status", status: "refunded", note: "Refunded in full", by: actor, at });
     const res = await Order.updateOne(
-      { _id: id, refundedTotal: refunded, "payment.status": { $in: ["paid", "partially_refunded"] } },
-      { $set: { refundedTotal: newTotal, "payment.status": payStatus }, $push: { refunds: { amount: amt, reason, at, by: actor }, history: { kind: "refund", status: o.status, note: `Refunded ₹${(amt / 100).toFixed(2)}: ${reason}`, by: actor, at } } },
+      // Compare-and-set on the refunded amount AND the status, so a concurrent cancel/return is never overwritten.
+      { _id: id, status: o.status, refundedTotal: refunded, "payment.status": { $in: ["paid", "partially_refunded"] } },
+      { $set: { refundedTotal: newTotal, "payment.status": payStatus, ...(closes ? { status: "refunded" } : {}) }, $push: { refunds: { amount: amt, reason, at, by: actor }, history: { $each: history } } },
       { session },
     );
     if (res.matchedCount === 1) return getAdminOrder(id);
@@ -337,8 +381,7 @@ export function csvCell(v: string | number | null | undefined): string {
   if (FORMULA.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
-const rupees = (p: number) => (p / 100).toFixed(2);
-export const EXPORT_COLUMNS = ["Order", "Placed (UTC)", "Status", "Payment", "Name", "Email", "Phone", "City", "State", "PIN", "Items", "Subtotal", "Shipping", "Total", "Refunded"] as const;
+export const EXPORT_COLUMNS = ["Order", "Placed (UTC)", "Status", "Payment", "Name", "Email", "Phone", "City", "State", "Postal code", "Country", "Items", "Currency", "Subtotal", "Shipping", "Total", "Refunded"] as const;
 export const EXPORT_LIMIT = 5000;
 
 export async function* exportOrderRows(q: Pick<ListOrdersInput, "q" | "status" | "payment" | "from" | "to">): AsyncGenerator<string> {
@@ -346,9 +389,10 @@ export async function* exportOrderRows(q: Pick<ListOrdersInput, "q" | "status" |
   yield EXPORT_COLUMNS.map(csvCell).join(",") + "\r\n";
   const cursor = Order.find(buildOrderFilter(q)).sort({ createdAt: -1, _id: -1 }).limit(EXPORT_LIMIT).lean().cursor();
   for await (const o of cursor) {
+    const a = normalizeAddress(o.shippingAddress), cur = currencyOf(o), amt = (n: number) => minorToDecimal(n, cur);
     yield [
-      o.orderNumber, o.createdAt.toISOString(), o.status, o.payment.status, o.shippingAddress.name, o.email, o.phone, o.shippingAddress.city, o.shippingAddress.state, o.shippingAddress.pincode,
-      o.items.map((i) => `${i.name}${i.variantSku ? ` [${i.variantSku}]` : ""} x${i.qty}`).join("; "), rupees(o.pricing.subtotal), rupees(o.pricing.shipping), rupees(o.pricing.total), rupees(o.refundedTotal ?? 0),
+      o.orderNumber, o.createdAt.toISOString(), o.status, o.payment.status, a.name, o.email, o.phone, a.city, a.state, a.postalCode, a.country,
+      o.items.map((i) => `${i.name}${i.variantSku ? ` [${i.variantSku}]` : ""} x${i.qty}`).join("; "), cur, amt(o.pricing.subtotal), amt(o.pricing.shipping), amt(o.pricing.total), amt(o.refundedTotal ?? 0),
     ].map(csvCell).join(",") + "\r\n";
   }
 }

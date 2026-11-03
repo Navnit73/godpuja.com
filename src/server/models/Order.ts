@@ -1,11 +1,9 @@
 import mongoose, { type Model } from "mongoose";
+import type { Address } from "@/lib/address";
+import { ORDER_STATUSES, PAYMENT_STATUSES, type OrderStatus, type PaymentStatus } from "@/lib/order-status";
 
-export const ORDER_STATUSES = ["confirmed", "processing", "shipped", "delivered", "cancelled", "returned"] as const;
-export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export const PAYMENT_STATUSES = ["pending", "paid", "failed", "refunded", "partially_refunded"] as const;
-export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
-
-export type Address = { name: string; line1: string; line2?: string; city: string; state: string; pincode: string; country: string };
+export { ORDER_STATUSES, PAYMENT_STATUSES };
+export type { Address, OrderStatus, PaymentStatus };
 export type OrderItem = {
   product: mongoose.Types.ObjectId; variantSku: string | null; name: string; slug: string; sku: string; image: { url: string; alt: string } | null;
   options: Record<string, string>; unitPrice: number; qty: number; lineTotal: number;
@@ -25,6 +23,8 @@ export type OrderDoc = {
   billingAddress: Address;
   customerNote: string;
   items: OrderItem[];
+  /** ISO 4217 code all amounts on this order are in (integer minor units). Missing on pre-Stage-12 rows = INR. */
+  currency: string;
   pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
   status: OrderStatus;
   payment: { provider: string; method: string; providerOrderId?: string; providerPaymentId?: string; status: PaymentStatus; paidAt?: Date };
@@ -50,8 +50,9 @@ const orderSchema = new mongoose.Schema(
     billingAddress: { type: M, required: true },
     customerNote: { type: String, default: "", maxlength: 300 },
     items: { type: M, required: true },
+    currency: { type: String, required: true, match: /^[A-Z]{3}$/ },
     pricing: { type: M, required: true },
-    status: { type: String, enum: ORDER_STATUSES, default: "confirmed" },
+    status: { type: String, enum: ORDER_STATUSES, required: true },
     payment: {
       provider: { type: String, required: true },
       method: { type: String, required: true },

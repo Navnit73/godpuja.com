@@ -200,9 +200,9 @@ describe("menus service (godpuja_test)", () => {
 
 describe("menu permissions", () => {
   it("nav:write is for editor/admin/superadmin only", () => {
-    expect(can("editor", "nav:write")).toBe(true);
+    expect(can("content_manager", "nav:write")).toBe(true);
     expect(can("admin", "nav:write")).toBe(true);
-    expect(can("manager", "nav:write")).toBe(false);
+    expect(can("store_manager", "nav:write")).toBe(false);
     expect(can("customer", "nav:write")).toBe(false);
   });
 });

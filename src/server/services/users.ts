@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { ApiError } from "../api";
 import { hashPassword } from "../auth/password";
 import { connectDB } from "../db";
+import { LEGACY_ROLES, normalizeRole } from "@/lib/roles";
 import { User, type Role } from "../models/User";
 import type { CreateUserInput, ListUsersInput, UpdateUserInput } from "@/lib/validation/users";
 
@@ -11,20 +12,23 @@ export type UserListItem = {
   email: string;
   role: Role;
   isActive: boolean;
+  /** Assigned temples (temple operators only; PRD v1.1 §12). */
+  templeIds: string[];
   lastLoginAt: string | null;
   createdAt: string;
 };
 
-const FIELDS = "name email role isActive lastLoginAt createdAt";
+const FIELDS = "name email role isActive templeIds lastLoginAt createdAt";
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-type Lean = { _id: unknown; name: string; email: string; role: Role; isActive: boolean; lastLoginAt?: Date | null; createdAt: Date };
+type Lean = { _id: unknown; name: string; email: string; role: string; isActive: boolean; templeIds?: unknown[] | null; lastLoginAt?: Date | null; createdAt: Date };
 const toItem = (u: Lean): UserListItem => ({
   id: String(u._id),
   name: u.name,
   email: u.email,
-  role: u.role,
+  role: normalizeRole(u.role) ?? "customer", // legacy "editor"/"manager" rows until migrated
   isActive: u.isActive,
+  templeIds: (u.templeIds ?? []).map(String),
   lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toISOString() : null,
   createdAt: u.createdAt.toISOString(),
 });
@@ -32,7 +36,7 @@ const toItem = (u: Lean): UserListItem => ({
 export async function listUsers({ q, role, page, limit }: ListUsersInput) {
   await connectDB();
   const filter: Record<string, unknown> = {};
-  if (role) filter.role = role;
+  if (role) filter.role = { $in: [role, ...legacyNamesOf(role)] };
   if (q) {
     const rx = new RegExp(escapeRegex(q), "i");
     filter.$or = [{ name: rx }, { email: rx }];
@@ -43,6 +47,8 @@ export async function listUsers({ q, role, page, limit }: ListUsersInput) {
   ]);
   return { items: rows.map(toItem), total, page, limit, pages: Math.max(1, Math.ceil(total / limit)) };
 }
+
+const legacyNamesOf = (role: Role) => Object.entries(LEGACY_ROLES).filter(([, r]) => r === role).map(([old]) => old);
 
 export async function userStats() {
   await connectDB();
@@ -67,6 +73,7 @@ export async function createUser(input: CreateUserInput) {
       name: input.name,
       email: input.email,
       role: input.role,
+      templeIds: input.templeIds ?? [],
       passwordHash: await hashPassword(input.password),
     });
     return getUser(String(u._id));
@@ -111,13 +118,13 @@ export async function updateUser(actorId: string, id: string, input: UpdateUserI
       const target = await User.findById(id).select("role isActive").session(session).lean();
       if (!target) throw new ApiError("NOT_FOUND", "User not found");
 
-      const roleChanges = input.role !== undefined && input.role !== target.role;
+      const roleChanges = input.role !== undefined && input.role !== normalizeRole(target.role);
       const activeChanges = input.isActive !== undefined && input.isActive !== target.isActive;
 
       if (actorId === id && (roleChanges || input.isActive === false)) {
         throw new ApiError("CONFLICT", "You cannot change your own role or deactivate your own account");
       }
-      if (target.role === "superadmin" && target.isActive && (roleChanges || input.isActive === false)) {
+      if (normalizeRole(target.role) === "superadmin" && target.isActive && (roleChanges || input.isActive === false)) {
         await mongoose.connection.collection("locks").updateOne({ _id: GUARD_ID as never }, { $inc: { n: 1 } }, { session });
         const others = await User.countDocuments({ role: "superadmin", isActive: true, _id: { $ne: id } }).session(session);
         if (others === 0) throw new ApiError("CONFLICT", "At least one active superadmin is required");
@@ -127,6 +134,7 @@ export async function updateUser(actorId: string, id: string, input: UpdateUserI
       if (input.name !== undefined) set.name = input.name;
       if (input.role !== undefined) set.role = input.role;
       if (input.isActive !== undefined) set.isActive = input.isActive;
+      if (input.templeIds !== undefined) set.templeIds = input.templeIds;
       if (passwordHash !== undefined) set.passwordHash = passwordHash;
 
       const update: Record<string, unknown> = { $set: set };
@@ -144,5 +152,5 @@ export async function getSessionClaims(id: string) {
   await connectDB();
   const u = await User.findById(id).select("role tokenVersion").lean();
   if (!u) throw new ApiError("NOT_FOUND", "User not found");
-  return { uid: id, role: u.role, tv: u.tokenVersion ?? 0 };
+  return { uid: id, role: normalizeRole(u.role) ?? "customer", tv: u.tokenVersion ?? 0 };
 }

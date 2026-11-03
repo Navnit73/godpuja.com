@@ -342,8 +342,8 @@ describe("pages service (godpuja_test)", () => {
 
 describe("page permissions", () => {
   it("editor can write and publish; manager and customer cannot", () => {
-    expect(can("editor", "pages:write") && can("editor", "pages:publish")).toBe(true);
-    expect(can("manager", "pages:read")).toBe(false);
+    expect(can("content_manager", "pages:write") && can("content_manager", "pages:publish")).toBe(true);
+    expect(can("store_manager", "pages:read")).toBe(false);
     expect(can("customer", "pages:read")).toBe(false);
     expect(can("admin", "pages:publish")).toBe(true);
   });

@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { addressIssues } from "@/lib/address";
+import { ADMIN_SETTABLE_STATUSES, ORDER_STATUSES, PAYMENT_STATUSES } from "@/lib/order-status";
 
 export const MAX_LINE_QTY = 20;
 export const MAX_CART_LINES = 30;
@@ -17,14 +19,17 @@ export const cartInputSchema = z.object({ items: z.array(cartLineSchema).min(1, 
 export type CartLineInput = z.infer<typeof cartLineSchema>;
 
 const phone = z.string().trim().regex(/^\+?[\d\s-]{8,20}$/, "Enter a valid phone number").refine((v) => { const n = v.replace(/\D/g, "").length; return n >= 8 && n <= 15; }, "Enter a valid phone number");
+/** International address (PRD v1.1 §13). Postal code and state rules depend on the country (lib/address.ts). */
 export const addressSchema = z.object({
   name: z.string().trim().min(2, "Enter the full name").max(100),
   line1: z.string().trim().min(3, "Enter the address").max(200),
   line2: z.string().trim().max(200).optional(),
   city: z.string().trim().min(2, "Enter the city").max(80),
-  state: z.string().trim().min(2, "Enter the state").max(80),
-  pincode: z.string().trim().regex(/^\d{6}$/, "Enter a 6-digit PIN code"),
-  country: z.literal("IN").default("IN"),
+  state: z.string().trim().max(80).default(""),
+  postalCode: z.string().trim().toUpperCase().max(12).default(""),
+  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Choose a country"),
+}).superRefine((a, ctx) => {
+  for (const [path, message] of Object.entries(addressIssues(a))) ctx.addIssue({ code: "custom", path: [path], message });
 });
 export type AddressInput = z.infer<typeof addressSchema>;
 
@@ -47,8 +52,8 @@ export type CheckoutInput = z.infer<typeof checkoutSchema>;
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 export const listOrdersSchema = z.object({
   q: z.string().trim().max(100).optional(),
-  status: z.enum(["confirmed", "processing", "shipped", "delivered", "cancelled", "returned"]).optional(),
-  payment: z.enum(["pending", "paid", "failed", "refunded", "partially_refunded"]).optional(),
+  status: z.enum(ORDER_STATUSES).optional(),
+  payment: z.enum(PAYMENT_STATUSES).optional(),
   from: day.optional(),
   to: day.optional(),
   page: z.coerce.number().int().min(1).max(10_000).default(1),
@@ -57,13 +62,13 @@ export const listOrdersSchema = z.object({
 export type ListOrdersInput = z.infer<typeof listOrdersSchema>;
 
 export const statusChangeSchema = z.object({
-  status: z.enum(["processing", "shipped", "delivered", "cancelled", "returned"]),
+  status: z.enum(ADMIN_SETTABLE_STATUSES),
   note: z.string().trim().max(500).optional(),
 });
 export const paymentChangeSchema = z.object({ status: z.enum(["paid", "failed"]) });
 export const noteSchema = z.object({ text: z.string().trim().min(1, "Write a note").max(1000) });
 export const refundSchema = z.object({
-  amount: z.number().int("Amount must be in whole paise").min(1, "Enter an amount").max(100_000_000_00),
+  amount: z.number().int("Amount must be in whole minor units (paise)").min(1, "Enter an amount").max(100_000_000_00),
   reason: z.string().trim().min(2, "Give a reason").max(300),
 });
 
@@ -75,6 +80,7 @@ export const webhookEventSchema = z.object({
   orderNumber: z.string().trim().max(40).optional(),
   providerOrderId: z.string().trim().max(100).optional(),
   providerPaymentId: z.string().trim().max(100).optional(),
-  amount: z.number().int().min(1).optional(), // paise
+  amount: z.number().int().min(1).optional(), // minor units of `currency`
+  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/).optional(), // ISO 4217; must match the order when given
 }).refine((e) => e.orderNumber || e.providerOrderId || e.providerPaymentId, { message: "Identify the order", path: ["orderNumber"] });
 export type WebhookEventInput = z.infer<typeof webhookEventSchema>;

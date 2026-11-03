@@ -9,26 +9,29 @@ import Modal from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
-import { formatPaise, rupeesToPaise } from "@/lib/money";
+import { addressLines } from "@/lib/address";
+import { formatMoney as fmtMoney, rupeesToPaise } from "@/lib/money";
 import type { OrderStatus } from "@/server/models/Order";
 import type { AdminOrder } from "@/server/services/orders";
 import { PaymentBadge, StatusBadge, STATUS_LABEL } from "./badges";
 
 const ACTION_LABEL: Record<OrderStatus, string> = {
-  confirmed: "Confirm", processing: "Start processing", shipped: "Mark as shipped", delivered: "Mark as delivered", cancelled: "Cancel order", returned: "Mark as returned",
+  pending_payment: "Mark awaiting payment", payment_failed: "Mark payment failed", confirmed: "Confirm", processing: "Start processing", shipped: "Mark as shipped",
+  delivered: "Mark as delivered", return_requested: "Record return request", returned: "Mark as returned", cancelled: "Cancel order", refunded: "Mark refunded",
 };
 
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="card space-y-3 p-4 hover:shadow-elev-1"><h2 className="font-sans text-lg font-semibold">{title}</h2>{children}</section>
 );
 const Address = ({ a }: { a: AdminOrder["shippingAddress"] }) => (
-  <address className="not-italic text-sm"><p className="font-medium">{a.name}</p><p>{a.line1}</p>{a.line2 && <p>{a.line2}</p>}<p>{a.city}, {a.state} {a.pincode}</p><p className="text-muted">{a.country}</p></address>
+  <address className="not-italic text-sm">{addressLines(a).map((l, n) => <p key={n} className={n === 0 ? "font-medium" : undefined}>{l}</p>)}</address>
 );
 
 export default function OrderDetail({ initial, canWrite, canRefund }: { initial: AdminOrder; canWrite: boolean; canRefund: boolean }) {
   const router = useRouter();
   const toast = useToast();
   const [o, setO] = useState(initial);
+  const formatMoney = (minor: number) => fmtMoney(minor, o.currency);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<OrderStatus | null>(null);
@@ -58,8 +61,9 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
     if (await run("refund", "Refund recorded", () => api.post<AdminOrder>(`/admin/orders/${o.id}/refund`, { amount: paise, reason: refundReason }))) { setRefundAmt(""); setRefundReason(""); }
   };
 
-  const canMarkPaid = canWrite && ["pending", "failed"].includes(o.payment.status) && o.status !== "cancelled";
-  const canMarkFailed = canWrite && o.payment.status === "pending" && o.status !== "cancelled";
+  const closed = o.status === "cancelled" || o.status === "refunded";
+  const canMarkPaid = canWrite && ["pending", "failed"].includes(o.payment.status) && !closed;
+  const canMarkFailed = canWrite && o.payment.status === "pending" && !closed;
 
   return (
     <div className="space-y-4">
@@ -69,7 +73,7 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
         <div><p className="text-xs text-muted">Status</p><StatusBadge status={o.status} /></div>
         <div><p className="text-xs text-muted">Payment</p><PaymentBadge status={o.payment.status} /></div>
         <div><p className="text-xs text-muted">Placed</p><p className="text-sm">{formatDateTime(o.createdAt)}</p></div>
-        <div><p className="text-xs text-muted">Total</p><p className="text-sm font-semibold">{formatPaise(o.pricing.total)}</p></div>
+        <div><p className="text-xs text-muted">Total</p><p className="text-sm font-semibold">{formatMoney(o.pricing.total)}</p></div>
         {canWrite && o.allowedNext.length > 0 && (
           <div className="ml-auto flex flex-wrap gap-2" role="group" aria-label="Change order status">
             {o.allowedNext.map((s) => s === "cancelled"
@@ -95,20 +99,20 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
                           {Object.keys(i.options).length > 0 && <p className="text-xs text-muted">{Object.entries(i.options).map(([k, v]) => `${k}: ${v}`).join(", ")}</p>}</div>
                       </div></td>
                       <td className="text-muted">{i.sku}</td>
-                      <td className="whitespace-nowrap">{formatPaise(i.unitPrice)}</td>
+                      <td className="whitespace-nowrap">{formatMoney(i.unitPrice)}</td>
                       <td>{i.qty}</td>
-                      <td className="whitespace-nowrap">{formatPaise(i.lineTotal)}</td>
+                      <td className="whitespace-nowrap">{formatMoney(i.lineTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
             <dl className="ml-auto grid max-w-xs grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <dt className="text-muted">Subtotal</dt><dd className="text-right">{formatPaise(o.pricing.subtotal)}</dd>
-              <dt className="text-muted">Shipping</dt><dd className="text-right">{o.pricing.shipping === 0 ? "Free" : formatPaise(o.pricing.shipping)}</dd>
-              <dt className="text-muted">Tax (included)</dt><dd className="text-right">{formatPaise(o.pricing.tax)}</dd>
-              <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatPaise(o.pricing.total)}</dd>
-              {o.refundedTotal > 0 && <><dt className="text-muted">Refunded</dt><dd className="text-right text-danger">−{formatPaise(o.refundedTotal)}</dd></>}
+              <dt className="text-muted">Subtotal</dt><dd className="text-right">{formatMoney(o.pricing.subtotal)}</dd>
+              <dt className="text-muted">Shipping</dt><dd className="text-right">{o.pricing.shipping === 0 ? "Free" : formatMoney(o.pricing.shipping)}</dd>
+              <dt className="text-muted">Tax (included)</dt><dd className="text-right">{formatMoney(o.pricing.tax)}</dd>
+              <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatMoney(o.pricing.total)}</dd>
+              {o.refundedTotal > 0 && <><dt className="text-muted">Refunded</dt><dd className="text-right text-danger">−{formatMoney(o.refundedTotal)}</dd></>}
             </dl>
           </Card>
 
@@ -146,15 +150,15 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
             {canRefund && o.refundable > 0 && (
               <form className="space-y-3 border-t border-border pt-3" onSubmit={(e) => { e.preventDefault(); refund(); }} noValidate>
                 <h3 className="font-sans text-sm font-semibold">Record a refund</h3>
-                <p className="text-xs text-muted">Up to {formatPaise(o.refundable)}. This records the refund here; no money is moved automatically.</p>
-                <Input label="Amount (₹)" inputMode="decimal" value={refundAmt} error={fieldErr.amount} onChange={(e) => setRefundAmt(e.target.value)} />
+                <p className="text-xs text-muted">Up to {formatMoney(o.refundable)}. This records the refund here; no money is moved automatically.</p>
+                <Input label={`Amount (${o.currency})`} inputMode="decimal" value={refundAmt} error={fieldErr.amount} onChange={(e) => setRefundAmt(e.target.value)} />
                 <Input label="Reason" value={refundReason} error={fieldErr.reason} maxLength={300} onChange={(e) => setRefundReason(e.target.value)} />
                 <Button type="submit" variant="outline" size="sm" loading={busy === "refund"} disabled={!!busy}>Record refund</Button>
               </form>
             )}
             {o.refunds.length > 0 && (
               <ul className="space-y-1 border-t border-border pt-3 text-sm">
-                {o.refunds.map((r, n) => <li key={n}>{formatPaise(r.amount)} — {r.reason}<span className="block text-xs text-muted">{r.by.name} · {formatDateTime(r.at)}</span></li>)}
+                {o.refunds.map((r, n) => <li key={n}>{formatMoney(r.amount)} — {r.reason}<span className="block text-xs text-muted">{r.by.name} · {formatDateTime(r.at)}</span></li>)}
               </ul>
             )}
           </Card>

@@ -134,9 +134,9 @@ describe("footer service (godpuja_test)", () => {
 
 describe("footer permissions", () => {
   it("footer:write is for editor/admin/superadmin only", () => {
-    expect(can("editor", "footer:write")).toBe(true);
+    expect(can("content_manager", "footer:write")).toBe(true);
     expect(can("admin", "footer:write")).toBe(true);
-    expect(can("manager", "footer:write")).toBe(false);
+    expect(can("store_manager", "footer:write")).toBe(false);
     expect(can("customer", "footer:write")).toBe(false);
   });
 });

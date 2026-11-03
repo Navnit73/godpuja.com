@@ -7,7 +7,7 @@ import { Page } from "@/server/models/Page";
 import { Settings } from "@/server/models/Settings";
 import { deleteMedia, MAX_UPLOAD_BYTES, sniffImage, uploadMedia } from "@/server/services/media";
 import { ApiError } from "@/server/api";
-import { rupeesToPaise, paiseToRupees, formatPaise } from "@/lib/money";
+import { rupeesToPaise, paiseToRupees, formatMoney } from "@/lib/money";
 
 const bytes = (...b: number[]) => new Uint8Array([...b, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 const file = (data: Uint8Array | string, name = "a.png", type = "image/png") => new File([data as BlobPart], name, { type });
@@ -63,7 +63,7 @@ describe("money helpers", () => {
     expect(paiseToRupees(19950)).toBe("199.50");
     expect(paiseToRupees(20000)).toBe("200");
     expect(paiseToRupees(null)).toBe("");
-    expect(formatPaise(19950)).toContain("199.5");
+    expect(formatMoney(19950)).toContain("199.5");
   });
 });
 

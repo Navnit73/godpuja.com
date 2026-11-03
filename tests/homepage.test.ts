@@ -233,9 +233,9 @@ describe("homepage service (godpuja_test)", () => {
 
 describe("homepage permissions", () => {
   it("home:write is for editor/admin/superadmin only", () => {
-    expect(can("editor", "home:write")).toBe(true);
+    expect(can("content_manager", "home:write")).toBe(true);
     expect(can("admin", "home:write")).toBe(true);
-    expect(can("manager", "home:write")).toBe(false);
+    expect(can("store_manager", "home:write")).toBe(false);
     expect(can("customer", "home:write")).toBe(false);
   });
 });

@@ -3,12 +3,15 @@ import { ROLES } from "@/lib/roles";
 import { passwordSchema } from "./auth";
 
 const email = z.string().trim().toLowerCase().pipe(z.email("Enter a valid email"));
+/** Temples a temple operator may manage (PRD v1.1 §12). Only meaningful for scoped roles. */
+const templeIds = z.array(z.string().regex(/^[a-f0-9]{24}$/, "Invalid temple")).max(100).transform((ids) => [...new Set(ids)]);
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Enter a name").max(100),
   email,
   password: passwordSchema,
   role: z.enum(ROLES),
+  templeIds: templeIds.optional(),
 });
 
 export const updateUserSchema = z
@@ -17,6 +20,7 @@ export const updateUserSchema = z
     role: z.enum(ROLES),
     isActive: z.boolean(),
     password: passwordSchema,
+    templeIds,
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, "Nothing to update");

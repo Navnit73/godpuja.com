@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { ROLES, type Role } from "../models/User";
+import { normalizeRole, type Role } from "@/lib/roles";
 
 export const SESSION_COOKIE = "gp_session";
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
@@ -25,9 +25,9 @@ export async function verifySession(token: string | undefined): Promise<Session 
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key(), { algorithms: ["HS256"] });
-    const role = payload.role as Role;
+    const role = normalizeRole(payload.role); // pre-Stage-12 sessions carry "editor"/"manager"
     const tv = payload.tv;
-    if (!payload.sub || !ROLES.includes(role) || typeof tv !== "number") return null;
+    if (!payload.sub || !role || typeof tv !== "number") return null;
     return { uid: payload.sub, role, tv };
   } catch {
     return null;

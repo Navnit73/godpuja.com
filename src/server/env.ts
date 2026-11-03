@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isCountry } from "@/lib/address";
+import { isTimeZone } from "@/lib/time";
 
 const schema = z.object({
   MONGODB_URI: z.string().startsWith("mongodb"),
@@ -11,6 +13,12 @@ const schema = z.object({
   // Checkout. Prices are tax-inclusive paise; shipping = flat fee, free at/above the threshold.
   SHIPPING_FLAT_PAISE: z.coerce.number().int().min(0).default(5000),
   FREE_SHIPPING_OVER_PAISE: z.coerce.number().int().min(0).default(99900),
+  // ISO country codes we deliver to, comma-separated (PRD v1.1 §13: never promise shipping where it is not available).
+  SHIPPING_COUNTRIES: z.string().default("IN")
+    .transform((v) => [...new Set(v.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean))])
+    .pipe(z.array(z.string().refine(isCountry, "Unknown ISO country code")).min(1, "List at least one country")),
+  // IANA zone used for admin date filters and reports (order list "from/to" days).
+  ADMIN_TIMEZONE: z.string().default("Asia/Kolkata").refine(isTimeZone, "Unknown IANA time zone"),
   // Shared secret for the generic signed payment webhook (HMAC-SHA256 of the raw body). Without it the webhook is disabled.
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
   // Client IP for rate limiting (see server/rate-limit.ts). Either a header your edge overwrites on every request,

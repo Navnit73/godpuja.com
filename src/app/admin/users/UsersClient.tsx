@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Button from "@/components/ui/Button";
@@ -13,14 +13,16 @@ import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import { createUserSchema } from "@/lib/validation/users";
 import { passwordSchema } from "@/lib/validation/auth";
-import { ROLES } from "@/lib/roles";
+import { isTempleScoped, ROLE_LABELS, ROLES } from "@/lib/roles";
 import type { UserListItem } from "@/server/services/users";
 
 const fmt = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeZone: "Asia/Kolkata" });
 const date = (iso: string | null) => (iso ? fmt.format(new Date(iso)) : "Never");
 
 // One form for create + edit. Password is required on create, optional on edit.
-const formSchema = createUserSchema.extend({
+// Temple assignments are edited with the Temples module (Stage 18); this form leaves them untouched.
+const baseSchema = createUserSchema.omit({ templeIds: true });
+const formSchema = baseSchema.extend({
   password: z.union([z.literal(""), passwordSchema]),
 });
 type FormValues = z.infer<typeof formSchema>;
@@ -56,7 +58,7 @@ export default function UsersClient({ users, canWrite, currentUserId, hasFilters
                 <tr key={u.id}>
                   <td className="font-medium">{u.name}{u.id === currentUserId && <span className="ml-2 text-xs text-muted">(you)</span>}</td>
                   <td className="text-muted">{u.email}</td>
-                  <td><span className="badge-primary capitalize">{u.role}</span></td>
+                  <td><span className="badge-primary">{ROLE_LABELS[u.role]}</span></td>
                   <td><span className={u.isActive ? "badge-success" : "badge-muted"}>{u.isActive ? "Active" : "Inactive"}</span></td>
                   <td className="whitespace-nowrap text-muted">{date(u.lastLoginAt)}</td>
                   {canWrite && (
@@ -83,10 +85,11 @@ function UserForm({ user, isSelf, onDone }: { user: UserListItem | null; isSelf:
   const router = useRouter();
   const toast = useToast();
   const [formError, setFormError] = useState<string | null>(null);
-  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm<FormValues>({
-    resolver: zodResolver(user ? formSchema : createUserSchema.extend({ password: passwordSchema })),
-    defaultValues: { name: user?.name ?? "", email: user?.email ?? "", role: user?.role ?? "editor", password: "" },
+  const { register, handleSubmit, setError, control, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(user ? formSchema : baseSchema.extend({ password: passwordSchema })),
+    defaultValues: { name: user?.name ?? "", email: user?.email ?? "", role: user?.role ?? "content_manager", password: "" },
   });
+  const role = useWatch({ control, name: "role" });
   const [active, setActive] = useState(user?.isActive ?? true);
 
   async function onSubmit(v: FormValues) {
@@ -120,8 +123,14 @@ function UserForm({ user, isSelf, onDone }: { user: UserListItem | null; isSelf:
       <Input label="Email" type="email" autoComplete="off" disabled={!!user} error={errors.email?.message} {...register("email")} />
       <Select label="Role" disabled={isSelf} error={errors.role?.message}
         {...register("role")}>
-        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
       </Select>
+      {isTempleScoped(role) && (
+        <p className="text-xs text-muted">
+          Temple operators can only see the temples assigned to them.{" "}
+          {user?.templeIds.length ? `Assigned temples: ${user.templeIds.length}.` : "No temples assigned yet."} Temples are assigned from the Temples module once it is available.
+        </p>
+      )}
       {user && !isSelf && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-saffron-600" />

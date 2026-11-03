@@ -3,7 +3,7 @@ import Link from "next/link";
 import Icon, { type IconName } from "@/components/admin/icons";
 import Forbidden from "@/components/ui/Forbidden";
 import { formatDateTime } from "@/lib/format";
-import { formatPaise } from "@/lib/money";
+import { formatMoney } from "@/lib/money";
 import { currentUser } from "@/server/auth/guard";
 import { can } from "@/server/auth/permissions";
 import { listOrders } from "@/server/services/orders";
@@ -114,7 +114,7 @@ export default async function Dashboard() {
                       <tr key={o.id}>
                         <td><Link href={`/admin/orders/${o.id}`} className="font-medium hover:text-primary">{o.orderNumber}</Link><span className="block text-xs text-muted">{formatDateTime(o.createdAt)}</span></td>
                         <td>{o.name}</td>
-                        <td className="whitespace-nowrap font-medium">{formatPaise(o.total)}</td>
+                        <td className="whitespace-nowrap font-medium">{formatMoney(o.total, o.currency)}</td>
                         <td><StatusBadge status={o.status} /></td>
                         <td><PaymentBadge status={o.paymentStatus} /></td>
                       </tr>

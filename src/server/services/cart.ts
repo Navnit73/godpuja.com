@@ -2,6 +2,7 @@ import { connectDB } from "../db";
 import { env } from "../env";
 import { Product, type ProductDoc } from "../models/Product";
 import { loadCategoryIndex, sortedImages } from "./products";
+import { BASE_CURRENCY } from "@/lib/money";
 import { MAX_LINE_QTY, type CartLineInput } from "@/lib/validation/orders";
 
 export type CartIssue = { productId: string; variantSku: string | null; code: "unavailable" | "out_of_stock" | "reduced"; message: string };
@@ -9,7 +10,8 @@ export type CartLine = {
   productId: string; variantSku: string | null; sku: string; name: string; slug: string; image: { url: string; alt: string } | null;
   options: Record<string, string>; unitPrice: number; qty: number; lineTotal: number; available: boolean; maxQty: number; freeShipping: boolean;
 };
-export type CartPricing = { subtotal: number; shipping: number; total: number; freeShippingOver: number; flatShipping: number };
+/** Amounts in integer minor units of `currency` (the catalogue currency, BASE_CURRENCY). */
+export type CartPricing = { currency: string; subtotal: number; shipping: number; total: number; freeShippingOver: number; flatShipping: number };
 export type CartResult = { items: CartLine[]; issues: CartIssue[]; pricing: CartPricing };
 
 export const shippingConfig = () => ({ flat: env().SHIPPING_FLAT_PAISE, freeOver: env().FREE_SHIPPING_OVER_PAISE });
@@ -38,7 +40,7 @@ export function computePricing(lines: Pick<CartLine, "lineTotal" | "freeShipping
   const subtotal = live.reduce((n, l) => n + l.lineTotal, 0);
   const free = subtotal >= freeOver || live.some((l) => l.freeShipping);
   const shipping = subtotal === 0 || free ? 0 : flat;
-  return { subtotal, shipping, total: subtotal + shipping, freeShippingOver: freeOver, flatShipping: flat };
+  return { currency: BASE_CURRENCY, subtotal, shipping, total: subtotal + shipping, freeShippingOver: freeOver, flatShipping: flat };
 }
 
 type LoadedProduct = Pick<ProductDoc, "_id" | "name" | "slug" | "sku" | "images" | "price" | "salePrice" | "stock" | "variants" | "status" | "category" | "shipping">;

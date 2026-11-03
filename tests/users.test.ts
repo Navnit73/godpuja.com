@@ -10,7 +10,7 @@ import { can } from "@/server/auth/permissions";
 import { createUserSchema, listUsersSchema, updateUserSchema } from "@/lib/validation/users";
 
 const pw = "longenough1";
-const mk = (email: string, role: "superadmin" | "admin" | "editor" | "manager" | "customer" = "editor") =>
+const mk = (email: string, role: "superadmin" | "admin" | "content_manager" | "store_manager" | "customer" = "content_manager") =>
   createUser({ name: "Test " + email, email, password: pw, role });
 const fails = async (p: Promise<unknown>, code: string) => {
   await expect(p).rejects.toBeInstanceOf(ApiError);
@@ -28,13 +28,13 @@ describe("users service (godpuja_test)", () => {
 
   it("creates users, rejects duplicate email with field error", async () => {
     const u = await mk("a@x.com");
-    expect(u).toMatchObject({ email: "a@x.com", role: "editor", isActive: true });
+    expect(u).toMatchObject({ email: "a@x.com", role: "content_manager", isActive: true });
     expect((u as Record<string, unknown>).passwordHash).toBeUndefined();
     await fails(mk("a@x.com"), "CONFLICT");
   });
 
   it("lists with pagination, role filter and safe regex search", async () => {
-    for (let i = 0; i < 5; i++) await mk(`u${i}@x.com`, i < 2 ? "admin" : "editor");
+    for (let i = 0; i < 5; i++) await mk(`u${i}@x.com`, i < 2 ? "admin" : "content_manager");
     await mk("dot.name@x.com");
     const page1 = await listUsers({ page: 1, limit: 4 });
     expect(page1).toMatchObject({ total: 6, pages: 2 });
@@ -58,24 +58,24 @@ describe("users service (godpuja_test)", () => {
     expect(await tv()).toBe(0);
     await updateUser(admin.id, u.id, { name: "New Name" });
     expect(await tv()).toBe(0);
-    await updateUser(admin.id, u.id, { role: "manager" });
+    await updateUser(admin.id, u.id, { role: "store_manager" });
     expect(await tv()).toBe(1);
     await updateUser(admin.id, u.id, { isActive: false });
     expect(await tv()).toBe(2);
     await updateUser(admin.id, u.id, { password: "anotherpass1" });
     expect(await tv()).toBe(3);
-    await updateUser(admin.id, u.id, { role: "manager" }); // no-op role: no bump
+    await updateUser(admin.id, u.id, { role: "store_manager" }); // no-op role: no bump
     expect(await tv()).toBe(3);
   });
 
   it("revokes existing sessions on demotion and deactivation (resolveUser)", async () => {
     const admin = await mk("boss@x.com", "superadmin");
-    const u = await mk("m@x.com", "manager");
-    const session = { uid: u.id, role: "manager" as const, tv: 0 };
+    const u = await mk("m@x.com", "store_manager");
+    const session = { uid: u.id, role: "store_manager" as const, tv: 0 };
     expect(await resolveUser(session)).not.toBeNull();
-    await updateUser(admin.id, u.id, { role: "editor" });
+    await updateUser(admin.id, u.id, { role: "content_manager" });
     expect(await resolveUser(session)).toBeNull(); // stale tokenVersion
-    const fresh = { uid: u.id, role: "editor" as const, tv: 1 };
+    const fresh = { uid: u.id, role: "content_manager" as const, tv: 1 };
     expect(await resolveUser(fresh)).not.toBeNull();
     await updateUser(admin.id, u.id, { isActive: false });
     expect(await resolveUser({ ...fresh, tv: 2 })).toBeNull(); // inactive
@@ -84,9 +84,9 @@ describe("users service (godpuja_test)", () => {
   });
 
   it("resolveUser uses the DB role, not the token role", async () => {
-    const u = await mk("e@x.com", "editor");
+    const u = await mk("e@x.com", "content_manager");
     const r = await resolveUser({ uid: u.id, role: "superadmin", tv: 0 });
-    expect(r?.role).toBe("editor");
+    expect(r?.role).toBe("content_manager");
   });
 
   it("blocks self role change / self deactivation", async () => {
@@ -110,8 +110,8 @@ describe("users service (godpuja_test)", () => {
 
   it("revokes a real signed token end-to-end (sign -> verify -> resolve)", async () => {
     const admin = await mk("boss@x.com", "superadmin");
-    const u = await mk("m@x.com", "manager");
-    const token = await signSession({ uid: u.id, role: "manager", tv: 0 });
+    const u = await mk("m@x.com", "store_manager");
+    const token = await signSession({ uid: u.id, role: "store_manager", tv: 0 });
     expect(await resolveUser(await verifySession(token))).not.toBeNull();
     await updateUser(admin.id, u.id, { password: "anotherpass1" });
     expect(await resolveUser(await verifySession(token))).toBeNull();
@@ -141,7 +141,7 @@ describe("users service (godpuja_test)", () => {
     const c = await mk("c@x.com", "admin"); // third-party actor
     await Promise.allSettled([
       updateUser(c.id, a.id, { isActive: false }),
-      updateUser(c.id, b.id, { role: "editor" }),
+      updateUser(c.id, b.id, { role: "content_manager" }),
     ]);
     expect(await User.countDocuments({ role: "superadmin", isActive: true })).toBe(1);
   });
@@ -155,7 +155,7 @@ describe("users service (godpuja_test)", () => {
 
 describe("user validation & permissions", () => {
   it("create requires strong password, valid role, valid email", () => {
-    const ok = { name: "Ram", email: " R@X.com ", password: pw, role: "editor" };
+    const ok = { name: "Ram", email: " R@X.com ", password: pw, role: "content_manager" };
     expect(createUserSchema.parse(ok).email).toBe("r@x.com");
     expect(createUserSchema.safeParse({ ...ok, role: "root" }).success).toBe(false);
     expect(createUserSchema.safeParse({ ...ok, password: "short" }).success).toBe(false);
@@ -175,6 +175,6 @@ describe("user validation & permissions", () => {
     expect(can("superadmin", "users:write")).toBe(true);
     expect(can("admin", "users:read")).toBe(true);
     expect(can("admin", "users:write")).toBe(false);
-    expect(can("editor", "users:read")).toBe(false);
+    expect(can("content_manager", "users:read")).toBe(false);
   });
 });

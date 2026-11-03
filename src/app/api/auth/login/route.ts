@@ -1,3 +1,4 @@
+import { normalizeRole } from "@/lib/roles";
 import { ApiError, handle, ok, readJson } from "@/server/api";
 import { setSessionCookie } from "@/server/auth/session";
 import { verifyPassword } from "@/server/auth/password";
@@ -25,7 +26,9 @@ export const POST = handle(async (req) => {
     throw new ApiError("UNAUTHENTICATED", "Invalid email or password");
   }
 
+  const role = normalizeRole(user.role); // pre-Stage-12 rows may still say "editor"/"manager"
+  if (!role) throw new ApiError("UNAUTHENTICATED", "Invalid email or password");
   await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
-  await setSessionCookie({ uid: String(user._id), role: user.role, tv: user.tokenVersion ?? 0 });
-  return ok({ id: String(user._id), name: user.name, email: user.email, role: user.role });
+  await setSessionCookie({ uid: String(user._id), role, tv: user.tokenVersion ?? 0 });
+  return ok({ id: String(user._id), name: user.name, email: user.email, role });
 });

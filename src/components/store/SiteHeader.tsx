@@ -4,9 +4,11 @@ import type { ReactNode } from "react";
 import Logo from "@/components/Logo";
 import { getPublicMenu } from "@/server/public/menus";
 import type { PublicMenuItem } from "@/server/services/menus";
+import { currentUser } from "@/server/auth/guard";
+import AccountMenu, { type HeaderUser } from "./AccountMenu";
 import CartLink from "./CartLink";
 import HeaderSearch from "./HeaderSearch";
-import { SearchIcon, UserIcon } from "./Icons";
+import { SearchIcon } from "./Icons";
 import { DesktopNav, MobileNav } from "./NavClient";
 
 /** Keep an item only where `flag` is on; a hidden parent hides its subtree. */
@@ -14,7 +16,7 @@ function visibleOn(items: PublicMenuItem[], flag: "showOnDesktop" | "showOnMobil
   return items.filter((i) => i[flag]).map((i) => ({ ...i, children: visibleOn(i.children, flag) }));
 }
 
-export function HeaderShell({ desktopNav, mobileNav }: { desktopNav?: ReactNode; mobileNav?: ReactNode }) {
+export function HeaderShell({ desktopNav, mobileNav, user = null }: { desktopNav?: ReactNode; mobileNav?: ReactNode; user?: HeaderUser | null }) {
   return (
     <>
       <section aria-label="Announcement" className="bg-kumkum-950 text-xs text-sandal-200">
@@ -29,9 +31,7 @@ export function HeaderShell({ desktopNav, mobileNav }: { desktopNav?: ReactNode;
           <HeaderSearch className="hidden max-w-xl flex-1 md:block" />
           <div className="ml-auto flex items-center gap-1">
             <Link href="/search" className="icon-btn md:hidden"><SearchIcon /><span className="sr-only">Search</span></Link>
-            <Link href="/login" className="icon-btn md:w-auto md:gap-2 md:px-3">
-              <UserIcon /><span className="sr-only md:not-sr-only md:text-sm md:font-medium">Sign in</span>
-            </Link>
+            <AccountMenu user={user} />
             <CartLink />
           </div>
         </div>
@@ -45,8 +45,10 @@ export default async function SiteHeader() {
   await connection(); // read at request time so the build never needs the database
   // A dedicated "mobile" menu wins on small screens; otherwise the header menu is reused, filtered by visibility flags.
   const read = (key: string) => getPublicMenu(key).catch((e) => { console.error(`[nav] ${key} menu read failed`, e); return null; });
-  const [header, mobile] = await Promise.all([read("header"), read("mobile")]);
+  // Signed-in state is read per request; a failure just shows "Sign in".
+  const who = currentUser().then((u) => (u ? { name: u.name, email: u.email, isStaff: u.role !== "customer" } : null)).catch(() => null);
+  const [header, mobile, user] = await Promise.all([read("header"), read("mobile"), who]);
   const desktopItems = visibleOn(header?.items ?? [], "showOnDesktop");
   const mobileItems = visibleOn(mobile && mobile.items.length ? mobile.items : header?.items ?? [], "showOnMobile");
-  return <HeaderShell desktopNav={<DesktopNav items={desktopItems} />} mobileNav={<MobileNav items={mobileItems} />} />;
+  return <HeaderShell desktopNav={<DesktopNav items={desktopItems} />} mobileNav={<MobileNav items={mobileItems} />} user={user} />;
 }

@@ -2,10 +2,7 @@
 import Link from "next/link";
 import type { PublicPage, PublicSection } from "@/server/services/pages";
 import { responsive } from "@/lib/image";
-import { formatDate } from "@/lib/format";
-import Breadcrumbs from "./Breadcrumbs";
-
-const SECTION_OF = { blog: { name: "Blog", href: "/blog" }, guide: { name: "Guides", href: "/guides" } } as const;
+import PostView from "./PostView";
 
 function Html({ html, className = "" }: { html: string; className?: string }) {
   // Sanitized server-side by renderMarkdown (sanitize-html allowlist).
@@ -34,6 +31,7 @@ export function Section({ s }: { s: PublicSection }) {
 }
 
 export default function PageView({ page }: { page: PublicPage }) {
+  if (page.kind !== "page") return <PostView page={{ ...page, kind: page.kind }} />;
   return (
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-4xl px-4 py-12 sm:px-6">
     <article>
@@ -42,15 +40,8 @@ export default function PageView({ page }: { page: PublicPage }) {
           Preview — this page is not published and is hidden from search engines.
         </p>
       )}
-      {page.kind !== "page" && <Breadcrumbs items={[{ name: "Home", href: "/" }, SECTION_OF[page.kind], { name: page.title }]} />}
       <h1 className="text-4xl font-semibold sm:text-5xl">{page.title}</h1>
-      {page.kind !== "page" && page.publishedAt && !page.isPreview && (
-        <p className="mt-3 text-sm text-muted">Published <time dateTime={page.publishedAt}>{formatDate(page.publishedAt)}</time></p>
-      )}
       {page.description && <p className="mt-3 text-lg text-muted">{page.description}</p>}
-      {page.kind !== "page" && page.coverImageUrl && (
-        <img {...responsive(page.coverImageUrl, "(min-width: 896px) 896px, 100vw", 1280)} alt={page.coverImageAlt} fetchPriority="high" referrerPolicy="no-referrer" className="mt-8 aspect-16/9 w-full rounded-2xl object-cover" />
-      )}
       <div className="divider-gold my-8" />
       <div className="space-y-12">{page.sections.map((s) => <Section key={s.id} s={s} />)}</div>
     </article>

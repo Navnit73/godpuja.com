@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import ImagePicker from "@/components/admin/ImagePicker";
 import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
@@ -91,6 +94,21 @@ function FieldInput({ f, data, set, err, idp, cats, pick }: { f: Field; data: Da
   }
 }
 
+/** One draggable section row. The ⠿ handle is the only drag activator, so inputs inside stay usable. */
+function SortableSection({ id, label, children }: { id: string; label: string; children: (handle: ReactNode) => ReactNode }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const handle = (
+    <button ref={setActivatorNodeRef} type="button" className="btn-ghost btn-sm cursor-grab touch-none px-2 text-lg leading-none active:cursor-grabbing"
+      aria-label={`Drag to reorder ${label} (Space to lift, arrow keys to move)`} {...attributes} {...listeners}>⠿</button>
+  );
+  return (
+    <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={`rounded-xl border bg-surface ${isDragging ? "relative z-10 border-primary shadow-elev-3" : "border-border"}`}>
+      {children(handle)}
+    </li>
+  );
+}
+
 export default function HomepageEditor({ initial, categories }: { initial: AdminHomepage; categories: Cat[] }) {
   const router = useRouter();
   const toast = useToast();
@@ -130,6 +148,16 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
     commit([...sections, s]);
     setOpen((o) => new Set(o).add(s.id));
     setAnnounce(`${SECTION_LABEL[addType]} section added`);
+  }
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  const dndId = useId(); // stable across SSR and hydration (dnd-kit's own counter is not)
+  function onDragEnd(e: DragEndEvent) {
+    if (!e.over || e.active.id === e.over.id) return;
+    const from = sections.findIndex((x) => x.id === e.active.id);
+    const to = sections.findIndex((x) => x.id === e.over!.id);
+    if (from < 0 || to < 0) return;
+    commit(arrayMove(sections, from, to));
+    setAnnounce(`${SECTION_LABEL[sections[from].type]} moved to position ${to + 1} of ${sections.length}`);
   }
   function move(i: number, d: -1 | 1) {
     commit(swap(sections, i, d));
@@ -179,6 +207,9 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
       )}
 
       {sections.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted hover:shadow-elev-1">No sections yet. Add a hero to get started; until then visitors see the default placeholder.</div>}
+      {sections.length > 1 && <p className="text-xs text-muted">Drag the ⠿ handle (or use ↑ ↓) to reorder sections. Save to publish the new order.</p>}
+      <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={sections.map((x) => x.id)} strategy={verticalListSortingStrategy}>
       <ol className="space-y-3">
         {sections.map((s, i) => {
           const isOpen = open.has(s.id);
@@ -187,8 +218,9 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
           const idp = `s-${s.id}`;
           const doPick = (altKey: string, key: string, listIdx?: number) => setPicker({ i, altKey, key, list: listIdx === undefined ? undefined : [spec.list!.key, listIdx] });
           return (
-            <li key={s.id} className="rounded-xl border border-border bg-surface">
+            <SortableSection key={s.id} id={s.id} label={`${SECTION_LABEL[s.type]} (section ${i + 1})`}>{(handle) => (<>
               <div className="flex flex-wrap items-center gap-2 p-3">
+                {handle}
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-semibold ${s.enabled ? "" : "text-muted line-through"}`}>{SECTION_LABEL[s.type]}</p>
                   <p className="truncate text-xs text-muted">{summary(s)}</p>
@@ -260,10 +292,12 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
                   })()}
                 </div>
               )}
-            </li>
+            </>)}</SortableSection>
           );
         })}
       </ol>
+      </SortableContext>
+      </DndContext>
       {errs.sections && <p className="field-error">{errs.sections}</p>}
 
       <div className="card flex flex-wrap items-end gap-3 p-4 hover:shadow-elev-1">

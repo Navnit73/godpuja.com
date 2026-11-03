@@ -7,6 +7,7 @@ import { breadcrumbLd } from "@/lib/jsonld";
 import { env } from "@/server/env";
 import { getPublicPosts } from "@/server/public/pages";
 import PageBand from "./PageBand";
+import { LotusOrnament } from "./Icons";
 import PostCard from "./PostCard";
 
 type Kind = "blog" | "guide";
@@ -44,11 +45,29 @@ export default async function PostsIndex({ kind, searchParams }: { kind: Kind; s
   return (
     <main id="main" tabIndex={-1} className="w-full flex-1">
       <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, { name: c.title, path: c.path }])} />
-      <PageBand title={c.title} description={c.description} crumbs={[{ name: "Home", href: "/" }, { name: c.title }]} />
-      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
+      <PageBand title={c.title} description={c.description} crumbs={[{ name: "Home", href: "/" }, { name: c.title }]}>
+        <nav aria-label="Read" className="mt-6 flex flex-wrap gap-2">
+          {(Object.keys(COPY) as Kind[]).map((k) => (
+            <Link key={k} href={COPY[k].path} aria-current={k === kind ? "page" : undefined}
+              className={k === kind ? "inline-flex min-h-9 items-center rounded-full bg-gold-300 px-4 text-sm font-semibold text-kumkum-950" : "chip-dark"}>
+              {COPY[k].title}
+            </Link>
+          ))}
+        </nav>
+      </PageBand>
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         {result.items.length === 0
-          ? <p className="py-12 text-center text-muted">{c.empty}</p>
-          : <ul aria-label={c.title} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{result.items.map((p) => <PostCard key={p.id} p={p} headingLevel={2} />)}</ul>}
+          ? (
+            <div className="panel mx-auto flex max-w-xl flex-col items-center px-6 py-14 text-center">
+              <LotusOrnament className="h-5 w-20 text-accent" />
+              <p className="mt-4 font-serif text-2xl font-semibold">{c.empty}</p>
+              <Link href="/" className="btn-primary mt-6">Back to the shop</Link>
+            </div>
+          )
+          : <ul aria-label={c.title} className="grid gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+              {/* newest post leads page 1 as a wide, side-by-side card */}
+              {result.items.map((p, i) => <PostCard key={p.id} p={p} headingLevel={2} featured={page === 1 && i === 0} />)}
+            </ul>}
         {result.pages > 1 && (
           <nav aria-label="Pagination" className="mt-10 flex items-center justify-between text-sm">
             <p className="text-muted">Page {result.page} of {result.pages}</p>

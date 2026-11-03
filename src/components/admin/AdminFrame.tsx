@@ -152,7 +152,14 @@ export default function AdminFrame({ user, items, children }: Props) {
               </div>
               <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-saffron-500 to-kumkum-600 text-sm font-semibold text-white ring-2 ring-saffron-100">{initials}</span>
             </div>
+            <span aria-hidden="true" className="hidden h-8 w-px bg-sandal-200 sm:block" />
+            <button type="button" onClick={logout} disabled={busy} aria-busy={busy || undefined} title="Sign out"
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-sandal-300 px-3 text-sm font-medium text-kumkum-700 transition-colors hover:border-kumkum-300 hover:bg-kumkum-50 disabled:opacity-50 sm:px-4">
+              <Icon name="logout" className="h-4 w-4" />
+              <span className="sr-only sm:not-sr-only">{busy ? "Signing out…" : "Sign out"}</span>
+            </button>
           </header>
+          {logoutError && <p role="alert" className="border-b border-kumkum-200 bg-kumkum-50 px-4 py-2 text-sm text-kumkum-700 sm:px-8">Could not sign out. Try again.</p>}
           <main id="main" tabIndex={-1} className="admin-main mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-8">{children}</main>
         </div>
       </div>

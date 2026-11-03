@@ -235,15 +235,19 @@ export type PublicPage = {
   /** When it went (or goes) live; null for drafts seen via preview. */
   publishedAt: string | null;
   sections: PublicSection[];
+  /** Estimated reading time (≈200 words a minute), at least 1. */
+  readingMinutes: number;
   seo: PageInput["seo"];
   isPreview: boolean;
 };
 
 function toPublic(p: PageDoc, isPreview: boolean): PublicPage {
   const sections: PublicSection[] = [];
+  let words = 0;
   for (const s of p.sections ?? []) {
     if (!s.enabled) continue;
     const d = (s.data ?? {}) as Record<string, string>;
+    words += `${d.heading ?? ""} ${d.markdown ?? ""}`.split(/\s+/).filter(Boolean).length;
     if (s.type === "richtext") sections.push({ id: s.id, type: "richtext", html: renderMarkdown(d.markdown ?? "") });
     else if (s.type === "imageText") {
       sections.push({
@@ -256,7 +260,8 @@ function toPublic(p: PageDoc, isPreview: boolean): PublicPage {
   const seo = toAdmin(p).seo;
   return {
     kind: kindOf(p.kind), title: p.title, slug: p.slug, description: p.description ?? "", coverImageUrl: p.coverImageUrl ?? "",
-    coverImageAlt: p.coverImageAlt ?? "", publishedAt: iso(p.publishedAt), sections, seo, isPreview,
+    coverImageAlt: p.coverImageAlt ?? "", publishedAt: iso(p.publishedAt), sections,
+    readingMinutes: Math.max(1, Math.round(words / 200)), seo, isPreview,
   };
 }
 

@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
+import { SECTION_LINKS, patchForTarget, targetOf, type LinkTarget } from "@/lib/link-targets";
 import { SOCIAL_PLATFORMS, updateFooterSchema, type FooterInput, type FooterLinkInput } from "@/lib/validation/footer";
 import type { AdminFooter } from "@/server/services/footer";
 
@@ -46,11 +47,14 @@ function LinkRows({ links, onChange, pages, errs, path }: { links: FooterLinkInp
           <li key={l.id} className="rounded-lg border border-border bg-surface p-3">
             <div className="grid gap-3 sm:grid-cols-3">
               <Input label="Label" value={l.label} error={e("label")} maxLength={60} onChange={(ev) => p({ label: ev.target.value })} />
-              <Select label="Links to" value={l.type} onChange={(ev) => p({ type: ev.target.value as FooterLinkInput["type"] })}>
+              <Select label="Links to" value={targetOf(l)} onChange={(ev) => p(patchForTarget(ev.target.value as LinkTarget, l))}>
                 <option value="page">A page</option>
+                {SECTION_LINKS.map((s) => <option key={s.key} value={s.key}>{s.option}</option>)}
                 <option value="external">Custom link</option>
               </Select>
-              {l.type === "page" ? (
+              {targetOf(l) !== "page" && targetOf(l) !== "external" ? (
+                <p className="self-end pb-2 text-sm text-muted">Links to <span className="font-medium text-foreground">{l.url}</span></p>
+              ) : l.type === "page" ? (
                 <Select label="Page" value={l.ref ?? ""} error={e("ref")} onChange={(ev) => p({ ref: ev.target.value || undefined })}>
                   <option value="">Choose a page…</option>
                   {pages.map((pg) => <option key={pg.id} value={pg.id}>{pg.title} (/{pg.slug}){pg.live ? "" : " — not published"}</option>)}

@@ -10,6 +10,7 @@ import { Input, Select } from "@/components/ui/Field";
 import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import { add, canIndent, canOutdent, flatten, indent, locate, move, newItem, outdent, remove, reorder, update } from "@/lib/menu-tree";
+import { SECTION_LINKS, patchForTarget, targetOf, type LinkTarget } from "@/lib/link-targets";
 import { MENU_DEPTH, updateMenuSchema, type MenuItemInput } from "@/lib/validation/menus";
 import type { AdminMenu } from "@/server/services/menus";
 
@@ -51,6 +52,7 @@ function Row({ item, items, pages, errors, expanded, readOnly, toggle, apply }: 
   const err = errors[item.id] ?? {};
   const open = expanded.has(item.id) || Object.keys(err).length > 0;
   const page = pages.find((p) => p.id === item.ref);
+  const target = targetOf(item);
   const summary = item.type === "page" ? (page ? `/${page.slug}${page.live ? "" : " (not published)"}` : "Choose a page") : item.url || "No link";
   const patch = (p: Partial<MenuItemInput>) => apply(update(items, item.id, p));
   const btn = "btn-ghost btn-sm px-2 disabled:opacity-40";
@@ -83,11 +85,14 @@ function Row({ item, items, pages, errors, expanded, readOnly, toggle, apply }: 
         {open && (
           <fieldset disabled={readOnly} className="grid gap-3 border-t border-border p-3 sm:grid-cols-2">
             <Input label="Label" value={item.label} error={err.label} maxLength={60} onChange={(e) => patch({ label: e.target.value })} />
-            <Select label="Links to" value={item.type} onChange={(e) => patch({ type: e.target.value as MenuItemInput["type"] })}>
+            <Select label="Links to" value={target} onChange={(e) => patch(patchForTarget(e.target.value as LinkTarget, item))}>
               <option value="page">A page</option>
+              {SECTION_LINKS.map((s) => <option key={s.key} value={s.key}>{s.option}</option>)}
               <option value="external">Custom link</option>
             </Select>
-            {item.type === "page" ? (
+            {target !== "page" && target !== "external" ? (
+              <p className="self-end pb-2 text-sm text-muted">Links to <span className="font-medium text-foreground">{item.url}</span> — lists every published post, newest first.</p>
+            ) : item.type === "page" ? (
               <Select label="Page" value={item.ref ?? ""} error={err.ref} onChange={(e) => patch({ ref: e.target.value || undefined })}>
                 <option value="">Choose a page…</option>
                 {pages.map((p) => <option key={p.id} value={p.id}>{p.title} (/{p.slug}){p.live ? "" : " — not published"}</option>)}

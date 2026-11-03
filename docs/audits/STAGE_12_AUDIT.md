@@ -35,7 +35,7 @@ Scope source: [PRD v1.1](../PRD_v1.1.md) §5.4, §12, §13, §15.1; plan in [IMP
 
 ### Data migration
 - `npm run migrate:stage12` (dry run by default, `-- --apply` to write; idempotent): role renames, `pincode → postalCode` on user addresses and orders, `currency: "INR"` on old orders. The app reads unmigrated rows correctly, so it can run any time after deploy.
-- Dry run on the dev database `godpuja`: 0 users, **1 order** to migrate. **Not applied** — owner to run it.
+- Applied to the dev database `godpuja` on 2026-11-03: 1 order updated (currency + postal code), 0 users. A follow-up dry run reports nothing left to migrate.
 
 ## Verification
 | Check | Result |

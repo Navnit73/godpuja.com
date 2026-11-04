@@ -36,7 +36,7 @@ async function cached(key: string, check: () => Promise<boolean>): Promise<boole
 }
 
 const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const STATIC = new Set(["cart", "checkout", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
+const STATIC = new Set(["cart", "checkout", "shop", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
 
 export type RouteVerdict = { kind: "ok" } | { kind: "notFound" };
 
@@ -52,7 +52,7 @@ export async function checkPath(path: string): Promise<RouteVerdict> {
     if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
     return (await cached(`p:${slug}`, async () => !!(await Product.exists({ slug, status: { $in: ["active", "upcoming"] } })))) ? { kind: "ok" } : { kind: "notFound" };
   }
-  if (first === "category") {
+  if (first === "shop" || first === "category") {
     const p = rest.join("/");
     if (rest.length < 1 || rest.length > 3 || !rest.every((s) => SEGMENT.test(s))) return { kind: "notFound" };
     return (await cached(`c:${p}`, async () => !!(await Category.exists({ path: p, isActive: true })))) ? { kind: "ok" } : { kind: "notFound" };

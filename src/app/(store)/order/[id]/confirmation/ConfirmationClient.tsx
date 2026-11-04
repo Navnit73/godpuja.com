@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, ApiClientError } from "@/lib/api";
 import { addressLines } from "@/lib/address";
+import { carrierName } from "@/lib/carriers";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL, type OrderStatus, type PaymentStatus } from "@/lib/order-status";
 import type { OrderView } from "@/lib/storefront-api";
@@ -54,6 +55,18 @@ export default function ConfirmationClient() {
         <address className="text-sm not-italic text-muted">{addressLines(a).map((l, n) => <span key={n} className="block">{l}</span>)}</address>
         <p className="mt-3 text-sm">Payment: <strong>{(o.payment.method ?? o.payment.provider ?? "").toUpperCase() === "COD" ? "Cash on delivery" : o.payment.method ?? o.payment.provider}</strong> — {PAYMENT_STATUS_LABEL[o.payment.status as PaymentStatus]?.toLowerCase() ?? o.payment.status}</p>
       </section>
+      {o.shipments && o.shipments.length > 0 && (
+        <section aria-labelledby="tracking" className="panel p-5">
+          <h2 id="tracking" className="mb-2 font-sans text-lg font-semibold">Tracking</h2>
+          <ul className="space-y-1 text-sm">
+            {o.shipments.map((s) => (
+              <li key={s.id}>{carrierName(s.carrier)} · {s.link
+                ? <a href={s.link} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline">{s.trackingNumber}<span className="sr-only"> (opens in a new tab)</span></a>
+                : <span className="break-all">{s.trackingNumber}</span>}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Link href="/" className="btn-primary">Continue shopping</Link>
     </div>
   );

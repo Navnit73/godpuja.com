@@ -2,6 +2,7 @@ import { env } from "../env";
 import { Order } from "../models/Order";
 import * as T from "../email/templates";
 import { normalizeAddress } from "@/lib/address";
+import { trackingLink } from "@/lib/carriers";
 import type { OrderStatus } from "@/lib/order-status";
 import { deliver, siteName } from "./notifications";
 
@@ -29,6 +30,23 @@ export async function sendOrderStatus(id: string, status: OrderStatus) {
   const x = await load(id);
   if (!x) return;
   await deliver(T.orderStatus(x.site, x.o.email, x.o.orderNumber, status, x.url), `order.status.${status}`, x.ref);
+}
+
+export async function sendOrderShipment(id: string) {
+  const o = await Order.findById(id).select("orderNumber email accessToken shipments").lean();
+  if (!o || !o.shipments?.length) return;
+  const shipments = o.shipments.map((s) => ({ carrier: s.carrier, trackingNumber: s.trackingNumber, link: trackingLink(s.carrier, s.trackingNumber, s.trackingUrl) }));
+  await deliver(T.orderShipment(await siteName(), o.email, o.orderNumber, shipments, orderUrl(id, o.accessToken)), "order.shipment", { kind: "order", id });
+}
+
+export async function sendReturnRequested(id: string) {
+  const x = await load(id);
+  if (x) await deliver(T.returnRequested(x.site, x.o.email, x.o.orderNumber, x.url), "order.return_requested", x.ref);
+}
+
+export async function sendReturnDecision(id: string, decision: "accepted" | "declined", note: string) {
+  const x = await load(id);
+  if (x) await deliver(T.returnDecision(x.site, x.o.email, x.o.orderNumber, decision, note, x.url), `order.return_${decision}`, x.ref);
 }
 
 export async function sendOrderRefund(id: string, amount: number) {

@@ -11,6 +11,7 @@ import type { ProfileInput, SavedAddressInput } from "@/lib/validation/account";
 import { MAX_ADDRESSES } from "@/lib/validation/account";
 import { consumeToken, issueToken, revokeTokens } from "./auth-tokens";
 import { defer, deliver, siteName } from "./notifications";
+import { orderActions, type OrderActions } from "./fulfilment";
 import { customerView, type CustomerOrder } from "./orders";
 
 const oid = (id: string) => new mongoose.Types.ObjectId(id);
@@ -231,10 +232,10 @@ export async function listMyOrders(userId: string, page = 1, limit = 10) {
 }
 
 /** A customer's own order. Someone else's order and a missing one are indistinguishable (404). */
-export async function getMyOrder(userId: string, orderId: string): Promise<CustomerOrder & { id: string }> {
+export async function getMyOrder(userId: string, orderId: string): Promise<CustomerOrder & { id: string; actions: OrderActions }> {
   if (!isId(orderId)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
   const o = await Order.findOne({ _id: orderId, user: oid(userId) }).lean();
   if (!o) throw new ApiError("NOT_FOUND", "Order not found");
-  return { id: orderId, ...customerView(o) };
+  return { id: orderId, ...customerView(o), actions: orderActions(o) };
 }

@@ -1,4 +1,5 @@
 import { addressLines, type Address } from "@/lib/address";
+import { carrierName } from "@/lib/carriers";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 import type { OutgoingEmail } from "./send";
@@ -67,6 +68,31 @@ export const NOTIFIED_STATUSES = Object.keys(STATUS_COPY) as OrderStatus[];
 export function orderStatus(site: string, to: string, orderNumber: string, status: OrderStatus, url: string, note = ""): OutgoingEmail {
   const h = `Order ${orderNumber}: ${ORDER_STATUS_LABEL[status]}`;
   const p = [STATUS_COPY[status] ?? `Your order is now ${ORDER_STATUS_LABEL[status].toLowerCase()}.`, ...(note ? [note] : [])];
+  const cta = { label: "View your order", url };
+  return { to, subject: `${h} — ${site}`, html: layout(site, h, p, cta), text: text(h, p, cta) };
+}
+
+export function orderShipment(site: string, to: string, orderNumber: string, shipments: { carrier: string; trackingNumber: string; link: string | null }[], url: string): OutgoingEmail {
+  const h = `Order ${orderNumber} has a tracking number`;
+  const lines = shipments.map((s) => `${carrierName(s.carrier)}: ${s.trackingNumber}${s.link ? ` (${s.link})` : ""}`);
+  const p = ["Your order is with the carrier. You can follow it with:", ...lines];
+  const cta = { label: "View your order", url };
+  return { to, subject: `${h} — ${site}`, html: layout(site, h, p, cta), text: text(h, p, cta) };
+}
+
+export function returnRequested(site: string, to: string, orderNumber: string, url: string): OutgoingEmail {
+  const h = `We received your return request for order ${orderNumber}`;
+  const p = ["Our team will review it and email you the decision. Please keep the items and packaging until then."];
+  const cta = { label: "View your order", url };
+  return { to, subject: `${h} — ${site}`, html: layout(site, h, p, cta), text: text(h, p, cta) };
+}
+
+export function returnDecision(site: string, to: string, orderNumber: string, decision: "accepted" | "declined", note: string, url: string): OutgoingEmail {
+  const h = decision === "accepted" ? `Your return for order ${orderNumber} is accepted` : `Your return request for order ${orderNumber} was declined`;
+  const p = [
+    decision === "accepted" ? "We have accepted your return. If you paid online, your refund will follow our refund policy." : "We are sorry we could not accept this return.",
+    ...(note ? [`Note from our team: ${note}`] : []),
+  ];
   const cta = { label: "View your order", url };
   return { to, subject: `${h} — ${site}`, html: layout(site, h, p, cta), text: text(h, p, cta) };
 }

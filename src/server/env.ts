@@ -13,6 +13,12 @@ const schema = z.object({
   // Checkout. Prices are tax-inclusive paise; shipping = flat fee, free at/above the threshold.
   SHIPPING_FLAT_PAISE: z.coerce.number().int().min(0).default(5000),
   FREE_SHIPPING_OVER_PAISE: z.coerce.number().int().min(0).default(99900),
+  // Days after delivery in which a customer can request a return (0 turns customer returns off).
+  RETURN_WINDOW_DAYS: z.coerce.number().int().min(0).max(90).default(7),
+  // Seller details printed on invoices. Without SELLER_TAX_ID no tax registration number is shown.
+  SELLER_NAME: z.string().optional(),
+  SELLER_ADDRESS: z.string().optional(), // use \n for line breaks
+  SELLER_TAX_ID: z.string().optional(),
   // ISO country codes we deliver to, comma-separated (PRD v1.1 §13: never promise shipping where it is not available).
   SHIPPING_COUNTRIES: z.string().default("IN")
     .transform((v) => [...new Set(v.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean))])

@@ -17,4 +17,5 @@ export type OrderView = {
   pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
   payment: { method?: string; provider?: string; status: string };
   shippingAddress: Address & { phone?: string };
+  shipments?: { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string }[];
 };

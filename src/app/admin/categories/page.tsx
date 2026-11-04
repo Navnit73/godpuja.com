@@ -31,7 +31,7 @@ export default async function CategoriesList() {
                   <td className="font-medium" style={{ paddingLeft: `${0.75 + (c.level - 1) * 1.5}rem` }}>
                     <Link href={`/admin/categories/${c.id}`} className="hover:text-primary">{c.level > 1 && <span aria-hidden="true" className="text-muted">↳ </span>}{c.name}</Link>
                   </td>
-                  <td className="text-muted">/category/{c.path}</td>
+                  <td className="text-muted">/shop/{c.path}</td>
                   <td>{c.productCount}</td>
                   <td>{c.isActive ? <span className="badge-success">Active</span> : <span className="badge-muted">Hidden</span>}</td>
                 </tr>

@@ -3,7 +3,7 @@
 Statuses: `NOT_STARTED` · `IN_PROGRESS` · `IMPLEMENTATION_COMPLETE` · `AUDIT_IN_PROGRESS` · `AUDIT_COMPLETE` · `BLOCKED`
 A task is complete only after implementation works **and** audit verification passes.
 
-**Current stage: 13 (implemented; independent audit pending — stages 8–13 await audit)** · Last updated: 2026-11-03 · Payment gateway deferred by owner (COD only)
+**Current stage: 14a (implemented; independent audit pending — stages 8–13 and 14a await audit)** · Last updated: 2026-11-03 · Payment gateway deferred by owner (COD only)
 
 **2026-11-03:** Owner adopted [PRD v1.1](docs/PRD_v1.1.md) on the current tech stack. Stages 12–23 added (see [PROJECT_PRD.md §16](PROJECT_PRD.md) and [IMPLEMENTATION_PLAN](docs/IMPLEMENTATION_PLAN.md)); old Stage 12 (E2E/release) is now Stage 17.
 
@@ -64,7 +64,9 @@ A task is complete only after implementation works **and** audit verification pa
 | 11 | Fix: checkout rejected products without variants (`variantSku: null`) — Stage 8/9 bug | Complete + regression test | Self-verified | IMPLEMENTATION_COMPLETE |
 | 12 | Global-ready foundations: currency codes, international addresses, order statuses, timezones, v1.1 roles + temple scope, migration script | Complete — migration applied to `godpuja` 2026-11-03 (1 order) | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
 | 13 | Customer accounts (verify, reset, Google OIDC, /account dashboard, saved addresses, order history, guest-order claiming), Resend notifications, immutable payment ledger | Complete — gateway adapter deferred by owner; real Resend/Google untested (no credentials) | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
-| 14 | Store completion: coupons, tax, reviews, wishlist, recently viewed, tracking, returns, `/shop` URLs | Pending | Pending | NOT_STARTED |
+| 14a | `/shop` URLs (+301 from `/category`), shipment tracking, customer cancel/return, invoice | Complete — carrier deep links unverified live; migration `migrate:stage14` dry-run 0 rows | Self-verified; independent audit pending | IMPLEMENTATION_COMPLETE |
+| 14b | Coupons (cart + checkout) and destination tax rules | Pending | Pending | NOT_STARTED |
+| 14c | Reviews + ratings, wishlist, recently viewed, deity/material/occasion filters | Pending | Pending | NOT_STARTED |
 | 15 | Pooja Vidhi structured content | Pending | Pending | NOT_STARTED |
 | 16 | Aarti & Mantras + audio player + rights metadata | Pending | Pending | NOT_STARTED |
 | 17 | Phase 1 release: pillar tiles, coming-soon entries, GA4, privacy pages, E2E, final audit (was Stage 12) | Pending | Pending | NOT_STARTED |
@@ -75,6 +77,6 @@ A task is complete only after implementation works **and** audit verification pa
 | 22 | Pandits + home/venue/online booking | Pending | Pending | NOT_STARTED |
 | 23 | Phase 2 E2E + release | Pending | Pending | NOT_STARTED |
 
-Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md) · [Stage 9](docs/audits/STAGE_09_AUDIT.md) · [Stage 10](docs/audits/STAGE_10_AUDIT.md) · [Stage 11](docs/audits/STAGE_11_AUDIT.md) · [Stage 12](docs/audits/STAGE_12_AUDIT.md) · [Stage 13](docs/audits/STAGE_13_AUDIT.md).
+Audit reports: [Full audit stages 1–3](docs/audits/FULL_AUDIT_STAGES_1-3.md) · [Stage 1](docs/audits/STAGE_01_AUDIT.md) · [Stage 2](docs/audits/STAGE_02_AUDIT.md) · [Stage 3](docs/audits/STAGE_03_AUDIT.md) · [Stage 4](docs/audits/STAGE_04_AUDIT.md) · [Stage 5](docs/audits/STAGE_05_AUDIT.md) · [Stage 6](docs/audits/STAGE_06_AUDIT.md) · [Stage 7](docs/audits/STAGE_07_AUDIT.md) · [Stage 9](docs/audits/STAGE_09_AUDIT.md) · [Stage 10](docs/audits/STAGE_10_AUDIT.md) · [Stage 11](docs/audits/STAGE_11_AUDIT.md) · [Stage 12](docs/audits/STAGE_12_AUDIT.md) · [Stage 13](docs/audits/STAGE_13_AUDIT.md) · [Stage 14a](docs/audits/STAGE_14A_AUDIT.md).
 
 Carried forward: Stage 9 — payment gateway adapter pending owner decision (COD + generic webhook only); customer accounts / order history deferred (guest token only); no order emails yet (provider Resend, Stage 9 follow-up); Cloudinary live upload/delete test once credentials exist; homepage product cards and category tiles link to `/product/<slug>` and `/category/<path>`, which return 404 until the storefront pages ship in Stage 8; newsletter double opt-in + subscriber admin (Stage 9); trusted-proxy IP, body-size check, shared rate-limit store, search index review, admin axe pass: done in Stage 11. Deployment: single instance (ARCHITECTURE A16) — owner to confirm hosting. Stage 17: re-run `npm run bench` from a host in the Atlas region; screen-reader pass; update outdated "CMS home at /" check in browser-audit. Stage 17: automated API and form tests. Owner: rotate Atlas password, change seeded admin password, restart dev server.

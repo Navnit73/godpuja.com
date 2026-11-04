@@ -9,7 +9,11 @@ export type OrderItem = {
   options: Record<string, string>; unitPrice: number; qty: number; lineTotal: number;
 };
 export type Actor = { id: string | null; name: string };
-export type HistoryEntry = { kind: "created" | "status" | "payment" | "refund" | "note" | "webhook"; status: OrderStatus; note: string; by: Actor; at: Date };
+export type HistoryEntry = { kind: "created" | "status" | "payment" | "refund" | "note" | "webhook" | "shipment" | "return"; status: OrderStatus; note: string; by: Actor; at: Date };
+
+export type Shipment = { id: string; carrier: string; trackingNumber: string; trackingUrl: string | null; shippedAt: Date; by: Actor };
+/** `source` is who raised it. `status` moves requested -> accepted | declined (staff decision); a declined order cannot be re-requested by the customer. */
+export type ReturnRequest = { reason: string; at: Date; status: "requested" | "accepted" | "declined"; source: "customer" | "staff"; decidedAt?: Date; decisionNote?: string };
 
 export type OrderDoc = {
   _id: mongoose.Types.ObjectId;
@@ -30,6 +34,10 @@ export type OrderDoc = {
   pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
   status: OrderStatus;
   payment: { provider: string; method: string; providerOrderId?: string; providerPaymentId?: string; status: PaymentStatus; paidAt?: Date };
+  shipments: Shipment[];
+  /** When the order was marked delivered; starts the return window. */
+  deliveredAt?: Date;
+  returnRequest?: ReturnRequest;
   refunds: { amount: number; reason: string; at: Date; by: Actor }[];
   refundedTotal: number;
   notes: { text: string; by: Actor; at: Date }[];
@@ -64,6 +72,9 @@ const orderSchema = new mongoose.Schema(
       status: { type: String, enum: PAYMENT_STATUSES, default: "pending" },
       paidAt: Date,
     },
+    shipments: { type: M, default: [] },
+    deliveredAt: Date,
+    returnRequest: { type: M },
     refunds: { type: M, default: [] },
     refundedTotal: { type: Number, default: 0, min: 0 },
     notes: { type: M, default: [] },

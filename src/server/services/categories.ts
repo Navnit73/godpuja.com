@@ -77,7 +77,7 @@ export async function createCategory(input: CategoryInput) {
       const path = p.path ? `${p.path}/${input.slug}` : input.slug;
       await touch([input.parent], session); // conflicts with a concurrent move/delete of the parent
       const [c] = await Category.create([{ ...input, path, level: p.level + 1 }], { session });
-      await clearRedirectsFrom([`/category/${path}`], session);
+      await clearRedirectsFrom([`/shop/${path}`], session);
       out = toAdmin(c.toObject() as CategoryDoc);
     });
     invalidateCategorySnapshot();
@@ -126,16 +126,16 @@ export async function updateCategory(id: string, { baseUpdatedAt, ...input }: Up
       const newPath = np.path ? `${np.path}/${input.slug}` : input.slug;
 
       if (newPath !== cur.path) {
-        const moves = [{ from: `/category/${cur.path}`, to: `/category/${newPath}` }];
+        const moves = [{ from: `/shop/${cur.path}`, to: `/shop/${newPath}` }];
         // Move descendants out of the way first? Paths are unique, so renumber in a safe order: collision is only
         // possible with a non-subtree category, which the unique index reports as a conflict.
         const ops = descendants.map((d) => {
           const np2 = newPath + d.path.slice(cur.path.length);
-          moves.push({ from: `/category/${d.path}`, to: `/category/${np2}` });
+          moves.push({ from: `/shop/${d.path}`, to: `/shop/${np2}` });
           return { updateOne: { filter: { _id: d._id }, update: { $set: { path: np2, level: d.level + delta } } } };
         });
         if (ops.length) await Category.bulkWrite(ops, { session, ordered: true });
-        await clearRedirectsFrom([`/category/${newPath}`], session);
+        await clearRedirectsFrom([`/shop/${newPath}`], session);
         await recordRedirects(moves, session);
       }
       const { image, seo, ...rest } = input;
@@ -164,7 +164,7 @@ export async function deleteCategory(id: string) {
       if (await Category.exists({ parent: id }).session(session)) throw new ApiError("CONFLICT", "Delete or move its subcategories first");
       if (await Product.exists({ category: id }).session(session)) throw new ApiError("CONFLICT", "Move its products to another category first");
       await Category.deleteOne({ _id: id }, { session });
-      await dropRedirectsTo([`/category/${c.path}`], session);
+      await dropRedirectsTo([`/shop/${c.path}`], session);
       path = c.path;
     });
     invalidateCategorySnapshot();

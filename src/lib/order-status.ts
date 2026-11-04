@@ -23,3 +23,6 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
   pending: "Pending", paid: "Paid", failed: "Failed", refunded: "Refunded", partially_refunded: "Partly refunded",
 };
+
+/** An invoice exists once an order is confirmed (so not while unpaid or after a plain cancellation). */
+export const invoiceable = (s: OrderStatus) => !["pending_payment", "payment_failed", "cancelled"].includes(s);

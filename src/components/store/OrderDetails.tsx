@@ -1,4 +1,5 @@
 import { addressLines } from "@/lib/address";
+import { carrierName } from "@/lib/carriers";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL } from "@/lib/order-status";
 import type { CustomerOrder } from "@/server/services/orders";
@@ -18,6 +19,29 @@ export default function OrderDetails({ o }: { o: CustomerOrder }) {
         <p><span className="text-muted">Payment </span>{o.payment.method === "cod" ? "Cash on delivery" : o.payment.method} — {PAYMENT_STATUS_LABEL[o.payment.status].toLowerCase()}</p>
       </div>
       {awaiting && <p className="alert-error">This order is not confirmed until the payment succeeds.</p>}
+      {o.shipments.length > 0 && (
+        <section aria-labelledby="tracking" className="panel p-5">
+          <h2 id="tracking" className="mb-3 font-sans text-lg font-semibold">Tracking</h2>
+          <ul className="space-y-2 text-sm">
+            {o.shipments.map((s) => (
+              <li key={s.id}>
+                <span className="font-medium">{carrierName(s.carrier)}</span> · {s.link
+                  ? <a href={s.link} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline">{s.trackingNumber}<span className="sr-only"> (opens in a new tab)</span></a>
+                  : <span className="break-all">{s.trackingNumber}</span>}
+                <span className="block text-xs text-muted">Shipped {DATE.format(new Date(s.shippedAt))}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {o.returnRequest && (
+        <section aria-labelledby="ret" className="panel p-5">
+          <h2 id="ret" className="mb-2 font-sans text-lg font-semibold">Return request</h2>
+          <p className="text-sm"><strong>{{ requested: "Waiting for review", accepted: "Accepted", declined: "Declined" }[o.returnRequest.status]}</strong> · requested {DATE.format(new Date(o.returnRequest.at))}</p>
+          <p className="mt-1 text-sm text-muted">Your reason: {o.returnRequest.reason}</p>
+          {o.returnRequest.decisionNote && <p className="mt-1 text-sm">Note from our team: {o.returnRequest.decisionNote}</p>}
+        </section>
+      )}
       <section aria-labelledby="items" className="panel p-5">
         <h2 id="items" className="mb-3 font-sans text-lg font-semibold">Items</h2>
         <ul className="divide-y divide-border">

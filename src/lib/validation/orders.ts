@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addressIssues } from "@/lib/address";
+import { CARRIER_IDS } from "@/lib/carriers";
 import { ADMIN_SETTABLE_STATUSES, ORDER_STATUSES, PAYMENT_STATUSES } from "@/lib/order-status";
 
 export const MAX_LINE_QTY = 20;
@@ -66,6 +67,13 @@ export const statusChangeSchema = z.object({
   status: z.enum(ADMIN_SETTABLE_STATUSES),
   note: z.string().trim().max(500).optional(),
 });
+export const shipmentSchema = z.object({
+  carrier: z.enum(CARRIER_IDS),
+  trackingNumber: z.string().trim().regex(/^[A-Za-z0-9-]{5,40}$/, "Use 5–40 letters, numbers or dashes"),
+  trackingUrl: z.union([z.literal(""), z.url({ protocol: /^https$/, error: "Use a full https:// link" }).max(500)]).optional(),
+});
+export type ShipmentInput = z.infer<typeof shipmentSchema>;
+export const returnRequestSchema = z.object({ reason: z.string().trim().min(5, "Tell us briefly why (at least 5 characters)").max(500) });
 export const paymentChangeSchema = z.object({ status: z.enum(["paid", "failed"]) });
 export const noteSchema = z.object({ text: z.string().trim().min(1, "Write a note").max(1000) });
 export const refundSchema = z.object({

@@ -131,9 +131,9 @@ describe("SEO data (godpuja_test)", () => {
     expect(await v("/product/missing")).toBe("notFound");
     expect(await v("/product/a/b")).toBe("notFound");
     expect(await v("/product/BAD")).toBe("notFound");
-    expect(await v("/category/kits")).toBe("ok");
-    expect(await v("/category/nope")).toBe("notFound");
-    expect(await v("/category/a/b/c/d")).toBe("notFound");
+    expect(await v("/shop/kits")).toBe("ok");
+    expect(await v("/shop/nope")).toBe("notFound");
+    expect(await v("/shop/a/b/c/d")).toBe("notFound");
     expect(await v("/about")).toBe("ok");
     expect(await v("/secret")).toBe("notFound"); // draft
     expect(await v("/no-such-page")).toBe("notFound");
@@ -167,7 +167,7 @@ describe("SEO data (godpuja_test)", () => {
     await createPage(page("draft-page"));
     await updateCategory(hidden.id, { ...emptyCategory, name: "Hidden", slug: "hidden", isActive: false, baseUpdatedAt: hidden.updatedAt });
     const paths = (await findSitemapEntries()).map((e) => e.path).sort();
-    expect(paths).toEqual(["/", "/about", "/category/kits", "/product/diya"]);
+    expect(paths).toEqual(["/", "/about", "/product/diya", "/shop", "/shop/kits"]);
     expect(await findPublicProduct("in-hidden")).toBeNull();
   });
 });

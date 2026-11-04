@@ -10,8 +10,9 @@ import { getProvider } from "../payments/provider";
 import { CART_FIELDS, computePricing, hiddenCategorySet, mergeLines, resolveLines } from "./cart";
 import { ledgerFor, recordLedger, type LedgerRow } from "./ledger";
 import { defer } from "./notifications";
-import { sendOrderPlaced, sendOrderRefund, sendOrderStatus } from "./order-notifications";
+import { sendOrderPlaced, sendOrderRefund, sendOrderStatus, sendReturnDecision } from "./order-notifications";
 import { countryName, normalizeAddress } from "@/lib/address";
+import { trackingLink } from "@/lib/carriers";
 import { BASE_CURRENCY, formatMoney, minorToDecimal } from "@/lib/money";
 import { dayRangeUtc } from "@/lib/time";
 import type { CheckoutInput, ListOrdersInput } from "@/lib/validation/orders";
@@ -147,6 +148,9 @@ export type CustomerOrder = {
   orderNumber: string; status: OrderStatus; createdAt: string; email: string; phone: string; currency: string;
   items: { name: string; sku: string; variantSku: string | null; options: Record<string, string>; image: { url: string; alt: string } | null; slug: string; unitPrice: number; qty: number; lineTotal: number }[];
   pricing: OrderDoc["pricing"]; payment: { method: string; status: PaymentStatus }; shippingAddress: Address; billingAddress: Address;
+  deliveredAt: string | null;
+  shipments: { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string }[];
+  returnRequest: { status: "requested" | "accepted" | "declined"; reason: string; at: string; decisionNote: string } | null;
 };
 
 const safeEqual = (a: string, b: string) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); };
@@ -156,14 +160,17 @@ export async function getCustomerOrder(id: string, token: string): Promise<Custo
   const notFound = new ApiError("NOT_FOUND", "Order not found");
   if (!isId(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) throw notFound;
   await connectDB();
-  const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken").lean();
+  const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken shipments deliveredAt returnRequest").lean();
   if (!o || !safeEqual(o.accessToken, token)) throw notFound;
   return customerView(o);
 }
 
 /** What a customer may see of their order: no notes, history, refunds or internal ids. */
-export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "createdAt" | "email" | "phone" | "items" | "currency" | "pricing" | "payment" | "shippingAddress" | "billingAddress">): CustomerOrder {
+export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "createdAt" | "email" | "phone" | "items" | "currency" | "pricing" | "payment" | "shippingAddress" | "billingAddress"> & Partial<Pick<OrderDoc, "shipments" | "deliveredAt" | "returnRequest">>): CustomerOrder {
   return {
+    deliveredAt: iso(o.deliveredAt),
+    shipments: (o.shipments ?? []).map((s) => ({ id: s.id, carrier: s.carrier, trackingNumber: s.trackingNumber, link: trackingLink(s.carrier, s.trackingNumber, s.trackingUrl), shippedAt: new Date(s.shippedAt).toISOString() })),
+    returnRequest: o.returnRequest ? { status: o.returnRequest.status, reason: o.returnRequest.reason, at: new Date(o.returnRequest.at).toISOString(), decisionNote: o.returnRequest.decisionNote ?? "" } : null,
     orderNumber: o.orderNumber, status: o.status, createdAt: o.createdAt.toISOString(), email: o.email, phone: o.phone, currency: currencyOf(o),
     items: o.items.map((i) => ({ name: i.name, sku: i.sku, variantSku: i.variantSku, options: i.options, image: i.image, slug: i.slug, unitPrice: i.unitPrice, qty: i.qty, lineTotal: i.lineTotal })),
     pricing: o.pricing, payment: { method: o.payment.method, status: o.payment.status }, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
@@ -171,8 +178,11 @@ export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "creat
 }
 
 // ---------- admin ----------
-export type AdminOrder = Omit<OrderDoc, "_id" | "user" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items"> & {
+export type AdminShipment = { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string; by: string };
+export type AdminOrder = Omit<OrderDoc, "_id" | "user" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items" | "shipments" | "deliveredAt" | "returnRequest"> & {
   id: string; user: string | null; createdAt: string; updatedAt: string; ledger: LedgerRow[];
+  shipments: AdminShipment[]; deliveredAt: string | null;
+  returnRequest: { status: "requested" | "accepted" | "declined"; reason: string; at: string; source: "customer" | "staff"; decidedAt: string | null; decisionNote: string } | null;
   items: (Omit<OrderItem, "product"> & { product: string })[];
   payment: { provider: string; method: string; providerOrderId: string | null; providerPaymentId: string | null; status: PaymentStatus; paidAt: string | null };
   refunds: { amount: number; reason: string; at: string; by: Actor }[];
@@ -202,7 +212,10 @@ export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 };
 
 const toAdmin = (o: OrderDoc, ledger: LedgerRow[]): AdminOrder => ({
-  id: String(o._id), user: o.user ? String(o.user) : null, ledger, orderNumber: o.orderNumber, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
+  id: String(o._id), user: o.user ? String(o.user) : null, ledger, orderNumber: o.orderNumber,
+  shipments: (o.shipments ?? []).map((s) => ({ id: s.id, carrier: s.carrier, trackingNumber: s.trackingNumber, link: trackingLink(s.carrier, s.trackingNumber, s.trackingUrl), shippedAt: new Date(s.shippedAt).toISOString(), by: s.by.name })),
+  deliveredAt: iso(o.deliveredAt),
+  returnRequest: o.returnRequest ? { status: o.returnRequest.status, reason: o.returnRequest.reason, at: new Date(o.returnRequest.at).toISOString(), source: o.returnRequest.source, decidedAt: iso(o.returnRequest.decidedAt), decisionNote: o.returnRequest.decisionNote ?? "" } : null, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
   customerNote: o.customerNote ?? "", currency: currencyOf(o), pricing: o.pricing, status: o.status, refundedTotal: o.refundedTotal ?? 0,
   createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString(),
   items: o.items.map((i) => ({ ...i, product: String(i.product) })),
@@ -284,7 +297,18 @@ export async function changeStatus(id: string, to: OrderStatus, note: string | u
   const cur = await Order.findById(id).select("status").lean();
   if (!cur) throw new ApiError("NOT_FOUND", "Order not found");
   if (!TRANSITIONS[cur.status].includes(to)) throw new ApiError("CONFLICT", `An order that is ${cur.status} cannot be changed to ${to}.`);
-  const update = (from: OrderStatus) => ({ filter: { _id: id, status: from }, set: { $set: { status: to }, $push: { history: entry("status", to, note ?? "", actor) } } });
+  // Side effects of particular moves: delivery starts the return window; a return decision is recorded on the request.
+  const at = new Date();
+  const extra: Record<string, unknown> = {};
+  if (to === "delivered" && cur.status === "shipped") extra.deliveredAt = at;
+  if (to === "return_requested") extra.returnRequest = { reason: note?.trim() || "Recorded by staff", at, status: "requested", source: "staff" };
+  const declined = cur.status === "return_requested" && to === "delivered";
+  if (cur.status === "return_requested" && (to === "returned" || declined)) {
+    extra["returnRequest.status"] = declined ? "declined" : "accepted";
+    extra["returnRequest.decidedAt"] = at;
+    extra["returnRequest.decisionNote"] = note?.trim() ?? "";
+  }
+  const update = (from: OrderStatus) => ({ filter: { _id: id, status: from }, set: { $set: { status: to, ...extra }, $push: { history: entry(cur.status === "return_requested" || to === "return_requested" ? "return" : "status", to, note ?? "", actor) } } });
 
   if (to !== "cancelled") {
     const u = update(cur.status);
@@ -303,7 +327,8 @@ export async function changeStatus(id: string, to: OrderStatus, note: string | u
       await session.endSession();
     }
   }
-  defer(() => sendOrderStatus(id, to));
+  // A declined return is not a "delivered" event: tell the customer the decision instead.
+  defer(() => (declined ? sendReturnDecision(id, "declined", note ?? "") : to === "returned" && cur.status === "return_requested" ? sendReturnDecision(id, "accepted", note ?? "") : sendOrderStatus(id, to)));
   return getAdminOrder(id);
 }
 

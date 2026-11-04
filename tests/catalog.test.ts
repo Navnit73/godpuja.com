@@ -98,15 +98,15 @@ describe("catalog (godpuja_test)", () => {
     expect((await getCategory(b.id)).path).toBe("puja-kits/diwali");
     expect((await getCategory(c.id)).path).toBe("puja-kits/diwali/small");
     let reds = Object.fromEntries((await Redirect.find().lean()).map((r) => [r.from, r.to]));
-    expect(reds).toMatchObject({ "/category/kits": "/category/puja-kits", "/category/kits/diwali/small": "/category/puja-kits/diwali/small" });
+    expect(reds).toMatchObject({ "/shop/kits": "/shop/puja-kits", "/shop/kits/diwali/small": "/shop/puja-kits/diwali/small" });
     // move diwali (with child) under idols => level shifts, older redirects re-pointed (no chains)
     const bNow = await getCategory(b.id);
     await updateCategory(b.id, { ...cat({ name: "Diwali", slug: "diwali", parent: root2.id }), baseUpdatedAt: bNow.updatedAt });
     expect((await getCategory(c.id)).path).toBe("idols/diwali/small");
     expect((await getCategory(c.id)).level).toBe(3);
     reds = Object.fromEntries((await Redirect.find().lean()).map((r) => [r.from, r.to]));
-    expect(reds["/category/kits/diwali"]).toBe("/category/idols/diwali");
-    expect(reds["/category/puja-kits/diwali"]).toBe("/category/idols/diwali");
+    expect(reds["/shop/kits/diwali"]).toBe("/shop/idols/diwali");
+    expect(reds["/shop/puja-kits/diwali"]).toBe("/shop/idols/diwali");
     expect(Object.values(reds).every((to) => !(to in reds))).toBe(true); // no chains
   });
 
@@ -343,9 +343,9 @@ describe("catalog audit regressions (godpuja_test)", () => {
     const c = await createCategory(cat({ slug: "old" }));
     await updateCategory(c.id, { ...cat({ slug: "new" }), baseUpdatedAt: c.updatedAt });
     await createCategory(cat({ slug: "old" }));
-    expect(await Redirect.countDocuments({ from: "/category/old" })).toBe(0);
+    expect(await Redirect.countDocuments({ from: "/shop/old" })).toBe(0);
     await deleteCategory((await Category.findOne({ path: "new" }).lean())!._id.toString());
-    expect(await Redirect.countDocuments({ to: "/category/new" })).toBe(0);
+    expect(await Redirect.countDocuments({ to: "/shop/new" })).toBe(0);
   });
 
   it("concurrent opposite moves never create a cycle", async () => {

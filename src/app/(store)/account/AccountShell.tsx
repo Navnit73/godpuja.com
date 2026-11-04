@@ -15,8 +15,9 @@ export default function AccountShell({ active, title, crumbs = [], children }: {
   return (
     <main id="main" tabIndex={-1} className="w-full flex-1">
       <PageBand title={title} crumbs={[{ name: "Home", href: "/" }, { name: "My account", href: "/account" }, ...crumbs]} />
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[14rem_1fr]">
-        <nav aria-label="My account">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+        {/* min-w-0 + grid-cols-1 (minmax(0,1fr)): without them the scrollable tab list sizes the whole page column to its content and the page scrolls sideways on phones. */}
+        <nav aria-label="My account" className="min-w-0">
           <ul className="flex gap-2 overflow-x-auto scrollbar-none lg:flex-col">
             {TABS.map((t) => (
               <li key={t.key}>

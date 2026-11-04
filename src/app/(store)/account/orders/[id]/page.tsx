@@ -7,6 +7,8 @@ import { ApiError } from "@/server/api";
 import { requireAccount } from "@/server/auth/guard";
 import { getMyOrder } from "@/server/services/account";
 import AccountShell, { Loading } from "../../AccountShell";
+import { invoiceable } from "@/lib/order-status";
+import OrderActions from "./OrderActions";
 
 export const metadata: Metadata = { title: "Order details", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
@@ -17,7 +19,11 @@ async function Detail({ params }: { params: PageProps<"/account/orders/[id]">["p
   return (
     <div className="space-y-6">
       <OrderDetails o={order} />
-      <Link href="/account/orders" className="btn-ghost">← All orders</Link>
+      <OrderActions id={id} actions={order.actions} delivered={order.status === "delivered"} hasReturn={!!order.returnRequest} />
+      <div className="flex flex-wrap gap-2">
+        <Link href="/account/orders" className="btn-ghost">← All orders</Link>
+        {invoiceable(order.status) && <Link href={`/account/orders/${id}/invoice`} className="btn-outline">View invoice</Link>}
+      </div>
     </div>
   );
 }

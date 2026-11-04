@@ -409,3 +409,10 @@ dialog.modal::backdrop { background: var(--color-scrim); }
   & th, & td { @apply border border-border px-3 py-2 text-left; }
   & th { @apply bg-sandal-100; }
 }
+
+/* Invoices print on their own: hide the storefront chrome and the page controls. */
+@media print {
+  body:has(.invoice-doc) :is(header, footer, nav, .skip-link):not(.invoice-doc *), .invoice-doc .no-print { display: none !important; }
+  .invoice-doc { max-width: none; padding: 0; }
+  .invoice-doc .panel { border: 0; box-shadow: none; padding: 0; }
+}

@@ -3,6 +3,7 @@
  * custom links (type "external" + an internal path), so no schema change is needed; the picker just recognises them.
  */
 export const SECTION_LINKS = [
+  { key: "shop", option: "Shop (all products)", label: "Shop", url: "/shop" },
   { key: "blog", option: "Blog (all posts)", label: "Blog", url: "/blog" },
   { key: "guides", option: "Guides (all guides)", label: "Guides", url: "/guides" },
 ] as const;

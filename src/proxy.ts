@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/server/auth/session";
 import { isStaff } from "@/server/auth/permissions";
+import { legacyToShop } from "@/lib/shop-url";
 import { checkPath, redirectFor } from "@/server/route-check";
 
 const isAdmin = (p: string) => p === "/admin" || p.startsWith("/admin/") || p.startsWith("/api/admin/");
@@ -48,7 +49,10 @@ async function storefront(req: NextRequest) {
   }
   const key = (path.length > 1 ? path.replace(/\/+$/, "") : path).toLowerCase();
   const to = await redirectFor(key);
-  if (to) return NextResponse.redirect(/^https?:\/\//.test(to) ? to : new URL(to + search, req.url), 301);
+  // Redirects stored before Stage 14 may still point at /category/...: send people straight to /shop/... (one hop).
+  if (to) return NextResponse.redirect(/^https?:\/\//.test(to) ? to : new URL((legacyToShop(to) ?? to) + search, req.url), 301);
+  const legacy = legacyToShop(key); // /category/<path> was renamed to /shop/<path>
+  if (legacy) return NextResponse.redirect(new URL(legacy + search, req.url), 301);
   if ((await checkPath(path)).kind === "notFound") return NextResponse.rewrite(new URL("/page-not-found", req.url));
   return NextResponse.next();
 }

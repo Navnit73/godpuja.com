@@ -77,7 +77,7 @@ Page publish/unpublish/rename/delete also revalidate the `footer` tag.
 
 | GET | /products/:slug/related | — (rate limited 120/min/IP) | up to 4: same category by best sellers, topped up with featured; never the product itself, drafts or hidden categories |
 
-Storefront pages (Stage 8): `/category/<path>` (filters `sort`, `min`/`max` in rupees, `page`), `/search?q=`, `/product/<slug>`, `/cart`, `/checkout`, `/order/<id>/confirmation?token=` (no-referrer, noindex, no-store). Invalid query values are ignored rather than erroring.
+Storefront pages (Stage 8; categories moved to `/shop` in Stage 14): `/shop` (everything, with a category list) and `/shop/<category path>` (filters `sort`, `min`/`max` in rupees, `page`), `/search?q=`, `/product/<slug>`, `/cart`, `/checkout`, `/order/<id>/confirmation?token=` (no-referrer, noindex, no-store). Invalid query values are ignored rather than erroring.
 
 ## Homepage (Stage 7)
 | Method | Path | Perm | Notes |
@@ -122,7 +122,7 @@ Env: `SHIPPING_FLAT_PAISE` (default 5000), `FREE_SHIPPING_OVER_PAISE` (default 9
 | GET/POST | /admin/redirects | seo:write | list (`q`, `page`, `limit` ≤50); POST `{from, to}` (path → path or https URL). Chains collapsed, loops refused, internal paths (`/admin`, `/api`, `/_next`, `/login`, `/order`, `/preview`, `/`) cannot be sources |
 | DELETE | /admin/redirects/:id | seo:write | |
 
-**Proxy (before rendering):** malformed URL → `400`; recorded redirect → `301` (query string kept); unknown `/product/<slug>`, `/category/<path>` or CMS slug → real `404` (rewritten to `/page-not-found`). Lookups are cached per instance (redirect table 60 s, existence 60 s positive / 15 s negative), so a new redirect can take up to a minute to apply. Redirects are written automatically when a product, category (with subtree) or CMS page changes URL.
+**Proxy (before rendering):** malformed URL → `400`; recorded redirect → `301` (query string kept); unknown `/product/<slug>`, `/shop/<path>` or CMS slug → real `404` (rewritten to `/page-not-found`). Lookups are cached per instance (redirect table 60 s, existence 60 s positive / 15 s negative), so a new redirect can take up to a minute to apply. Redirects are written automatically when a product, category (with subtree) or CMS page changes URL.
 
 **Metadata:** every storefront page has a title (`%s — <site name>`; homepage uses its own title as-is), description, canonical (absolute, from `SITE_URL`), Open Graph and Twitter tags. Sorted/filtered category listings are `noindex, follow` with the plain listing as canonical; page 2+ is indexable with its own canonical and a "page N" title. Search, cart, checkout, order and preview pages are `noindex`. JSON-LD: `Product` (+ `Offer`/`AggregateOffer`, INR, availability) and `BreadcrumbList` on product pages, `BreadcrumbList` on categories, `Organization` + `WebSite` (with `SearchAction`) on the homepage.
 
@@ -151,6 +151,24 @@ All `/account` endpoints need a signed-in user (any role) and only ever touch th
 **Notifications:** sent after the response (`after()`), never blocking or failing the action, and logged in `notifications` (template, recipient, record ref, delivery state; no message body). Templates: `account.verify_email`, `account.password_reset`, `order.placed`, `order.status.{confirmed,shipped,delivered,cancelled,returned,refunded}`, `order.refund`. Internal status notes are never emailed. Provider: Resend over HTTPS (`RESEND_API_KEY`, `EMAIL_FROM`); without them every email is logged `skipped` (and printed in development).
 
 **Payment ledger:** every charge (admin "Mark as paid", webhook `payment.succeeded`) and refund (admin, webhook) appends an immutable `payments` row in the **same transaction** as the order change. A provider reference is recorded once per type. Admin order detail shows the order's ledger.
+
+## Store URLs, fulfilment, returns, invoices (Stage 14, slice 1)
+**URLs (PRD v1.1 §3.1):** `/shop` lists all products; `/shop/<category path>` is a category; products stay `/product/<slug>`. Any `/category/...` URL gets a permanent `301` to `/shop/...` (query string kept), and redirects stored before Stage 14 are followed in one hop. New category moves record `/shop/...` redirects. `npm run migrate:stage14` rewrites stored `/category/` redirects. The sitemap lists `/shop`. Menus/footer can link to "Shop (all products)".
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | /admin/orders/:id/shipments | orders:write | `{carrier (delhivery\|dhl\|fedex\|ups\|india-post\|bluedart\|dtdc\|other), trackingNumber (5–40 letters/digits/dashes), trackingUrl? (https only)}`. Allowed while the order is processing, shipped or delivered; a duplicate number on the order ⇒ 409. Does not change the status. Emails the customer the tracking. 201 returns the order |
+| DELETE | /admin/orders/:id/shipments/:sid | orders:write | removes a wrongly entered shipment (logged in history, no email) |
+| POST | /account/orders/:id/cancel | signed in (10/15 min) | owner only; allowed while `pending_payment`, `payment_failed` or `confirmed`; stock returns exactly once; else 409 "contact us". Not the owner / guest order ⇒ 404 |
+| POST | /account/orders/:id/return | signed in (10/15 min) | `{reason (5–500)}`; owner only; order must be `delivered`, within `RETURN_WINDOW_DAYS` (default 7, 0 = off) of `deliveredAt`, and never requested before. Moves it to `return_requested` (compare-and-set: concurrent requests record one) and emails the customer |
+
+`GET /account/orders/:id` now also returns `shipments` (with tracking links), `deliveredAt`, `returnRequest` and `actions {canCancel, canReturn, returnDeadline}`; the guest token view returns shipments and the return request but never `actions`. Staff decide a return with the existing status endpoint: `return_requested → returned` accepts it, `→ delivered` declines it (a note is stored and emailed; the customer cannot request again). Accepting does not refund or restock automatically. Staff can also record a return themselves (`return_requested`, source `staff`).
+
+**Tracking links:** built only where the carrier's public tracking URL takes the number (Delhivery, DHL, FedEx, UPS); for others the number is shown, or a staff-supplied `https` page is linked. Never any other URL scheme. The carrier URL templates are not verified against live carrier sites.
+
+**Invoice** `/account/orders/:id/invoice` (signed in, owner only): printable (print view hides the site chrome), shown for confirmed orders onward and not for unpaid or cancelled ones. Seller details come from env `SELLER_NAME` (default: site name), `SELLER_ADDRESS`, `SELLER_TAX_ID` (printed only when set). Tax appears as a line when an order carries tax.
+
+Env: `RETURN_WINDOW_DAYS`, `SELLER_NAME`, `SELLER_ADDRESS`, `SELLER_TAX_ID`.
 
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).

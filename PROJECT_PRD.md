@@ -77,7 +77,7 @@ Summary (details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
 
 Frontend routes:
 
-Storefront: `/`, `/[...slug]` (CMS page, resolved by slug), `/category/[...path]`, `/product/[slug]`, `/search`, `/cart`, `/checkout`, `/order/[id]/confirmation`, `/account`, `/account/orders`, `/login`, `/register`.
+Storefront: `/`, `/[...slug]` (CMS page, resolved by slug), `/shop/[[...path]]` (was `/category/[...path]`), `/product/[slug]`, `/search`, `/cart`, `/checkout`, `/order/[id]/confirmation`, `/account`, `/account/orders`, `/login`, `/register`.
 
 Admin (`/admin/*`): `/` dashboard, `/pages`, `/navigation`, `/footer`, `/homepage`, `/categories`, `/products`, `/inventory`, `/orders`, `/customers`, `/seo`, `/media`, `/settings`, `/users`.
 
@@ -134,7 +134,7 @@ Tracked in [PROJECT_TRACKER.md](PROJECT_TRACKER.md). Each stage ends with `docs/
 | 8 | Payment gateway(s) — PRD v1.1 suggests Stripe + regional (UPI) | Stage 13 | **Open — still blocking all paid flows** |
 | 9 | Base accounting currency + launch countries | Stage 12 | Proposed: INR base; India first, other countries activated when shipping/payment are ready (v1.1 §23) |
 | 10 | Brand palette: v1.1 §17 suggests ivory/sand/muted gold/terracotta/charcoal; current tokens are saffron/kumkum/gold/sandal/tulsi | Before Stage 17 release | Proposed: keep current tokens, re-check against v1.1 direction with designer |
-| 11 | Store URLs: v1.1 uses `/shop/...`, we use `/category/...` | Stage 14 | Proposed: switch to `/shop/...` with 301s from `/category/...` via redirect table |
+| 11 | Store URLs: v1.1 uses `/shop/...`, we used `/category/...` | Stage 14 | **Done (Stage 14a):** `/shop/...`, permanent redirects from `/category/...` |
 | 12 | Temple / Pandit / donation payment model (merchant of record, settlement, refunds) | Stage 20 | **Open — owner + legal** (v1.1 §6.8, §7, §14.1) |
 | 13 | Aarti/Mantra audio sourcing and licences | Stage 16 | **Open — content/legal**; module ships lyrics-only until rights are recorded |
 

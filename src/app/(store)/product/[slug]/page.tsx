@@ -61,8 +61,8 @@ async function Content({ params }: Props) {
   if (!p) notFound();
   return (
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 pb-10 pt-4 sm:px-6 sm:py-8">
-      <JsonLd data={[productLd(env().SITE_URL, p), breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, path: `/category/${c.path}` })), { name: p.name, path: `/product/${p.slug}` }])]} />
-      <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/category/${c.path}` })), { name: p.name }]} />
+      <JsonLd data={[productLd(env().SITE_URL, p), breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, path: `/shop/${c.path}` })), { name: p.name, path: `/product/${p.slug}` }])]} />
+      <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/shop/${c.path}` })), { name: p.name }]} />
       <div className="grid gap-5 md:grid-cols-2 md:gap-8 lg:gap-12">
         <ProductGallery images={p.images} name={p.name} />
         <div className="space-y-5 sm:space-y-6">

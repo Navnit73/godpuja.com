@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, ApiClientError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { addressLines } from "@/lib/address";
+import { CARRIERS, type CarrierId } from "@/lib/carriers";
 import { formatMoney as fmtMoney, rupeesToPaise } from "@/lib/money";
 import type { OrderStatus } from "@/server/models/Order";
 import type { AdminOrder } from "@/server/services/orders";
@@ -19,6 +20,10 @@ const ACTION_LABEL: Record<OrderStatus, string> = {
   pending_payment: "Mark awaiting payment", payment_failed: "Mark payment failed", confirmed: "Confirm", processing: "Start processing", shipped: "Mark as shipped",
   delivered: "Mark as delivered", return_requested: "Record return request", returned: "Mark as returned", cancelled: "Cancel order", refunded: "Mark refunded",
 };
+
+/** Same target status, different meaning: from a return request, "returned" accepts it and "delivered" declines it. */
+const actionLabel = (from: OrderStatus, to: OrderStatus) =>
+  from === "return_requested" ? (to === "returned" ? "Accept return" : to === "delivered" ? "Decline return" : ACTION_LABEL[to]) : ACTION_LABEL[to];
 
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="card space-y-3 p-4 hover:shadow-elev-1"><h2 className="font-sans text-lg font-semibold">{title}</h2>{children}</section>
@@ -35,6 +40,11 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<OrderStatus | null>(null);
+  const [ship, setShip] = useState<{ carrier: CarrierId; trackingNumber: string; trackingUrl: string }>({ carrier: "delhivery", trackingNumber: "", trackingUrl: "" });
+  const addShipment = async () => {
+    if (await run("shipment", "Tracking added", () => api.post<AdminOrder>(`/admin/orders/${o.id}/shipments`, { carrier: ship.carrier, trackingNumber: ship.trackingNumber, ...(ship.trackingUrl ? { trackingUrl: ship.trackingUrl } : {}) }))) setShip({ ...ship, trackingNumber: "", trackingUrl: "" });
+  };
+  const removeShipment = (sid: string) => run("shipment", "Tracking removed", () => api.delete<AdminOrder>(`/admin/orders/${o.id}/shipments/${sid}`));
   const [statusNote, setStatusNote] = useState("");
   const [note, setNote] = useState("");
   const [refundAmt, setRefundAmt] = useState("");
@@ -76,9 +86,9 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
         <div><p className="text-xs text-muted">Total</p><p className="text-sm font-semibold">{formatMoney(o.pricing.total)}</p></div>
         {canWrite && o.allowedNext.length > 0 && (
           <div className="ml-auto flex flex-wrap gap-2" role="group" aria-label="Change order status">
-            {o.allowedNext.map((s) => s === "cancelled"
-              ? <Button key={s} variant="danger" onClick={() => setConfirm(s)} disabled={!!busy}>{ACTION_LABEL[s]}</Button>
-              : <Button key={s} onClick={() => setStatus(s)} loading={busy === "status"} disabled={!!busy}>{ACTION_LABEL[s]}</Button>)}
+            {o.allowedNext.map((s) => s === "cancelled" || (o.status === "return_requested" && s === "delivered")
+              ? <Button key={s} variant="danger" onClick={() => setConfirm(s)} disabled={!!busy}>{actionLabel(o.status, s)}</Button>
+              : <Button key={s} onClick={() => setStatus(s)} loading={busy === "status"} disabled={!!busy}>{actionLabel(o.status, s)}</Button>)}
           </div>
         )}
       </div>
@@ -120,7 +130,7 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
             <ol className="space-y-3 border-l-2 border-sandal-300 pl-4">
               {[...o.history].reverse().map((h, n) => (
                 <li key={n} className="text-sm">
-                  <p className="font-medium">{h.kind === "status" || h.kind === "created" ? STATUS_LABEL[h.status] : h.kind === "refund" ? "Refund" : h.kind === "payment" ? "Payment" : "Payment update"}{h.note && <span className="font-normal text-muted"> — {h.note}</span>}</p>
+                  <p className="font-medium">{h.kind === "status" || h.kind === "created" || h.kind === "return" ? STATUS_LABEL[h.status] : h.kind === "refund" ? "Refund" : h.kind === "payment" ? "Payment" : h.kind === "shipment" ? "Shipment" : "Payment update"}{h.note && <span className="font-normal text-muted"> — {h.note}</span>}</p>
                   <p className="text-xs text-muted">{h.by.name} · {formatDateTime(h.at)}</p>
                 </li>
               ))}
@@ -135,8 +145,43 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
             <p className="text-xs text-muted">{o.user ? "Linked to a customer account" : "Guest order"}</p>
             {o.customerNote && <p className="rounded-md bg-sandal-100 p-2 text-sm"><span className="font-medium">Customer note: </span>{o.customerNote}</p>}
           </Card>
+          {o.returnRequest && (
+            <Card title="Return request">
+              <p className="text-sm"><span className="badge-primary capitalize">{o.returnRequest.status}</span> <span className="text-xs text-muted">{o.returnRequest.source === "customer" ? "from the customer" : "recorded by staff"} · {formatDateTime(o.returnRequest.at)}</span></p>
+              <p className="rounded-md bg-sandal-100 p-2 text-sm">{o.returnRequest.reason}</p>
+              {o.returnRequest.decisionNote && <p className="text-sm"><span className="font-medium">Decision note: </span>{o.returnRequest.decisionNote}</p>}
+              {o.returnRequest.status === "requested" && <p className="text-xs text-muted">Use “Accept return” or “Decline return” above. Accepting does not refund automatically: record the refund below once the goods are back.</p>}
+            </Card>
+          )}
           <Card title="Shipping address"><Address a={o.shippingAddress} /></Card>
           <Card title="Billing address"><Address a={o.billingAddress} /></Card>
+
+          <Card title="Shipments & tracking">
+            {o.shipments.length === 0 ? <p className="text-sm text-muted">No tracking added yet.</p> : (
+              <ul className="space-y-2 text-sm">
+                {o.shipments.map((s) => (
+                  <li key={s.id} className="flex items-start justify-between gap-2">
+                    <span>
+                      <span className="font-medium">{CARRIERS.find((c) => c.id === s.carrier)?.name ?? s.carrier}</span> · {s.link ? <a href={s.link} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline">{s.trackingNumber}<span className="sr-only"> (opens in a new tab)</span></a> : <span className="break-all">{s.trackingNumber}</span>}
+                      <span className="block text-xs text-muted">{s.by} · {formatDateTime(s.shippedAt)}</span>
+                    </span>
+                    {canWrite && <Button size="sm" variant="ghost" onClick={() => removeShipment(s.id)} disabled={!!busy} aria-label={`Remove tracking ${s.trackingNumber}`}>Remove</Button>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canWrite && ["processing", "shipped", "delivered"].includes(o.status) && (
+              <form onSubmit={(e) => { e.preventDefault(); addShipment(); }} className="space-y-3 border-t border-border pt-3" noValidate>
+                <div>
+                  <label htmlFor="carrier" className="label">Carrier</label>
+                  <select id="carrier" className="input" value={ship.carrier} onChange={(e) => setShip({ ...ship, carrier: e.target.value as CarrierId })}>{CARRIERS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                </div>
+                <Input label="Tracking number" value={ship.trackingNumber} maxLength={40} error={fieldErr.trackingNumber} onChange={(e) => setShip({ ...ship, trackingNumber: e.target.value })} />
+                {!CARRIERS.find((c) => c.id === ship.carrier)?.url && <Input label="Tracking page (optional https link)" value={ship.trackingUrl} maxLength={500} error={fieldErr.trackingUrl} hint="Customers get a tracking link when this is set." onChange={(e) => setShip({ ...ship, trackingUrl: e.target.value })} />}
+                <Button type="submit" size="sm" loading={busy === "shipment"} disabled={!!busy}>Add tracking & email customer</Button>
+              </form>
+            )}
+          </Card>
 
           <Card title="Payment">
             <p className="text-sm">Method: <span className="font-medium uppercase">{o.payment.method}</span> <PaymentBadge status={o.payment.status} /></p>
@@ -194,6 +239,15 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
           </Card>
         </div>
       </div>
+
+      <Modal open={confirm === "delivered"} onClose={() => setConfirm(null)} title="Decline this return?">
+        <p className="text-sm text-muted">The order goes back to delivered and the customer is emailed the decision. They cannot request this return again.</p>
+        <div className="mt-4"><Input label="Note for the customer (optional)" value={statusNote} maxLength={500} onChange={(e) => setStatusNote(e.target.value)} /></div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setConfirm(null)}>Cancel</Button>
+          <Button variant="danger" onClick={() => setStatus("delivered")} loading={busy === "status"}>Decline return</Button>
+        </div>
+      </Modal>
 
       <Modal open={confirm === "cancelled"} onClose={() => setConfirm(null)} title="Cancel this order?">
         <p className="text-sm text-muted">The items go back into stock. If the customer already paid, record a refund afterwards. This cannot be undone.</p>

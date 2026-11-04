@@ -193,7 +193,7 @@ describe("homepage service (godpuja_test)", () => {
     expect(rail("Latest")!.products).toHaveLength(2);
     expect(rail("Latest")!.products[0].name).not.toBe("Draft");
     expect(rail("Best")!.products.map((p) => p.name)).toEqual(["Old kit", "New kit"]); // by soldCount, scoped
-    expect(rail("Best")!.viewAll).toBe("/category/kits");
+    expect(rail("Best")!.viewAll).toBe("/shop/kits");
     expect(rail("Scoped")!.products.map((p) => p.name)).toEqual(["Idol"]);
     expect(rail("Nothing")).toBeUndefined();
     expect(JSON.stringify(home)).not.toMatch(/"stock"/);

@@ -19,7 +19,7 @@ export default async function EditCategory({ params }: PageProps<"/admin/categor
   ]);
   return (
     <>
-      <PageHeader title={category.name} description={`/category/${category.path}`} />
+      <PageHeader title={category.name} description={`/shop/${category.path}`} />
       <CategoryForm category={category} all={all} />
     </>
   );

@@ -106,7 +106,7 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
       }
       case "featuredProducts": case "latestProducts": case "bestSellers": {
         const products = railResults.get(s.id) ?? [];
-        if (products.length) out.push({ id: s.id, type: s.type, heading: s.data.heading, products, viewAll: s.data.category ? `/category/${s.data.category}` : null });
+        if (products.length) out.push({ id: s.id, type: s.type, heading: s.data.heading, products, viewAll: s.data.category ? `/shop/${s.data.category}` : null });
         break;
       }
       case "richText": { const html = renderMarkdown(s.data.markdown); if (s.data.markdown.trim()) out.push({ id: s.id, type: "richText", html }); break; }

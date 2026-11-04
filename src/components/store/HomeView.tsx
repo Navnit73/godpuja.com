@@ -109,7 +109,7 @@ function Block({ s }: { s: PublicHomeSection }) {
           <ul className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 sm:gap-x-6 lg:grid-cols-6">
             {s.categories.map((c) => (
               <li key={c.id}>
-                <Link href={`/category/${c.path}`} className="group flex flex-col items-center gap-3 text-center">
+                <Link href={`/shop/${c.path}`} className="group flex flex-col items-center gap-3 text-center">
                   <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:-translate-y-1 group-hover:shadow-elev-2 group-hover:ring-2 group-hover:ring-gold-400">
                     {c.image.url
                       ? <img {...responsive(c.image.url, "(min-width: 1024px) 160px, 33vw", 320)} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full rounded-full object-cover" />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { resetWishlist } from "@/lib/wishlist-store";
 import { ChevronDown, UserIcon } from "./Icons";
 
 export type HeaderUser = { name: string; email: string; isStaff: boolean };
@@ -40,6 +41,7 @@ export default function AccountMenu({ user }: { user: HeaderUser | null }) {
     setFailed(false);
     try {
       await api.post("/auth/logout");
+      resetWishlist();
       setOpen(false);
       router.refresh(); // re-render the header (and any account-aware page) as signed out
     } catch {

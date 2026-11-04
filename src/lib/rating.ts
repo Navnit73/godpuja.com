@@ -1,8 +1,12 @@
 // Shared (client + server safe). Ratings are whole stars 1–5; averages are kept to two decimals.
 export const STARS = [1, 2, 3, 4, 5] as const;
 
-/** Average from the running totals kept on the product (0 when there are no ratings). */
-export const averageOf = (sum: number, count: number) => (count > 0 ? Math.round((sum / count) * 100) / 100 : 0);
+/**
+ * Average from the running totals kept on the product (0 when there are no ratings), rounded half up to two decimals.
+ * The same formula runs in the database (services/reviews.ts adjustRating); MongoDB's $round rounds halves to even
+ * (3.625 -> 3.62), so it is not used: the stored rating and the one computed for the page must always agree.
+ */
+export const averageOf = (sum: number, count: number) => (count > 0 ? Math.floor((sum / count) * 100 + 0.5) / 100 : 0);
 
 /** "4.5" for display; whole numbers stay whole ("4"). */
 export const formatRating = (avg: number) => (Number.isInteger(avg) ? String(avg) : avg.toFixed(1));

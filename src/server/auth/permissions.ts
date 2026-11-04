@@ -9,7 +9,7 @@ export const PERMISSIONS = [
   "orders:read", "orders:write", "orders:refund",
   "customers:read", "seo:write", "settings:write",
   "users:read", "users:write",
-  "coupons:write", "tax:write",
+  "coupons:write", "tax:write", "reviews:write",
   // PRD v1.1 Phase 2 domains. Defined now so roles are complete; enforced by the modules that ship in Stages 18–22.
   "temples:read", "temples:write", "temples:verify",
   "bookings:read", "bookings:write", "bookings:refund",
@@ -19,7 +19,7 @@ export const PERMISSIONS = [
 export type Permission = (typeof PERMISSIONS)[number];
 
 // Coupons are a store manager's tool; tax rules are finance-sensitive and stay with admin / superadmin only.
-const STORE: Permission[] = ["products:read", "products:write", "categories:write", "inventory:write", "media:write", "orders:read", "orders:write", "customers:read", "coupons:write"];
+const STORE: Permission[] = ["products:read", "products:write", "categories:write", "inventory:write", "media:write", "orders:read", "orders:write", "customers:read", "coupons:write", "reviews:write"];
 const CONTENT: Permission[] = ["pages:read", "pages:write", "pages:publish", "nav:write", "footer:write", "home:write", "media:write", "seo:write"];
 
 /** PRD v1.1 §12. Temple operators are additionally limited to their assigned temples (see ./scope.ts). */

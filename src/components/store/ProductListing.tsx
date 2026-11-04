@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { listingHref, SORTS } from "@/lib/listing";
+import { isFiltered, listingHref, SORTS } from "@/lib/listing";
 import { formatMoney } from "@/lib/money";
 import type { PublicProductsInput } from "@/lib/validation/catalog";
-import type { PublicProduct } from "@/server/services/products";
+import type { FacetGroup, PublicProduct } from "@/server/services/products";
+import FilterPanel from "./FilterPanel";
 import { ChevronDown, CloseIcon } from "./Icons";
 import Popover from "./Popover";
 import ProductCard from "./ProductCard";
@@ -12,8 +13,9 @@ type Result = { items: PublicProduct[]; total: number; page: number; pages: numb
 
 /** One-line toolbar (count, active filter, sort, price popover; a plain GET form that works without JavaScript)
  *  + product grid + pagination. */
-export default function ProductListing({ base, query, result, hiddenFields = {}, heading = "Products" }: { base: string; query: PublicProductsInput; result: Result; hiddenFields?: Record<string, string>; heading?: string }) {
+export default function ProductListing({ base, query, result, facets, hiddenFields = {}, heading = "Products" }: { base: string; query: PublicProductsInput; result: Result; facets?: FacetGroup[]; hiddenFields?: Record<string, string>; heading?: string }) {
   const filtered = query.minPrice !== undefined || query.maxPrice !== undefined;
+  const anyFilter = isFiltered(query);
   const clearHref = listingHref(base, { ...query, minPrice: undefined, maxPrice: undefined, page: 1 }, hiddenFields);
   const priceLabel = query.minPrice !== undefined && query.maxPrice !== undefined ? `${formatMoney(query.minPrice)} – ${formatMoney(query.maxPrice)}`
     : query.minPrice !== undefined ? `From ${formatMoney(query.minPrice)}` : query.maxPrice !== undefined ? `Up to ${formatMoney(query.maxPrice)}` : "";
@@ -54,11 +56,13 @@ export default function ProductListing({ base, query, result, hiddenFields = {},
         </form>
       </div>
 
+      {facets && <FilterPanel base={base} query={query} facets={facets} hiddenFields={hiddenFields} />}
+
       {result.items.length === 0 ? (
         <div className="flex flex-col items-center rounded-2xl border border-dashed border-sandal-300 bg-surface px-6 py-16 text-center">
           <p className="text-lg font-semibold">No products found</p>
-          <p className="mt-1 text-sm text-muted">{filtered ? "Try widening the price range." : "Please check back soon."}</p>
-          {filtered && <Link href={clearHref} className="btn-outline mt-5">Clear price filter</Link>}
+          <p className="mt-1 text-sm text-muted">{anyFilter ? "Try removing a filter." : "Please check back soon."}</p>
+          {anyFilter && <Link href={base} className="btn-outline mt-5">Clear all filters</Link>}
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">{result.items.map((p) => <ProductCard key={p.id} p={p} />)}</ul>

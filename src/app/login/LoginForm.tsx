@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { api, ApiClientError } from "@/lib/api";
 import { safeNext } from "@/lib/safe-next";
+import { resetWishlist } from "@/lib/wishlist-store";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function LoginForm() {
     setError(null);
     try {
       const me = await api.post<{ role: string }>("/auth/login", values);
+      resetWishlist(); // the hearts must ask again as this person
       // Customers have no admin access; send them to the storefront instead of bouncing back to /login.
       router.replace(me.role === "customer" ? customerNext : next);
       router.refresh();

@@ -13,6 +13,10 @@ import { LotusOrnament, ShieldIcon, TruckIcon } from "@/components/store/Icons";
 import { env } from "@/server/env";
 import { getPublicProduct } from "@/server/public/catalog";
 import { findRelated } from "@/server/services/products";
+import ProductReviews from "@/components/store/ProductReviews";
+import RecentlyViewed from "@/components/store/RecentlyViewed";
+import Stars from "@/components/store/Stars";
+import WishlistButton from "@/components/store/WishlistButton";
 
 type Props = PageProps<"/product/[slug]">;
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -70,11 +74,13 @@ async function Content({ params }: Props) {
             {p.brand && <p className="eyebrow">{p.brand}</p>}
             <h1 className="mt-1 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">{p.name}</h1>
             <LotusOrnament className="mt-2 h-4 w-20 text-accent sm:mt-3" />
+            {p.rating && <a href="#reviews" className="mt-2 inline-block"><Stars avg={p.rating.avg} count={p.rating.count} /></a>}
             {p.shortDescription && <p className="mt-2 text-base text-muted sm:mt-3 sm:text-lg">{p.shortDescription}</p>}
           </div>
           <div className="rounded-2xl border border-sandal-200 bg-dawn p-4 sm:p-6">
             <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} upcoming={p.upcoming} variants={p.variants} />
           </div>
+          <WishlistButton productId={p.id} name={p.name} />
           <ul className="grid grid-cols-2 gap-2 text-xs sm:gap-3 sm:text-sm">
             <li className="flex items-center gap-2 rounded-xl border border-sandal-200 bg-surface px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>
             <li className="flex items-center gap-2 rounded-xl border border-sandal-200 bg-surface px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"><TruckIcon className="h-5 w-5 shrink-0 text-primary" />{p.freeShipping ? <span className="font-medium text-success">Free shipping</span> : "Packed with care"}</li>
@@ -95,7 +101,9 @@ async function Content({ params }: Props) {
           <div className="content" dangerouslySetInnerHTML={{ __html: p.descriptionHtml }} />
         </section>
       )}
+      <Suspense fallback={null}><ProductReviews productId={p.id} slug={p.slug} /></Suspense>
       <Suspense fallback={null}><Related slug={p.slug} /></Suspense>
+      <RecentlyViewed slug={p.slug} />
       <p className="mt-8 text-sm sm:mt-10"><Link href="/" className="text-primary underline">Continue shopping</Link></p>
     </main>
   );

@@ -5,6 +5,7 @@ import PageBand from "@/components/store/PageBand";
 const TABS = [
   { href: "/account", label: "Overview", key: "overview" },
   { href: "/account/orders", label: "Orders", key: "orders" },
+  { href: "/account/wishlist", label: "Wishlist", key: "wishlist" },
   { href: "/account/addresses", label: "Addresses", key: "addresses" },
   { href: "/account/profile", label: "Profile & security", key: "profile" },
 ] as const;

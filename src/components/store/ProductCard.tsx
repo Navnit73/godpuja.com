@@ -4,11 +4,15 @@ import { formatMoney } from "@/lib/money";
 import type { PublicProduct } from "@/server/services/products";
 import { responsive } from "@/lib/image";
 import { ArrowRight, LotusOrnament } from "./Icons";
+import Stars from "./Stars";
+import WishlistButton from "./WishlistButton";
 
 export default function ProductCard({ p, className = "" }: { p: PublicProduct; className?: string }) {
   const off = p.salePrice != null && p.price > 0 ? Math.round((1 - p.salePrice / p.price) * 100) : 0;
   return (
-    <li className={`product-tile group ${className}`}>
+    <li className={`product-tile group relative ${className}`}>
+      {/* Beside the link, not inside it: a button must not be nested in a link. */}
+      <WishlistButton productId={p.id} name={p.name} compact />
       <Link href={`/product/${p.slug}`} className="flex h-full flex-col rounded-xl">
         <div className="relative overflow-hidden rounded-xl bg-sandal-100">
           {p.image
@@ -22,6 +26,7 @@ export default function ProductCard({ p, className = "" }: { p: PublicProduct; c
         </div>
         <div className="flex flex-1 flex-col gap-2 px-1 pb-1 pt-3">
           <h3 className="line-clamp-2 font-sans text-sm font-medium leading-snug text-foreground transition-colors group-hover:text-primary sm:text-base">{p.name}</h3>
+          {p.rating && <Stars avg={p.rating.avg} count={p.rating.count} />}
           <div className="mt-auto flex items-center justify-between gap-2">
             <p className="flex flex-wrap items-baseline gap-x-2">
               <span className="text-base font-semibold text-foreground">{formatMoney(p.salePrice ?? p.price)}</span>

@@ -7,12 +7,12 @@ import PageBand from "@/components/store/PageBand";
 import JsonLd from "@/components/JsonLd";
 import { breadcrumbLd } from "@/lib/jsonld";
 import ProductListing from "@/components/store/ProductListing";
-import { parseListing } from "@/lib/listing";
+import { isFiltered, parseListing } from "@/lib/listing";
 import { categoryHref, SHOP } from "@/lib/shop-url";
 import { publicProductsSchema } from "@/lib/validation/catalog";
 import { env } from "@/server/env";
 import { findCategoryTree, findPublicCategory } from "@/server/services/categories";
-import { findPublicProducts } from "@/server/services/products";
+import { findFacets, findPublicProducts } from "@/server/services/products";
 
 type Props = PageProps<"/shop/[[...path]]">;
 
@@ -34,7 +34,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const sp = await searchParams;
   if (path === "") {
     const q = parseListing(sp, { category: undefined, q: undefined });
-    const filtered = q.sort !== "newest" || q.minPrice !== undefined || q.maxPrice !== undefined;
+    const filtered = isFiltered(q);
     const base = `${site()}${SHOP}`;
     const canonical = !filtered && q.page > 1 ? `${base}?page=${q.page}` : base;
     const description = "Pooja samagri, idols, diyas, incense, malas and more for your daily worship and festivals.";
@@ -50,7 +50,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const q = parseListing(sp, { category: cat.path, q: undefined });
   // Sorted/filtered variants are near-duplicates: noindex them and point at the plain listing. Plain pages 2..n
   // are distinct content and canonicalise to themselves.
-  const filtered = q.sort !== "newest" || q.minPrice !== undefined || q.maxPrice !== undefined;
+  const filtered = isFiltered(q);
   const base = `${site()}${categoryHref(cat.path)}`;
   const canonical = cat.seo.canonical || (!filtered && q.page > 1 ? `${base}?page=${q.page}` : base);
   return {
@@ -68,7 +68,7 @@ async function Content({ params, searchParams }: Props) {
 
   if (path === "") {
     const query = parseListing(sp, { category: undefined, q: undefined });
-    const [result, tree] = await Promise.all([findPublicProducts(query), findCategoryTree()]);
+    const [result, tree, facets] = await Promise.all([findPublicProducts(query), findCategoryTree(), findFacets(query)]);
     return (
       <main id="main" tabIndex={-1} className="w-full flex-1">
         <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, { name: "Shop", path: SHOP }])} />
@@ -80,7 +80,7 @@ async function Content({ params, searchParams }: Props) {
           )}
         </PageBand>
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-          <ProductListing base={SHOP} query={query} result={result} />
+          <ProductListing base={SHOP} query={query} result={result} facets={facets} />
         </div>
       </main>
     );
@@ -89,7 +89,7 @@ async function Content({ params, searchParams }: Props) {
   const cat = await findPublicCategory(path);
   if (!cat) notFound();
   const query = parseListing(sp, { category: path, q: undefined });
-  const result = await findPublicProducts(query);
+  const [result, facets] = await Promise.all([findPublicProducts(query), findFacets(query)]);
   const crumbs = [{ name: "Shop", path: SHOP }, ...cat.breadcrumbs.map((b) => ({ name: b.name, path: categoryHref(b.path) }))];
   return (
     <main id="main" tabIndex={-1} className="w-full flex-1">
@@ -103,7 +103,7 @@ async function Content({ params, searchParams }: Props) {
         )}
       </PageBand>
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-        <ProductListing base={categoryHref(cat.path)} query={query} result={result} />
+        <ProductListing base={categoryHref(cat.path)} query={query} result={result} facets={facets} />
       </div>
     </main>
   );

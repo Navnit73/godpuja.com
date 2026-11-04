@@ -7,6 +7,7 @@ import { Product, type ProductDoc } from "../models/Product";
 import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
 import type { InventoryInput, ListProductsInput, ProductInput, PublicProductsInput, UpdateProductInput } from "@/lib/validation/catalog";
 import { activeSubtree, categorySnapshot } from "./category-snapshot";
+import { FACETS, FACET_KEYS, MAX_FACET_VALUES, type FacetKey } from "@/lib/facets";
 
 type Variant = ProductDoc["variants"][number];
 export type AdminProduct = Omit<ProductInput, "variants"> & { id: string; variants: Variant[]; soldCount: number; createdAt: string; updatedAt: string };
@@ -224,6 +225,8 @@ export async function adjustStock(id: string, input: InventoryInput) {
 export type PublicProduct = {
   id: string; name: string; slug: string; shortDescription: string; image: { url: string; alt: string } | null;
   price: number; salePrice: number | null; inStock: boolean; upcoming: boolean; isFeatured: boolean; category: string | null;
+  /** Published reviews only; null when there are none (no rating is ever shown without reviews behind it). */
+  rating: { avg: number; count: number } | null;
 };
 export type PublicProductDetail = Omit<PublicProduct, "image"> & {
   sku: string; descriptionHtml: string; images: { url: string; alt: string }[]; brand: string;
@@ -253,34 +256,100 @@ export async function activeCategoryIds(path: string): Promise<mongoose.Types.Ob
   return activeSubtree(await categorySnapshot(), path);
 }
 
-export async function findPublicProducts(q: PublicProductsInput) {
-  await connectDB();
+const ratingOf = (p: { ratingAvg?: number; ratingCount?: number }) => ((p.ratingCount ?? 0) > 0 ? { avg: p.ratingAvg ?? 0, count: p.ratingCount ?? 0 } : null);
+const CARD_FIELDS = "name slug shortDescription images price salePrice stock variants isFeatured category status ratingAvg ratingCount";
+const ci = (v: string) => new RegExp(`^${escapeRegex(v)}$`, "i");
+
+/** Conditions every public listing shares: visible status, category subtree, price range and text search. */
+async function baseFilter(q: PublicProductsInput) {
   const filter: Record<string, unknown> = { status: visible };
   const cats = await categorySnapshot();
   if (q.category) {
     const ids = activeSubtree(cats, q.category);
-    if (!ids) return { items: [] as PublicProduct[], total: 0, page: q.page, limit: q.limit, pages: 1 };
+    if (!ids) return null;
     filter.category = { $in: ids };
-  }
+  } else if (cats.hidden.length) filter.category = { $nin: cats.hidden };
   if (q.featured) filter.isFeatured = true;
   if (q.minPrice !== undefined || q.maxPrice !== undefined) {
     filter.effectivePrice = { ...(q.minPrice !== undefined ? { $gte: q.minPrice } : {}), ...(q.maxPrice !== undefined ? { $lte: q.maxPrice } : {}) };
   }
   if (q.q) filter.$text = { $search: q.q };
+  return { filter, cats };
+}
+
+/** Filters a shopper can switch on top of the base: availability, minimum rating, and attribute facets. */
+function refinements(q: PublicProductsInput): Record<string, unknown>[] {
+  const and: Record<string, unknown>[] = [];
+  // In stock = a product without variants with units, or any variant with units.
+  if (q.stock) and.push({ $or: [{ variants: { $size: 0 }, stock: { $gt: 0 } }, { variants: { $elemMatch: { stock: { $gt: 0 } } } }] });
+  if (q.rating) and.push({ ratingCount: { $gt: 0 }, ratingAvg: { $gte: q.rating } });
+  for (const k of FACET_KEYS) if (q[k]) and.push({ attributes: { $elemMatch: { name: ci(k), value: ci(q[k]!) } } });
+  return and;
+}
+
+export async function findPublicProducts(q: PublicProductsInput) {
+  await connectDB();
+  const base = await baseFilter(q);
+  if (!base) return { items: [] as PublicProduct[], total: 0, page: q.page, limit: q.limit, pages: 1 };
+  const { filter, cats } = base;
+  const and = refinements(q);
+  if (and.length) filter.$and = and;
   const sort: Record<string, 1 | -1> =
     q.sort === "price-asc" ? { effectivePrice: 1, _id: 1 } : q.sort === "price-desc" ? { effectivePrice: -1, _id: -1 }
-    : q.sort === "popular" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
-  const { catPath: path, hidden } = cats;
-  if (hidden.length && !q.category) filter.category = { $nin: hidden };
+    : q.sort === "popular" ? { soldCount: -1, _id: -1 } : q.sort === "rating" ? { ratingAvg: -1, ratingCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
+  const path = cats.catPath;
   const [rows, total] = await Promise.all([
-    Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category status").sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
+    Product.find(filter).select(CARD_FIELDS).sort(sort).skip((q.page - 1) * q.limit).limit(q.limit).lean(),
     Product.countDocuments(filter),
   ]);
   const items: PublicProduct[] = rows.map((p) => ({
     id: String(p._id), name: p.name, slug: p.slug, shortDescription: p.shortDescription ?? "", image: sortedImages(p as ProductDoc)[0] ?? null,
     price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p as ProductDoc), upcoming: p.status === "upcoming", isFeatured: !!p.isFeatured, category: p.category ? path.get(String(p.category)) ?? null : null,
+    rating: ratingOf(p),
   }));
   return { items, total, page: q.page, limit: q.limit, pages: Math.max(1, Math.ceil(total / q.limit)) };
+}
+
+/**
+ * Public product cards by id or slug, in the order given (wishlist, recently viewed). Hidden, draft and deleted products
+ * are simply left out, so a stale list never shows something a visitor could not open.
+ */
+export async function findCards({ ids, slugs }: { ids?: string[]; slugs?: string[] }): Promise<PublicProduct[]> {
+  await connectDB();
+  const keys = ids ?? slugs ?? [];
+  if (keys.length === 0) return [];
+  const byId = !!ids;
+  const valid = byId ? keys.filter(isId) : keys.filter((s) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(s));
+  const { catPath, hidden } = await loadCategoryIndex();
+  const rows = await Product.find({ status: visible, ...(byId ? { _id: { $in: valid } } : { slug: { $in: valid } }), ...(hidden.length ? { category: { $nin: hidden } } : {}) }).select(CARD_FIELDS).lean();
+  const key = (p: { _id: unknown; slug: string }) => (byId ? String(p._id) : p.slug);
+  const order = new Map(valid.map((k, i) => [k, i]));
+  return rows.sort((a, b) => (order.get(key(a)) ?? 0) - (order.get(key(b)) ?? 0)).map((p) => toPublicProduct(p as ProductDoc, catPath));
+}
+
+export type FacetGroup = { key: FacetKey; name: string; values: { value: string; count: number }[] };
+
+/**
+ * Which filter values exist among the products being browsed (same category, price and search, before the facet
+ * filters themselves), with how many products carry each. Only values that exist are offered; groups with none are
+ * omitted. Values that differ only in letter case are merged.
+ */
+export async function findFacets(q: PublicProductsInput): Promise<FacetGroup[]> {
+  await connectDB();
+  const base = await baseFilter(q);
+  if (!base) return [];
+  const rows = await Product.aggregate<{ _id: { k: string; v: string }; value: string; n: number }>([
+    { $match: base.filter },
+    { $unwind: "$attributes" },
+    { $project: { k: { $toLower: { $trim: { input: { $ifNull: ["$attributes.name", ""] } } } }, v: { $trim: { input: { $ifNull: ["$attributes.value", ""] } } } } },
+    { $match: { k: { $in: FACET_KEYS }, v: { $ne: "" } } },
+    // $min keeps one stable spelling when values differ only in case ("Ganesha" sorts before "ganesha").
+    { $group: { _id: { k: "$k", v: { $toLower: "$v" } }, value: { $min: "$v" }, n: { $sum: 1 } } },
+  ]);
+  return FACETS.map((f) => ({
+    key: f.key, name: f.name,
+    values: rows.filter((r) => r._id.k === f.key).sort((a, b) => b.n - a.n || a.value.localeCompare(b.value)).slice(0, MAX_FACET_VALUES).map((r) => ({ value: r.value, count: r.n })),
+  })).filter((g) => g.values.length > 0);
 }
 
 export async function findPublicProduct(slug: string): Promise<PublicProductDetail | null> {
@@ -300,7 +369,7 @@ export async function findPublicProduct(slug: string): Promise<PublicProductDeta
     category: cat?.path ?? null, categoryPath: cat?.path ?? null, attributes: (p.attributes ?? []).map((a) => ({ name: a.name!, value: a.value! })),
     variants: (p.variants ?? []).map((v) => ({ sku: v.sku, options: plainOptions(v.options), price: v.price ?? p.price, salePrice: v.salePrice ?? (v.price == null ? p.salePrice ?? null : null), inStock: v.stock > 0 })),
     seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "", canonical: p.seo?.canonical ?? "", ogImage: p.seo?.ogImage ?? "", noindex: !!p.seo?.noindex },
-    freeShipping: !!p.shipping?.freeShipping,
+    freeShipping: !!p.shipping?.freeShipping, rating: ratingOf(p),
   };
 }
 
@@ -311,6 +380,7 @@ export type RailSpec = { kind: "featuredProducts" | "latestProducts" | "bestSell
 const toPublicProduct = (p: ProductDoc, catPath: Map<string, string>): PublicProduct => ({
   id: String(p._id), name: p.name, slug: p.slug, shortDescription: p.shortDescription ?? "", image: sortedImages(p)[0] ?? null,
   price: p.price, salePrice: p.salePrice ?? null, inStock: inStock(p), upcoming: p.status === "upcoming", isFeatured: !!p.isFeatured, category: p.category ? catPath.get(String(p.category)) ?? null : null,
+  rating: ratingOf(p),
 });
 
 /** One indexed, limited query for a homepage product rail. Callers run all rails in parallel (never per product). */
@@ -326,7 +396,7 @@ export async function findRail(spec: RailSpec, catPath: Map<string, string>, hid
   // _id tiebreaker keeps the order stable between cache refreshes when many products tie (e.g. all unsold); the
   // compound indexes end in _id so the sort is still served from the index.
   const sort: Record<string, 1 | -1> = spec.kind === "bestSellers" ? { soldCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
-  const rows = await Product.find(filter).select("name slug shortDescription images price salePrice stock variants isFeatured category status").sort(sort).limit(spec.limit).lean();
+  const rows = await Product.find(filter).select(CARD_FIELDS).sort(sort).limit(spec.limit).lean();
   return rows.map((p) => toPublicProduct(p as ProductDoc, catPath));
 }
 
@@ -337,7 +407,7 @@ export async function findRelated(slug: string, limit = 4): Promise<PublicProduc
   if (!base) return [];
   const { catPath, hidden } = await loadCategoryIndex();
   const notHidden = hidden.length ? { category: { $nin: hidden } } : {};
-  const pick = "name slug shortDescription images price salePrice stock variants isFeatured category status";
+  const pick = CARD_FIELDS;
   const out: ProductDoc[] = [];
   if (base.category) {
     out.push(...((await Product.find({ status: visible, category: base.category, slug: { $ne: slug } }).select(pick).sort({ soldCount: -1, _id: -1 }).limit(limit).lean()) as ProductDoc[]));

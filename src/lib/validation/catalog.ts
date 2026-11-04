@@ -92,10 +92,17 @@ export type ListProductsInput = z.infer<typeof listProductsSchema>;
 export const publicProductsSchema = z.object({
   category: z.string().trim().max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*){0,2}$/).optional(), // category path
   q: z.string().trim().min(2).max(100).optional(),
-  sort: z.enum(["newest", "price-asc", "price-desc", "popular"]).default("newest"),
+  sort: z.enum(["newest", "price-asc", "price-desc", "popular", "rating"]).default("newest"),
   minPrice: z.coerce.number().int().min(0).optional(),
   maxPrice: z.coerce.number().int().min(0).optional(),
   featured: z.enum(["1"]).optional(),
+  // Storefront filters (PRD v1.1 §5.2). Facet values are free text matched case-insensitively against product attributes.
+  stock: z.enum(["1"]).optional(),
+  rating: z.coerce.number().int().min(1).max(5).optional(),
+  deity: z.string().trim().min(1).max(60).optional(),
+  material: z.string().trim().min(1).max(60).optional(),
+  occasion: z.string().trim().min(1).max(60).optional(),
+  size: z.string().trim().min(1).max(60).optional(),
   page: z.coerce.number().int().min(1).max(500).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(12),
 });

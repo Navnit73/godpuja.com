@@ -188,6 +188,26 @@ Customer-facing messages: unknown and switched-off codes both say "This code is 
 
 **Tax rules:** destination = the shipping country. *Inclusive* tax is already in the prices (reported on the order, total unchanged); *exclusive* tax is added to the total. Tax is calculated on goods after discount, plus shipping only when the rule says so. No rule for a country = no tax line. Rounding: round half up, once per formula. Shipping rates are still not destination-dependent.
 
+## Reviews, filters, wishlist, recently viewed (Stage 14, slice 3)
+**Reviews (verified purchase, moderated).** A customer can review a product only if one of *their* orders containing it is **delivered**; one review per product. A review (and every later edit) is `pending` until staff publish it: only `published` reviews are shown, counted in the product's rating, or used in structured data (`aggregateRating` appears only when published reviews exist, PRD §18). Reviewers are shown as first name + last initial.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | /account/reviews/:slug | signed in | `{eligible, reason ('not_purchased'\|null), review|null}` |
+| PUT | /account/reviews/:slug | signed in (10/h) | `{rating 1–5, title? ≤80, body 10–2000}`. Creates (201) or edits (200) the caller's review; always lands `pending`; editing a published one takes its stars out until it is approved again. Not delivered ⇒ 403 |
+| DELETE | /account/reviews/:slug | signed in | removes the caller's review (and its stars if published) |
+| GET | /admin/reviews?status=pending\|published\|rejected&page= | reviews:write (store manager, admin, superadmin) | oldest first (work the queue in order) |
+| PATCH | /admin/reviews/:id | reviews:write | `{status: published\|rejected, note?}`. Compare-and-set on the status seen (two moderators cannot both apply); the product's rating moves in the **same transaction** |
+| DELETE | /admin/reviews/:id | reviews:write | removes the review (and its stars if published) |
+
+Product rating totals (`ratingCount`, `ratingSum`, `ratingAvg`) are changed only by atomic pipeline updates, so concurrent moderation never loses a star (tested with simultaneous approvals and withdrawals). The average is rounded **half up** to two decimals, with the same formula in code and in the database (MongoDB's `$round` rounds halves to even, which would have disagreed). Cards and the product page show stars only when there is at least one published review.
+
+**Filters (PRD §5.2).** Listing pages (`/shop`, `/shop/<category>`, `/search`) accept `deity`, `material`, `occasion`, `size` (matched case-insensitively against product attributes of that name, as plain text, never as a pattern), `stock=1` (a product with units, or any variant with units), `rating=1..5` (minimum average, published reviews only) and `sort=rating` ("Top rated"). The filter panel offers **only values that exist** among the products being browsed, with counts; a group with no values is omitted. Every filtered or re-sorted page is `noindex, follow` with the plain listing as canonical.
+
+**Wishlist (signed in).** `GET /account/wishlist` → `{ids}` (newest first; colours the hearts), `POST /account/wishlist {productId}` (idempotent; only visible products; up to 200), `DELETE /account/wishlist/:productId`. The page `/account/wishlist` shows the saved products that are still public. Signed-out visitors who press a heart are sent to sign in and come back.
+
+**Recently viewed.** Kept in this browser only (`gp_recent_v1`, ≤12 slugs; nothing is sent until the cards are loaded). `POST /products/cards {slugs ≤12}` (public, 60/min/IP) returns cards for known, visible slugs in the order asked.
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 

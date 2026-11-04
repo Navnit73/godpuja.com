@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { TextField } from "@/components/store/AddressFields";
 import { api, ApiClientError } from "@/lib/api";
+import { resetWishlist } from "@/lib/wishlist-store";
 
 export default function ResetForm() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function ResetForm() {
     e.preventDefault(); setBusy(true); setError(null);
     try {
       const r = await api.post<{ role: string }>("/auth/reset-password", { token, password });
+      resetWishlist();
       router.replace(r.role === "customer" ? "/account" : "/admin");
       router.refresh();
     } catch (err) {

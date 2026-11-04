@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TextField } from "@/components/store/AddressFields";
 import { api, ApiClientError } from "@/lib/api";
+import { resetWishlist } from "@/lib/wishlist-store";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function RegisterForm() {
     e.preventDefault(); setBusy(true); setError(null); setErrs({});
     try {
       await api.post("/auth/register", v);
+      resetWishlist();
       router.replace("/account");
       router.refresh();
     } catch (err) {

@@ -62,7 +62,7 @@ describe("JSON-LD", () => {
     expect(JSON.parse(out).name).toBe("</script><script>alert(1)</script>"); // still the same data
   });
   it("product offers use rupees, sale price, availability; variants become an AggregateOffer", () => {
-    const base = { id: "1", name: "Diya", slug: "diya", sku: "D1", shortDescription: "", descriptionHtml: "", images: [{ url: "https://x/a.png", alt: "" }], brand: "", price: 60000, salePrice: 50000, inStock: true, upcoming: false, isFeatured: false, category: null, categoryPath: null, attributes: [], variants: [], seo: { ...emptySeo }, freeShipping: false, breadcrumbs: [] };
+    const base = { id: "1", name: "Diya", slug: "diya", sku: "D1", shortDescription: "", descriptionHtml: "", images: [{ url: "https://x/a.png", alt: "" }], brand: "", price: 60000, salePrice: 50000, inStock: true, upcoming: false, isFeatured: false, category: null, categoryPath: null, attributes: [], variants: [], seo: { ...emptySeo }, freeShipping: false, breadcrumbs: [], rating: null };
     const ld = productLd("https://godpuja.com/", base) as Ld;
     expect(ld.offers).toMatchObject({ "@type": "Offer", price: "500.00", priceCurrency: "INR", availability: "https://schema.org/InStock", url: "https://godpuja.com/product/diya" });
     expect(ld).not.toHaveProperty("brand");

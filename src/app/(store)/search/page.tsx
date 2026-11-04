@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import PageBand from "@/components/store/PageBand";
 import ProductListing from "@/components/store/ProductListing";
 import { parseListing } from "@/lib/listing";
-import { findPublicProducts } from "@/server/services/products";
+import { findFacets, findPublicProducts } from "@/server/services/products";
 import { ApiError } from "@/server/api";
 import { clientIpFromHeaders, rateLimit } from "@/server/rate-limit";
 
@@ -31,7 +31,7 @@ async function Content({ searchParams }: Props) {
   const q = typeof raw.q === "string" ? raw.q.trim() : "";
   const query = parseListing(raw);
   const allowed = !query.q || searchAllowed(await headers());
-  const result = query.q && allowed ? await findPublicProducts(query) : null;
+  const [result, facets] = query.q && allowed ? await Promise.all([findPublicProducts(query), findFacets(query)]) : [null, undefined];
   return (
     <main id="main" tabIndex={-1} className="w-full flex-1">
       <PageBand title={query.q ? `Results for “${query.q}”` : "Search"} crumbs={[{ name: "Home", href: "/" }, { name: "Search" }]}>
@@ -46,7 +46,7 @@ async function Content({ searchParams }: Props) {
         ? <p className="text-muted" role="status">Too many searches in a short time. Please wait a minute and try again.</p>
         : !query.q
         ? <p className="text-muted">{q.length === 1 ? "Type at least 2 characters to search." : "Enter a word to find products."}</p>
-        : <ProductListing base="/search" query={query} result={result!} hiddenFields={{ q: query.q }} heading={`Results for ${query.q}`} />}
+        : <ProductListing base="/search" query={query} result={result!} facets={facets} hiddenFields={{ q: query.q }} heading={`Results for ${query.q}`} />}
       </div>
     </main>
   );

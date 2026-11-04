@@ -35,6 +35,10 @@ const productSchema = new mongoose.Schema(
       width: { type: Number, default: 0 }, height: { type: Number, default: 0 }, freeShipping: { type: Boolean, default: false },
     },
     soldCount: { type: Number, default: 0 },
+    // Published reviews only, kept in step with the review collection by reviews.ts (atomic increments).
+    ratingCount: { type: Number, default: 0, min: 0 },
+    ratingSum: { type: Number, default: 0, min: 0 },
+    ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     seo: {
       title: { type: String, default: "" }, description: { type: String, default: "" }, canonical: { type: String, default: "" },
       ogImage: { type: String, default: "" }, noindex: { type: Boolean, default: false },
@@ -47,6 +51,7 @@ productSchema.index({ status: 1, isFeatured: 1, createdAt: -1, _id: -1 });
 productSchema.index({ status: 1, createdAt: -1, _id: -1 });
 productSchema.index({ status: 1, soldCount: -1, _id: -1 });
 productSchema.index({ status: 1, effectivePrice: 1 });
+productSchema.index({ status: 1, ratingAvg: -1, ratingCount: -1, _id: -1 });
 productSchema.index({ "variants.sku": 1 }, { unique: true, partialFilterExpression: { "variants.sku": { $type: "string" } } });
 productSchema.index({ name: "text", shortDescription: "text", brand: "text" }, { weights: { name: 5, brand: 2, shortDescription: 1 } });
 productSchema.index({ updatedAt: -1 });

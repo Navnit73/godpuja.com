@@ -28,6 +28,8 @@ export function productLd(base: string, p: PublicProductDetail) {
     ...(p.images.length ? { image: p.images.map((i) => i.url) } : {}),
     ...(p.shortDescription ? { description: p.shortDescription } : {}),
     ...(p.brand ? { brand: { "@type": "Brand", name: p.brand } } : {}),
+    // Only from published, verified reviews that are visible on the page (PRD v1.1 §18); never invented.
+    ...(p.rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: p.rating.avg, reviewCount: p.rating.count, bestRating: 5, worstRating: 1 } } : {}),
     offers,
   };
 }

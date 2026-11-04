@@ -4,6 +4,7 @@
  */
 export const SECTION_LINKS = [
   { key: "shop", option: "Shop (all products)", label: "Shop", url: "/shop" },
+  { key: "pooja-vidhi", option: "Pooja Vidhi (all guides)", label: "Pooja Vidhi", url: "/pooja-vidhi" },
   { key: "blog", option: "Blog (all posts)", label: "Blog", url: "/blog" },
   { key: "guides", option: "Guides (all guides)", label: "Guides", url: "/guides" },
 ] as const;

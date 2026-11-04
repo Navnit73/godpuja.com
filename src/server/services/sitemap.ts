@@ -2,6 +2,7 @@ import { connectDB } from "../db";
 import { Category } from "../models/Category";
 import { Page } from "../models/Page";
 import { Product } from "../models/Product";
+import { findVidhiForSitemap } from "./vidhi";
 
 export type SitemapEntry = { path: string; lastModified: Date };
 const MAX_URLS = 50_000; // sitemap protocol limit per file
@@ -31,5 +32,8 @@ export async function findSitemapEntries(now = new Date()): Promise<SitemapEntry
   }
   for (const c of cats) if (!hidden(c.path) && !c.seo?.noindex) out.push({ path: `/shop/${c.path}`, lastModified: c.updatedAt });
   for (const p of products) out.push({ path: `/product/${p.slug}`, lastModified: p.updatedAt });
+  const guides = await findVidhiForSitemap(now);
+  if (guides.length) out.push({ path: "/pooja-vidhi", lastModified: guides[0].updatedAt });
+  for (const g of guides) out.push({ path: `/pooja-vidhi/${g.slug}`, lastModified: g.updatedAt });
   return out.slice(0, MAX_URLS);
 }

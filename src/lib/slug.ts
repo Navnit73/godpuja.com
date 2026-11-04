@@ -3,7 +3,7 @@ const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** First URL segments owned by the app; CMS pages may not use them. */
 export const RESERVED_SLUGS = [
   "admin", "api", "login", "logout", "register", "account", "forgot-password", "reset-password", "verify-email", "cart", "checkout", "order", "orders",
-  "category", "categories", "shop", "product", "products", "search", "preview", "sitemap.xml", "robots.txt",
+  "category", "categories", "shop", "pooja-vidhi", "product", "products", "search", "preview", "sitemap.xml", "robots.txt",
   "_next", "favicon.ico", "icon.svg", "apple-icon.png", "icon", "page-not-found",
 ] as const;
 

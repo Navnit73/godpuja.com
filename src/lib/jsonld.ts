@@ -34,10 +34,13 @@ export function productLd(base: string, p: PublicProductDetail) {
   };
 }
 
-export function articleLd(base: string, a: { title: string; slug: string; description: string; image: string; publishedAt: string | null; siteName: string }) {
+export function articleLd(base: string, a: { title: string; slug: string; description: string; image: string; publishedAt: string | null; siteName: string; path?: string; author?: string; modifiedAt?: string | null; type?: "BlogPosting" | "Article" }) {
+  const path = a.path ?? `/${a.slug}`;
   return {
-    "@context": "https://schema.org", "@type": "BlogPosting", headline: a.title, url: abs(base, `/${a.slug}`),
-    mainEntityOfPage: abs(base, `/${a.slug}`), publisher: { "@type": "Organization", name: a.siteName },
+    "@context": "https://schema.org", "@type": a.type ?? "BlogPosting", headline: a.title, url: abs(base, path),
+    mainEntityOfPage: abs(base, path), publisher: { "@type": "Organization", name: a.siteName },
+    ...(a.author ? { author: { "@type": "Person", name: a.author } } : {}),
+    ...(a.modifiedAt ? { dateModified: a.modifiedAt } : {}),
     ...(a.description ? { description: a.description } : {}),
     ...(a.image ? { image: [a.image] } : {}),
     ...(a.publishedAt ? { datePublished: a.publishedAt } : {}),

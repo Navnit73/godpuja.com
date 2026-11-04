@@ -208,6 +208,28 @@ Product rating totals (`ratingCount`, `ratingSum`, `ratingAvg`) are changed only
 
 **Recently viewed.** Kept in this browser only (`gp_recent_v1`, ≤12 slugs; nothing is sent until the cards are loaded). `POST /products/cards {slugs ≤12}` (public, 60/min/IP) returns cards for known, visible slugs in the order asked.
 
+## Pooja Vidhi guides (Stage 15, PRD v1.1 §8)
+Structured ritual guides at `/pooja-vidhi` (index, optional `?category=` and `?page=`) and `/pooja-vidhi/<slug>`. Separate from CMS pages: `pooja-vidhi` is a reserved first URL segment, so no page can take it. Same workflow as pages: draft → (schedule) → published, secret-token preview, optimistic concurrency, redirect on slug change.
+
+**Content:** title, slug, category (`daily`, `festival`, `special`, `vrat-katha`, `step-by-step`), deity, duration, cover image (+ alt), introduction, significance, **samagri** list (item, quantity, note, optional shop product slug), preparation, **steps** (heading, Markdown body, optional mantra), **mantras** (name, text, meaning), additional Markdown text, related products / guides / aarti (by slug), tags, author, **reviewer + review date**, SEO. All Markdown is sanitised. Devanagari text is marked `lang="sa"` and set in Noto Sans Devanagari (loaded only on pages that contain it).
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET / POST | /admin/pooja-vidhi | vidhi:read / vidhi:write | list: `q` (title, URL, deity; plain text), `status`, `category`, `page`, `limit` ≤50. POST creates a draft |
+| GET / PATCH / DELETE | /admin/pooja-vidhi/:id | vidhi:read / write | PATCH needs `baseUpdatedAt` (stale ⇒ 409). Without `vidhi:publish`, only drafts can be changed or deleted (enforced inside the write). Renaming the slug records a 301 from the old URL and updates other guides' related lists; deleting removes the guide from their related lists |
+| POST | /admin/pooja-vidhi/:id/publish | vidhi:publish | `{action: publish\|unpublish\|schedule, publishAt?}`. **Publishing or scheduling requires** an introduction, at least one step (or body text), a **named reviewer and a review date** (400 with a message per missing field). Re-publishing keeps the original date |
+| POST | /admin/pooja-vidhi/:id/preview-token | vidhi:write | new secret preview link; the old one stops working; does not change `updatedAt` |
+
+Content managers, admins and superadmins hold the `vidhi:*` permissions; store managers and support agents do not.
+
+**Links are checked when saved:** every shop product slug (samagri or related products) must be a visible product, and every related guide must exist, else 400 with the field (`samagri.2.productSlug`, `relatedProducts`, `relatedVidhi`). On the public page a product that later leaves the shop simply loses its Buy link, and a related guide that is not live is not shown. Related aarti slugs are stored now and shown once the Aarti module (Stage 16) can resolve them.
+
+**Public page:** reading order is introduction, reviewer line ("Reviewed for accuracy by … on …"), significance, samagri (with Buy links beside items that are in stock), preparation, numbered steps with mantras, mantras with meanings, extra text, tags, then "Essentials for this pooja" (related products) and "More guides". Metadata, canonical, Open Graph (`article`), `Article` JSON-LD with author and `dateModified`, and breadcrumbs; the sitemap lists the index and every live, indexable guide. `/preview/pooja-vidhi/<token>` shows any status (noindex, no-referrer, never cached).
+
+**Real 404s and the proxy cache:** the proxy answers "does this guide exist?" from an in-memory cache (negative answers 15 s, positive 60 s, redirect table 60 s), exactly like pages and products. On a single server a newly published guide can show "not found" for up to 15 s, and an unpublished or renamed one can linger for up to 60 s (the page itself still shows the not-found screen once unpublished).
+
+`npm run migrate:stage15` (dry run by default; `-- --apply` writes) copies the old Guides into Pooja Vidhi **as drafts** (category "Step-by-step guide", description → introduction, all sections → "Additional text"). The originals are untouched and nothing goes live until an editor restructures it, names a reviewer and publishes.
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 

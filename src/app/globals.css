@@ -416,3 +416,6 @@ dialog.modal::backdrop { background: var(--color-scrim); }
   .invoice-doc { max-width: none; padding: 0; }
   .invoice-doc .panel { border: 0; box-shadow: none; padding: 0; }
 }
+
+/* Devanagari text (mantras, aarti): set lang="sa" or lang="hi" on the element. */
+:lang(sa), :lang(hi) { font-family: var(--font-devanagari), var(--font-sans); line-height: 1.9; }

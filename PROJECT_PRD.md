@@ -136,6 +136,7 @@ Tracked in [PROJECT_TRACKER.md](PROJECT_TRACKER.md). Each stage ends with `docs/
 | 10 | Brand palette: v1.1 §17 suggests ivory/sand/muted gold/terracotta/charcoal; current tokens are saffron/kumkum/gold/sandal/tulsi | Before Stage 17 release | Proposed: keep current tokens, re-check against v1.1 direction with designer |
 | 11 | Store URLs: v1.1 uses `/shop/...`, we used `/category/...` | Stage 14 | **Done (Stage 14a):** `/shop/...`, permanent redirects from `/category/...` |
 | 12 | Temple / Pandit / donation payment model (merchant of record, settlement, refunds) | Stage 20 | **Open — owner + legal** (v1.1 §6.8, §7, §14.1) |
+| 14 | Pooja Vidhi: must a guide be reviewed before publishing? | Stage 15 | **Decided (default, easy to relax): yes** — a named reviewer and review date are required to publish or schedule (v1.1 §8) |
 | 13 | Aarti/Mantra audio sourcing and licences | Stage 16 | **Open — content/legal**; module ships lyrics-only until rights are recorded |
 
 ## 16. PRD v1.1 adoption: scope, stack mapping and gaps

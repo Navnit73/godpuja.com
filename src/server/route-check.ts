@@ -4,6 +4,7 @@ import { Page } from "./models/Page";
 import { Product } from "./models/Product";
 import { loadRedirectMap } from "./services/redirects";
 import { RESERVED_SLUGS, validateSlug } from "@/lib/slug";
+import { vidhiExists } from "./services/vidhi";
 
 /**
  * Fast, in-process lookups used by the proxy BEFORE a page starts streaming, so redirects get a real 301 and unknown
@@ -36,7 +37,7 @@ async function cached(key: string, check: () => Promise<boolean>): Promise<boole
 }
 
 const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const STATIC = new Set(["cart", "checkout", "shop", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
+const STATIC = new Set(["cart", "checkout", "shop", "pooja-vidhi", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
 
 export type RouteVerdict = { kind: "ok" } | { kind: "notFound" };
 
@@ -51,6 +52,12 @@ export async function checkPath(path: string): Promise<RouteVerdict> {
     const slug = rest.join("/");
     if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
     return (await cached(`p:${slug}`, async () => !!(await Product.exists({ slug, status: { $in: ["active", "upcoming"] } })))) ? { kind: "ok" } : { kind: "notFound" };
+  }
+  if (first === "pooja-vidhi") {
+    // /pooja-vidhi/<slug>: a live guide, else a real 404 (the index itself is in STATIC above).
+    const slug = rest.join("/");
+    if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
+    return (await cached(`v:${slug}`, () => vidhiExists(slug))) ? { kind: "ok" } : { kind: "notFound" };
   }
   if (first === "shop" || first === "category") {
     const p = rest.join("/");

@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 process.env.PAYMENT_WEBHOOK_SECRET ??= "test-webhook-secret-0123456789";
 
 import { connectDB } from "@/server/db";
+import { flushNotifications } from "@/server/services/notifications";
 import { ApiError } from "@/server/api";
 import { Category } from "@/server/models/Category";
 import { Counter } from "@/server/models/Counter";
@@ -237,7 +238,7 @@ describe("Stage 12 with the database (godpuja_test)", () => {
     await Promise.all([Order.syncIndexes(), Product.syncIndexes(), WebhookEvent.syncIndexes(), User.syncIndexes()]);
   });
   beforeEach(wipe);
-  afterAll(async () => { await wipe(); await mongoose.disconnect(); });
+  afterAll(async () => { await flushNotifications(); await wipe(); await mongoose.disconnect(); });
 
   let n = 0;
   const mk = (over: Partial<ProductInput> = {}) => { n++; return createProduct(prod({ name: `S12 ${n}`, slug: `s12-${n}`, sku: `S12-${n}`, ...over })); };
@@ -359,8 +360,10 @@ describe("Stage 12 with the database (godpuja_test)", () => {
   it("filters admin date ranges by ADMIN_TIMEZONE days", async () => {
     const p = await mk();
     const r = await place(p.id);
-    // 19:00 UTC on 2 Nov is 00:30 on 3 Nov in India.
-    await Order.updateOne({ _id: r.orderId }, { $set: { createdAt: new Date("2026-11-02T19:00:00Z") } }, { timestamps: false });
+    // 19:00 UTC on 2 Nov is 00:30 on 3 Nov in India. Raw driver: Mongoose treats createdAt as immutable and would silently
+    // ignore this write (the test then only passed on the day the order happened to be created).
+    await Order.collection.updateOne({ _id: new mongoose.Types.ObjectId(r.orderId) }, { $set: { createdAt: new Date("2026-11-02T19:00:00Z") } });
+    expect((await Order.findById(r.orderId).lean())!.createdAt.toISOString()).toBe("2026-11-02T19:00:00.000Z");
     expect((await listOrders(listOrdersSchema.parse({ from: "2026-11-03", to: "2026-11-03" }))).total).toBe(1);
     expect((await listOrders(listOrdersSchema.parse({ from: "2026-11-02", to: "2026-11-02" }))).total).toBe(0);
   });

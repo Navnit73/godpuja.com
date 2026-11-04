@@ -5,59 +5,28 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api";
 import { cart } from "@/lib/cart";
-import { addressRule } from "@/lib/address";
 import { formatMoney } from "@/lib/money";
 import type { Address, CheckoutResult } from "@/lib/storefront-api";
+import AddressFields, { TextField as Field, type Country } from "@/components/store/AddressFields";
 import { useValidatedCart } from "../cart/CartClient";
 
-type Country = { code: string; name: string };
+export type CheckoutAccount = { email: string; phone: string; name: string; addresses: (Address & { id: string; label: string; phone: string; isDefault: boolean })[] };
 const blank = (country: string): Address => ({ name: "", line1: "", line2: "", city: "", state: "", postalCode: "", country });
 const currencyName = (code: string) => { try { return new Intl.DisplayNames(["en"], { type: "currency" }).of(code) ?? code; } catch { return code; } };
+const strip = ({ name, line1, line2, city, state, postalCode, country }: Address): Address => ({ name, line1, line2: line2 ?? "", city, state, postalCode, country });
 
-function Field({ id, label, value, onChange, error, ...rest }: { id: string; label: string; value: string; onChange: (v: string) => void; error?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div>
-      <label htmlFor={id} className="label">{label}</label>
-      <input id={id} className="input" value={value} aria-invalid={!!error} aria-describedby={error ? `${id}-err` : undefined} onChange={(e) => onChange(e.target.value)} {...rest} />
-      {error && <p id={`${id}-err`} className="field-error">{error}</p>}
-    </div>
-  );
-}
-
-function AddressFields({ prefix, a, set, errs, countries }: { prefix: string; a: Address; set: (a: Address) => void; errs: Record<string, string>; countries: Country[] }) {
-  const e = (k: string) => errs[`${prefix}.${k}`];
-  const up = (k: keyof Address) => (v: string) => set({ ...a, [k]: v });
-  const rule = addressRule(a.country);
-  const countryErr = e("country");
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="sm:col-span-2">
-        <label htmlFor={`${prefix}-country`} className="label">Country</label>
-        {countries.length === 1
-          ? <p id={`${prefix}-country`} className="text-sm">{countries[0].name}{prefix === "shippingAddress" && <span className="text-muted"> — we currently deliver only here</span>}</p>
-          : <select id={`${prefix}-country`} className="input" autoComplete="country" value={a.country} aria-invalid={!!countryErr} aria-describedby={countryErr ? `${prefix}-country-err` : undefined}
-              onChange={(ev) => set({ ...a, country: ev.target.value, state: "", postalCode: "" })}>
-              {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-            </select>}
-        {countryErr && <p id={`${prefix}-country-err`} className="field-error">{countryErr}</p>}
-      </div>
-      <div className="sm:col-span-2"><Field id={`${prefix}-name`} label="Full name" autoComplete="name" value={a.name} onChange={up("name")} error={e("name")} /></div>
-      <div className="sm:col-span-2"><Field id={`${prefix}-line1`} label="Address" autoComplete="address-line1" value={a.line1} onChange={up("line1")} error={e("line1")} /></div>
-      <div className="sm:col-span-2"><Field id={`${prefix}-line2`} label="Apartment, landmark (optional)" autoComplete="address-line2" value={a.line2 ?? ""} onChange={up("line2")} error={e("line2")} /></div>
-      <Field id={`${prefix}-city`} label="City" autoComplete="address-level2" value={a.city} onChange={up("city")} error={e("city")} />
-      <Field id={`${prefix}-state`} label={rule.stateLabel} autoComplete="address-level1" value={a.state} onChange={up("state")} error={e("state")} />
-      <Field id={`${prefix}-postalCode`} label={rule.postalLabel} inputMode={a.country === "IN" || a.country === "US" ? "numeric" : "text"} maxLength={12} autoComplete="postal-code" value={a.postalCode} onChange={up("postalCode")} error={e("postalCode")} />
-    </div>
-  );
-}
-
-export default function CheckoutClient({ shipTo, billTo }: { shipTo: Country[]; billTo: Country[] }) {
+export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Country[]; billTo: Country[]; account: CheckoutAccount | null }) {
   const router = useRouter();
   const home = shipTo[0]?.code ?? "IN";
   const { lines, loading, data, error } = useValidatedCart();
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [ship, setShip] = useState<Address>(() => blank(home));
+  // Signed in: start from the account's contact details and default address we can deliver to.
+  const usable = (account?.addresses ?? []).filter((a) => shipTo.some((c) => c.code === a.country));
+  const first = usable.find((a) => a.isDefault) ?? usable[0];
+  const [email, setEmail] = useState(account?.email ?? "");
+  const [phone, setPhone] = useState(first?.phone || account?.phone || "");
+  const [savedId, setSavedId] = useState(first?.id ?? "");
+  const [saveAddress, setSaveAddress] = useState(false);
+  const [ship, setShip] = useState<Address>(() => (first ? strip(first) : { ...blank(home), name: account?.name ?? "" }));
   const [same, setSame] = useState(true);
   const [bill, setBill] = useState<Address>(() => blank(home));
   const [notes, setNotes] = useState("");
@@ -88,6 +57,7 @@ export default function CheckoutClient({ shipTo, billTo }: { shipTo: Country[]; 
       items: buyable.map((i) => ({ productId: i.productId, variantSku: i.variantSku ?? undefined, qty: i.qty })),
       email, phone, shippingAddress: { ...ship, line2: ship.line2 || undefined }, billingSameAsShipping: same,
       ...(same ? {} : { billingAddress: { ...bill, line2: bill.line2 || undefined } }), paymentMethod: "cod", notes: notes || undefined,
+      ...(account && !savedId && saveAddress ? { saveAddress: true } : {}),
     };
     try {
       const res = await fetch("/api/checkout", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "Idempotency-Key": idem.current }, body: JSON.stringify(body) });
@@ -121,7 +91,24 @@ export default function CheckoutClient({ shipTo, billTo }: { shipTo: Country[]; 
         </fieldset>
 
         <fieldset className="space-y-4"><legend className="mb-2 font-sans text-xl font-semibold">Shipping address</legend>
-          <AddressFields prefix="shippingAddress" a={ship} set={setShip} errs={errs} countries={shipTo} />
+          {usable.length > 0 && (
+            <div>
+              <label htmlFor="saved-address" className="label">Saved addresses</label>
+              <select id="saved-address" className="input" value={savedId} onChange={(e) => {
+                const a = usable.find((x) => x.id === e.target.value);
+                setSavedId(e.target.value);
+                setShip(a ? strip(a) : { ...blank(home), name: account?.name ?? "" });
+                if (a?.phone) setPhone(a.phone);
+              }}>
+                {usable.map((a) => <option key={a.id} value={a.id}>{a.label ? `${a.label} — ` : ""}{a.name}, {a.line1}, {a.city}</option>)}
+                <option value="">Use a new address</option>
+              </select>
+            </div>
+          )}
+          <AddressFields prefix="shippingAddress" a={ship} set={(a) => { setShip(a); setSavedId(""); }} errs={errs} countries={shipTo} note="we currently deliver only here" />
+          {account && !savedId && (
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveAddress} onChange={(e) => setSaveAddress(e.target.checked)} /> Save this address to my account</label>
+          )}
         </fieldset>
 
         <fieldset className="space-y-4"><legend className="mb-2 font-sans text-xl font-semibold">Billing address</legend>

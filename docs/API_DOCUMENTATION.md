@@ -14,7 +14,7 @@ Permission column: `—` public, `auth` any logged-in user, otherwise a permissi
 |---|---|---|---|
 | POST | /auth/login | — | rate-limited (5/min per IP+email, 30/min per IP, 20 failed attempts/15 min per account); sets cookie; returns `role` |
 | POST | /auth/logout | — | clears the cookie (idempotent). Sessions are stateless: a copied cookie stays valid until it expires (7 days) or the user's role/active/password changes (`tokenVersion`) |
-| POST | /auth/register | — | customer role only. **Closed by default** (403) unless `ALLOW_PUBLIC_REGISTRATION=true`; enabled with the storefront account pages (Stage 8/9) |
+| POST | /auth/register | — | `{name,email,password}`; customer role only (a `role` in the body is ignored). **Open by default since Stage 13**; `ALLOW_PUBLIC_REGISTRATION=false` closes it (403). Signs in and emails a verification link |
 | GET | /auth/me | auth | current user |
 
 ## Users & roles (Stage 2)
@@ -128,6 +128,30 @@ Env: `SHIPPING_FLAT_PAISE` (default 5000), `FREE_SHIPPING_OVER_PAISE` (default 9
 
 Settings beyond SEO (shipping/tax live in env for now), dashboard and customers APIs are not built yet.
 
+## Customer accounts & notifications (Stage 13)
+All `/account` endpoints need a signed-in user (any role) and only ever touch that user's own data; another user's order or address is a 404.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | /auth/verify-email | — (20/15 min/IP) | `{token}` from the emailed link. Single use, 24 h, void if the account email changed. Marks the email verified and **claims guest orders** placed with that email (`user: null` → this user). 200 `{verified, claimedOrders}`; bad/used/expired ⇒ 400 field `token`. POST (not GET) so email link scanners cannot burn the token |
+| POST | /auth/verify-email/resend | signed in (3/h/user) | new link; older links stop working. `{state: sent\|skipped\|failed\|already_verified}` |
+| POST | /auth/forgot-password | — (5/15 min/IP, 3/h/email) | `{email}`. Always 200 `{sent:true}` (no account enumeration); only active accounts get an email, sent after the response |
+| POST | /auth/reset-password | — (10/15 min/IP) | `{token, password}`. Single use, 1 h. Sets the password, bumps `tokenVersion` (signs out every session), marks the email verified, revokes other reset links, claims guest orders, signs this browser in. 200 `{reset, role}` |
+| GET | /auth/google?next= | — (20/15 min/IP) | Starts OpenID Connect (code + PKCE S256 + state + nonce); flow secrets in a signed httpOnly cookie (`gp_oauth`, 10 min, path `/api/auth/google`). 303 to Google, or to `/login?error=google_unavailable` when not configured |
+| GET | /auth/google/callback | — | Verifies state (constant time), exchanges the code, verifies the ID token (RS256 via Google JWKS, issuer, audience, expiry, nonce, `email_verified`). Known Google id ⇒ sign in; existing **customer** with that email ⇒ link + verify; **staff accounts are never reachable through Google** (also if promoted later); otherwise creates a customer. Claims guest orders. Errors redirect to `/login?error=google_*` |
+| GET / PATCH | /account/profile | signed in | `{name?, phone?, prefs?{country (ISO), language en\|hi, currency (ISO 4217, display only), timezone (IANA)}}`. Response includes `emailVerified, hasPassword, google` |
+| POST | /account/password | signed in (5/15 min/user) | `{currentPassword?, newPassword}`; current required when a password exists (Google-only accounts can set one). Signs out other sessions, re-issues this cookie |
+| GET / POST | /account/addresses | signed in | list (default first) / add (`{label?, name, line1, line2?, city, state, postalCode, country, phone?, isDefault?}`, country rules as checkout). ≤10 per account (atomic); the first is the default |
+| PATCH / DELETE | /account/addresses/:id | signed in | edit (`isDefault:true` makes it the only default) / remove (the default moves to the first remaining) |
+| GET | /account/orders?page= | signed in | the user's orders, newest first, 10 per page; `meta {total,page,limit,pages}` |
+| GET | /account/orders/:id | signed in | customer view (no notes/history/refunds); `private, no-store` |
+
+**Checkout (signed in):** the order gets `user`; body may add `saveAddress: true` to keep the shipping address (skipped if already saved or at the limit; never fails the order). The session is read from the request's own `Cookie` header.
+
+**Notifications:** sent after the response (`after()`), never blocking or failing the action, and logged in `notifications` (template, recipient, record ref, delivery state; no message body). Templates: `account.verify_email`, `account.password_reset`, `order.placed`, `order.status.{confirmed,shipped,delivered,cancelled,returned,refunded}`, `order.refund`. Internal status notes are never emailed. Provider: Resend over HTTPS (`RESEND_API_KEY`, `EMAIL_FROM`); without them every email is logged `skipped` (and printed in development).
+
+**Payment ledger:** every charge (admin "Mark as paid", webhook `payment.succeeded`) and refund (admin, webhook) appends an immutable `payments` row in the **same transaction** as the order change. A provider reference is recorded once per type. Admin order detail shows the order's ledger.
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 
@@ -135,6 +159,7 @@ Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 |---|---|---|
 | `POST /auth/login` | 5/min per IP+email · 30/min per IP · 20 failures/15 min per account (successes never count) | shared (MongoDB) |
 | `POST /auth/register` | 5/min per IP | shared |
+| `POST /auth/forgot-password` · `reset-password` · `verify-email` · `verify-email/resend` · `/account/password` · `GET /auth/google` | see Stage 13 table | shared |
 | `POST /checkout` | 10/min per IP | shared |
 | `POST /newsletter` | 5/min per IP | shared |
 | `GET /products`, `/products/:slug`, `/products/:slug/related`, `/menus/:key` | 120/min per IP | per instance |

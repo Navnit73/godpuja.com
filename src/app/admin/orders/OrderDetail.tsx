@@ -132,6 +132,7 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
           <Card title="Customer">
             <p className="text-sm"><a href={`mailto:${o.email}`} className="text-primary underline">{o.email}</a></p>
             <p className="text-sm"><a href={`tel:${o.phone.replace(/[^\d+]/g, "")}`} className="text-primary underline">{o.phone}</a></p>
+            <p className="text-xs text-muted">{o.user ? "Linked to a customer account" : "Guest order"}</p>
             {o.customerNote && <p className="rounded-md bg-sandal-100 p-2 text-sm"><span className="font-medium">Customer note: </span>{o.customerNote}</p>}
           </Card>
           <Card title="Shipping address"><Address a={o.shippingAddress} /></Card>
@@ -161,6 +162,19 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
                 {o.refunds.map((r, n) => <li key={n}>{formatMoney(r.amount)} — {r.reason}<span className="block text-xs text-muted">{r.by.name} · {formatDateTime(r.at)}</span></li>)}
               </ul>
             )}
+          </Card>
+          <Card title="Ledger">
+            {o.ledger.length === 0 ? <p className="text-sm text-muted">No money recorded yet.</p> : (
+              <ul className="space-y-2 text-sm">
+                {o.ledger.map((l) => (
+                  <li key={l.id} className="flex justify-between gap-3">
+                    <span><span className="font-medium capitalize">{l.type}</span> · {l.method.toUpperCase()}{l.providerRef && <span className="block break-all text-xs text-muted">{l.providerRef}</span>}<span className="block text-xs text-muted">{l.by} · {formatDateTime(l.at)}</span></span>
+                    <span className={l.type === "refund" ? "text-danger" : ""}>{l.type === "refund" ? "−" : ""}{fmtMoney(l.amount, l.currency)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-xs text-muted">Every charge and refund is recorded here and can never be edited.</p>
           </Card>
 
           <Card title="Internal notes">

@@ -20,7 +20,7 @@ export const POST = handle(async (req) => {
 
   await connectDB();
   const user = await User.findOne({ email }).select("+passwordHash name email role isActive tokenVersion");
-  const valid = await verifyPassword(password, user?.passwordHash);
+  const valid = await verifyPassword(password, user?.passwordHash ?? undefined);
   if (!user || !valid || !user.isActive) {
     await rateLimitShared(FAIL_KEY, 20, FAIL_WINDOW);
     throw new ApiError("UNAUTHENTICATED", "Invalid email or password");

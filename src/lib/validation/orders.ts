@@ -43,6 +43,7 @@ export const checkoutSchema = cartInputSchema.extend({
   billingAddress: addressSchema.optional(),
   paymentMethod: z.enum(PAYMENT_METHODS),
   notes: z.string().trim().max(300).optional(),
+  saveAddress: z.boolean().optional(), // signed-in customers: keep the shipping address in the account
 }).superRefine((v, ctx) => {
   if (!v.billingSameAsShipping && !v.billingAddress) ctx.addIssue({ code: "custom", path: ["billingAddress"], message: "Enter the billing address" });
 });

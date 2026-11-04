@@ -308,6 +308,10 @@
   @apply rounded-md border border-kumkum-200 bg-danger-soft px-3 py-2 text-sm text-danger;
 }
 
+@utility alert-success {
+  @apply rounded-md border border-tulsi-300 bg-success-soft px-3 py-2 text-sm text-success;
+}
+
 /* ---- Stage 2: admin + UI kit utilities ---- */
 @utility btn-ghost {
   @apply btn text-foreground;

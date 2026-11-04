@@ -4,6 +4,7 @@ import { isStaff } from "@/server/auth/permissions";
 import { checkPath, redirectFor } from "@/server/route-check";
 
 const isAdmin = (p: string) => p === "/admin" || p.startsWith("/admin/") || p.startsWith("/api/admin/");
+const isAccount = (p: string) => p === "/account" || p.startsWith("/account/");
 
 // Coarse admin gate only. Every admin page and API handler re-checks authoritatively (see server/auth/guard.ts).
 async function adminGate(req: NextRequest) {
@@ -33,6 +34,12 @@ async function adminGate(req: NextRequest) {
 async function storefront(req: NextRequest) {
   if (req.method !== "GET" && req.method !== "HEAD") return NextResponse.next();
   const { pathname, search } = req.nextUrl;
+  // Customer account pages need a session (coarse check; pages re-check against the database).
+  if (isAccount(pathname) && !(await verifySession(req.cookies.get(SESSION_COOKIE)?.value))) {
+    const url = new URL("/login", req.url);
+    url.searchParams.set("next", pathname + search);
+    return NextResponse.redirect(url);
+  }
   let path: string;
   try {
     path = decodeURIComponent(pathname);

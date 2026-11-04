@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 process.env.PAYMENT_WEBHOOK_SECRET = "test-webhook-secret-0123456789";
 
 import { connectDB } from "@/server/db";
+import { flushNotifications } from "@/server/services/notifications";
 import { Category } from "@/server/models/Category";
 import { Counter } from "@/server/models/Counter";
 import { Order } from "@/server/models/Order";
@@ -171,7 +172,7 @@ describe("orders (godpuja_test)", () => {
     await Promise.all([Order.syncIndexes(), Product.syncIndexes(), Category.syncIndexes(), WebhookEvent.syncIndexes()]);
   });
   beforeEach(async () => { await wipe(); _resetRateLimit(); await _resetSharedRateLimit(); });
-  afterAll(async () => { await wipe(); await mongoose.disconnect(); });
+  afterAll(async () => { await flushNotifications(); await wipe(); await mongoose.disconnect(); });
 
   let n = 0;
   const mk = (over: Partial<ProductInput> = {}) => { n++; return createProduct(prod({ name: `P${n}`, slug: `p${n}`, sku: `SKU-${n}`, ...over })); };

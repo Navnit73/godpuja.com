@@ -1,5 +1,9 @@
+import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import GoogleButton from "@/components/store/GoogleButton";
+import { googleConfigured } from "@/server/auth/google";
 import Logo from "@/components/Logo";
 import { safeNext } from "@/lib/safe-next";
 import { currentUser } from "@/server/auth/guard";
@@ -14,9 +18,40 @@ async function RedirectIfSignedIn({ searchParams }: { searchParams: PageProps<"/
   const user = await currentUser();
   if (user) {
     const next = (await searchParams).next;
-    redirect(isStaff(user.role) ? safeNext(typeof next === "string" ? next : null) : "/");
+    redirect(isStaff(user.role) ? safeNext(typeof next === "string" ? next : null) : customerNext(typeof next === "string" ? next : null));
   }
   return null;
+}
+
+/** Customers go back where they were (never into /admin), else to their account. */
+const customerNext = (n: string | null) => (n && !n.startsWith("/admin") ? safeNext(n, "/account") : "/account");
+
+const GOOGLE_ERRORS: Record<string, string> = {
+  google_unavailable: "Google sign-in is not available right now. Use your email and password.",
+  google_cancelled: "Google sign-in was cancelled.",
+  google_failed: "Google sign-in did not work. Please try again.",
+  google_staff: "Staff accounts sign in with email and password.",
+  google_conflict: "This email is linked to a different Google account.",
+  rate_limited: "Too many attempts. Please wait a few minutes and try again.",
+};
+
+// Runtime config (Google keys) and the ?error= code: rendered per request.
+async function Extras({ searchParams }: { searchParams: PageProps<"/login">["searchParams"] }) {
+  await connection();
+  const sp = await searchParams;
+  const error = typeof sp.error === "string" ? GOOGLE_ERRORS[sp.error] : undefined;
+  const next = typeof sp.next === "string" && !sp.next.startsWith("/admin") ? safeNext(sp.next, "/account") : "/account";
+  return (
+    <>
+      {error && <p role="alert" className="alert-error mb-4">{error}</p>}
+      {googleConfigured() && (
+        <div className="mb-6 space-y-4">
+          <GoogleButton next={next} />
+          <p className="text-center text-xs uppercase tracking-wide text-muted">or with email</p>
+        </div>
+      )}
+    </>
+  );
 }
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
@@ -49,7 +84,12 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
           <div className="mb-8 flex justify-center lg:justify-start"><Logo /></div>
           <h1 className="text-3xl font-semibold">Welcome back</h1>
           <p className="mb-8 mt-2 text-muted">Sign in to continue to your account.</p>
+          <Suspense><Extras searchParams={searchParams} /></Suspense>
           <Suspense><LoginForm /></Suspense>
+          <div className="mt-6 space-y-2 text-sm text-muted">
+            <p><Link href="/forgot-password" className="font-medium text-primary underline">Forgot your password?</Link></p>
+            <p>New here? <Link href="/register" className="font-medium text-primary underline">Create an account</Link></p>
+          </div>
         </div>
       </section>
     </main>

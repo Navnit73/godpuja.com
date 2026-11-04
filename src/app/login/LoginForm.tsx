@@ -10,7 +10,10 @@ import { safeNext } from "@/lib/safe-next";
 
 export default function LoginForm() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next"));
+  const raw = useSearchParams().get("next");
+  const next = safeNext(raw);
+  // Customers return to the page that sent them here (checkout, account), never to /admin.
+  const customerNext = raw && !raw.startsWith("/admin") ? safeNext(raw, "/account") : "/account";
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -23,7 +26,7 @@ export default function LoginForm() {
     try {
       const me = await api.post<{ role: string }>("/auth/login", values);
       // Customers have no admin access; send them to the storefront instead of bouncing back to /login.
-      router.replace(me.role === "customer" ? "/" : next);
+      router.replace(me.role === "customer" ? customerNext : next);
       router.refresh();
     } catch (e) {
       setError(e instanceof ApiClientError ? e.message : "Could not sign in. Try again.");

@@ -17,6 +17,8 @@ export type OrderDoc = {
   idempotencyKey: string;
   requestHash: string;
   accessToken: string;
+  /** Owning customer account (signed-in checkout, or a guest order claimed after the email was verified). */
+  user: mongoose.Types.ObjectId | null;
   email: string;
   phone: string;
   shippingAddress: Address;
@@ -44,6 +46,7 @@ const orderSchema = new mongoose.Schema(
     idempotencyKey: { type: String, required: true, unique: true },
     requestHash: { type: String, required: true },
     accessToken: { type: String, required: true, unique: true }, // 192-bit random; the only credential for guests
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, required: true },
     shippingAddress: { type: M, required: true },
@@ -72,6 +75,7 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ status: 1, createdAt: -1, _id: -1 });
 orderSchema.index({ "payment.status": 1, createdAt: -1, _id: -1 });
 orderSchema.index({ email: 1, createdAt: -1 });
+orderSchema.index({ user: 1, createdAt: -1, _id: -1 }, { partialFilterExpression: { user: { $type: "objectId" } } });
 orderSchema.index({ createdAt: -1, _id: -1 });
 // Sparse (not partial): equality lookups from webhooks must be able to use them.
 orderSchema.index({ "payment.providerPaymentId": 1 }, { unique: true, sparse: true });

@@ -67,6 +67,8 @@ export default function AccountMenu({ user }: { user: HeaderUser | null }) {
           </div>
           <ul className="pt-2">
             {user.isStaff && <li><Link href="/admin" className={item} onClick={() => setOpen(false)}>Admin dashboard</Link></li>}
+            <li><Link href="/account" className={item} onClick={() => setOpen(false)}>My account</Link></li>
+            <li><Link href="/account/orders" className={item} onClick={() => setOpen(false)}>My orders</Link></li>
             <li><Link href="/cart" className={item} onClick={() => setOpen(false)}>My cart</Link></li>
             <li>
               <button type="button" className={`${item} text-kumkum-700`} onClick={signOut} disabled={busy} aria-busy={busy || undefined}>

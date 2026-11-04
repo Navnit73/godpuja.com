@@ -3,8 +3,10 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import PageBand from "@/components/store/PageBand";
 import { allCountries, countryName } from "@/lib/address";
+import { currentUser } from "@/server/auth/guard";
+import { getProfile, listAddresses } from "@/server/services/account";
 import { shippingCountries } from "@/server/services/orders";
-import CheckoutClient from "./CheckoutClient";
+import CheckoutClient, { type CheckoutAccount } from "./CheckoutClient";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -15,7 +17,13 @@ export const metadata: Metadata = { title: "Checkout", robots: { index: false, f
  */
 async function Checkout() {
   await connection();
-  return <CheckoutClient shipTo={shippingCountries().map((code) => ({ code, name: countryName(code) ?? code }))} billTo={allCountries()} />;
+  const user = await currentUser();
+  let account: CheckoutAccount | null = null;
+  if (user) {
+    const [profile, addresses] = await Promise.all([getProfile(String(user._id)), listAddresses(String(user._id))]);
+    account = { email: profile.email, phone: profile.phone, name: profile.name, addresses: addresses.map((a) => ({ ...a, label: a.label ?? "", phone: a.phone ?? "" })) };
+  }
+  return <CheckoutClient shipTo={shippingCountries().map((code) => ({ code, name: countryName(code) ?? code }))} billTo={allCountries()} account={account} />;
 }
 
 export default function CheckoutPage() {

@@ -8,6 +8,9 @@ import { Order, type Actor, type Address, type OrderDoc, type OrderItem, type Or
 import { Product } from "../models/Product";
 import { getProvider } from "../payments/provider";
 import { CART_FIELDS, computePricing, hiddenCategorySet, mergeLines, resolveLines } from "./cart";
+import { ledgerFor, recordLedger, type LedgerRow } from "./ledger";
+import { defer } from "./notifications";
+import { sendOrderPlaced, sendOrderRefund, sendOrderStatus } from "./order-notifications";
 import { countryName, normalizeAddress } from "@/lib/address";
 import { BASE_CURRENCY, formatMoney, minorToDecimal } from "@/lib/money";
 import { dayRangeUtc } from "@/lib/time";
@@ -69,7 +72,7 @@ export function assertShippable(country: string) {
  * last unit) aborts the whole transaction, so stock is never partially taken. A retry with the same Idempotency-Key
  * returns the original order without touching stock again.
  */
-export async function placeOrder(input: CheckoutInput, idempotencyKey: string): Promise<CheckoutResult> {
+export async function placeOrder(input: CheckoutInput, idempotencyKey: string, opts: { userId?: string | null } = {}): Promise<CheckoutResult> {
   assertShippable(input.shippingAddress.country);
   await connectDB();
   const requestHash = hashRequest(input);
@@ -116,7 +119,7 @@ export async function placeOrder(input: CheckoutInput, idempotencyKey: string): 
       const status: OrderStatus = pay.status === "paid" || provider.confirmsOnPlacement ? "confirmed" : "pending_payment";
       const now = new Date();
       const [doc] = await Order.create([{
-        orderNumber, idempotencyKey, requestHash, accessToken, email: input.email, phone: input.phone, shippingAddress: shipping,
+        orderNumber, idempotencyKey, requestHash, accessToken, user: opts.userId && isId(opts.userId) ? new mongoose.Types.ObjectId(opts.userId) : null, email: input.email, phone: input.phone, shippingAddress: shipping,
         billingAddress: input.billingSameAsShipping || !input.billingAddress ? shipping : addr(input.billingAddress), customerNote: input.notes ?? "",
         items, currency, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, status,
         payment: { provider: provider.id, method: input.paymentMethod, ...(pay.providerOrderId ? { providerOrderId: pay.providerOrderId } : {}), status: pay.status, ...(pay.status === "paid" ? { paidAt: now } : {}) },
@@ -125,6 +128,7 @@ export async function placeOrder(input: CheckoutInput, idempotencyKey: string): 
       const o = doc.toObject() as OrderDoc;
       result = { orderId: String(o._id), orderNumber: o.orderNumber, accessToken: o.accessToken, status: o.status, currency: o.currency, payment: { method: o.payment.method, status: o.payment.status }, created: true };
     });
+    if (result.created) defer(() => sendOrderPlaced(result.orderId));
     return result;
   } catch (err) {
     if (dupKey(err)) {
@@ -154,6 +158,11 @@ export async function getCustomerOrder(id: string, token: string): Promise<Custo
   await connectDB();
   const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken").lean();
   if (!o || !safeEqual(o.accessToken, token)) throw notFound;
+  return customerView(o);
+}
+
+/** What a customer may see of their order: no notes, history, refunds or internal ids. */
+export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "createdAt" | "email" | "phone" | "items" | "currency" | "pricing" | "payment" | "shippingAddress" | "billingAddress">): CustomerOrder {
   return {
     orderNumber: o.orderNumber, status: o.status, createdAt: o.createdAt.toISOString(), email: o.email, phone: o.phone, currency: currencyOf(o),
     items: o.items.map((i) => ({ name: i.name, sku: i.sku, variantSku: i.variantSku, options: i.options, image: i.image, slug: i.slug, unitPrice: i.unitPrice, qty: i.qty, lineTotal: i.lineTotal })),
@@ -162,8 +171,8 @@ export async function getCustomerOrder(id: string, token: string): Promise<Custo
 }
 
 // ---------- admin ----------
-export type AdminOrder = Omit<OrderDoc, "_id" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items"> & {
-  id: string; createdAt: string; updatedAt: string;
+export type AdminOrder = Omit<OrderDoc, "_id" | "user" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items"> & {
+  id: string; user: string | null; createdAt: string; updatedAt: string; ledger: LedgerRow[];
   items: (Omit<OrderItem, "product"> & { product: string })[];
   payment: { provider: string; method: string; providerOrderId: string | null; providerPaymentId: string | null; status: PaymentStatus; paidAt: string | null };
   refunds: { amount: number; reason: string; at: string; by: Actor }[];
@@ -192,8 +201,8 @@ export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   refunded: [],
 };
 
-const toAdmin = (o: OrderDoc): AdminOrder => ({
-  id: String(o._id), orderNumber: o.orderNumber, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
+const toAdmin = (o: OrderDoc, ledger: LedgerRow[]): AdminOrder => ({
+  id: String(o._id), user: o.user ? String(o.user) : null, ledger, orderNumber: o.orderNumber, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
   customerNote: o.customerNote ?? "", currency: currencyOf(o), pricing: o.pricing, status: o.status, refundedTotal: o.refundedTotal ?? 0,
   createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString(),
   items: o.items.map((i) => ({ ...i, product: String(i.product) })),
@@ -245,9 +254,9 @@ export async function listOrders(q: ListOrdersInput) {
 export async function getAdminOrder(id: string): Promise<AdminOrder> {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
-  const o = await Order.findById(id).lean();
+  const [o, ledger] = await Promise.all([Order.findById(id).lean(), ledgerFor("order", id)]);
   if (!o) throw new ApiError("NOT_FOUND", "Order not found");
-  return toAdmin(o);
+  return toAdmin(o, ledger);
 }
 
 const entry = (kind: OrderDoc["history"][number]["kind"], status: OrderStatus, note: string, by: Actor) => ({ kind, status, note, by, at: new Date() });
@@ -294,7 +303,21 @@ export async function changeStatus(id: string, to: OrderStatus, note: string | u
       await session.endSession();
     }
   }
+  defer(() => sendOrderStatus(id, to));
   return getAdminOrder(id);
+}
+
+/** Run `fn` in a transaction (or inside the caller's). */
+async function inTx<T>(session: ClientSession | undefined, fn: (s: ClientSession) => Promise<T>): Promise<T> {
+  if (session) return fn(session);
+  const s = await mongoose.startSession();
+  try {
+    let out!: T;
+    await s.withTransaction(async () => { out = await fn(s); });
+    return out;
+  } finally {
+    await s.endSession();
+  }
 }
 
 /**
@@ -308,7 +331,7 @@ export async function changePayment(id: string, to: "paid" | "failed", actor: Ac
   const from: PaymentStatus[] = to === "paid" ? ["pending", "failed"] : ["pending"];
   // The history entry records the order status at the time of the payment change, so the write is a
   // compare-and-set on that status (a concurrent status change makes this one report a conflict).
-  const cur = await Order.findById(id).select("status").lean();
+  const cur = await Order.findById(id).select("status orderNumber currency pricing.total payment.provider payment.method").lean();
   if (!cur) throw new ApiError("NOT_FOUND", "Order not found");
   const refused = `Payment cannot be marked ${to} for this order (it may be cancelled, already paid, or changed by someone else).`;
   if (cur.status === "cancelled" || cur.status === "refunded") throw new ApiError("CONFLICT", refused);
@@ -316,11 +339,25 @@ export async function changePayment(id: string, to: "paid" | "failed", actor: Ac
   const at = new Date();
   const history: OrderDoc["history"] = [{ kind: "payment", status: cur.status, note: `Payment marked ${to}`, by: actor, at }];
   if (next !== cur.status) history.push({ kind: "status", status: next, note: to === "paid" ? "Payment received" : "Payment failed", by: actor, at });
-  const res = await Order.updateOne(
-    { _id: id, status: cur.status, "payment.status": { $in: from } },
-    { $set: { "payment.status": to, status: next, ...(to === "paid" ? { "payment.paidAt": at } : {}) }, $push: { history: { $each: history } } },
-  );
-  if (res.matchedCount === 0) await missingOrConflict(id, refused);
+  // Order change and ledger row commit together (PRD v1.1 §14.1).
+  await inTx(undefined, async (session) => {
+    const res = await Order.updateOne(
+      { _id: id, status: cur.status, "payment.status": { $in: from } },
+      { $set: { "payment.status": to, status: next, ...(to === "paid" ? { "payment.paidAt": at } : {}) }, $push: { history: { $each: history } } },
+      { session },
+    );
+    if (res.matchedCount === 0) {
+      if (!(await Order.exists({ _id: id }).session(session))) throw new ApiError("NOT_FOUND", "Order not found");
+      throw new ApiError("CONFLICT", refused);
+    }
+    if (to === "paid") {
+      await recordLedger({
+        kind: "order", refId: id, refNumber: cur.orderNumber, type: "charge", provider: cur.payment.provider, method: cur.payment.method,
+        amount: cur.pricing.total, currency: currencyOf(cur), note: "Recorded by admin", actor,
+      }, session);
+    }
+  });
+  if (next !== cur.status) defer(() => sendOrderStatus(id, next));
   return getAdminOrder(id);
 }
 
@@ -344,11 +381,18 @@ export async function addNote(id: string, text: string, actor: Actor): Promise<A
  * exceed the order total, because each write only applies if nobody changed the refunded amount since it was read.
  * `amount` omitted = refund whatever remains. A cancelled or returned order refunded in full moves to `refunded`.
  */
-export async function refundOrder(id: string, amount: number | undefined, reason: string, actor: Actor, session?: ClientSession): Promise<AdminOrder> {
+export async function refundOrder(id: string, amount: number | undefined, reason: string, actor: Actor): Promise<AdminOrder> {
   if (!isId(id)) throw new ApiError("NOT_FOUND", "Order not found");
   await connectDB();
+  const refunded = await inTx(undefined, (s) => applyRefund(id, amount, reason, actor, s));
+  defer(() => sendOrderRefund(id, refunded));
+  return getAdminOrder(id);
+}
+
+/** The refund write + its ledger row inside the caller's transaction (admin refund, payment webhook). Returns the amount refunded. */
+export async function applyRefund(id: string, amount: number | undefined, reason: string, actor: Actor, session: ClientSession): Promise<number> {
   for (let attempt = 0; attempt < 6; attempt++) {
-    const o = await Order.findById(id).session(session ?? null).select("pricing currency payment status refundedTotal").lean();
+    const o = await Order.findById(id).session(session).select("orderNumber pricing currency payment status refundedTotal").lean();
     if (!o) throw new ApiError("NOT_FOUND", "Order not found");
     if (!["paid", "partially_refunded"].includes(o.payment.status)) throw new ApiError("CONFLICT", "Only paid orders can be refunded.");
     const refunded = o.refundedTotal ?? 0;
@@ -368,7 +412,13 @@ export async function refundOrder(id: string, amount: number | undefined, reason
       { $set: { refundedTotal: newTotal, "payment.status": payStatus, ...(closes ? { status: "refunded" } : {}) }, $push: { refunds: { amount: amt, reason, at, by: actor }, history: { $each: history } } },
       { session },
     );
-    if (res.matchedCount === 1) return getAdminOrder(id);
+    if (res.matchedCount === 1) {
+      await recordLedger({
+        kind: "order", refId: id, refNumber: o.orderNumber, type: "refund", provider: o.payment.provider, method: o.payment.method,
+        amount: amt, currency: cur, note: reason, actor,
+      }, session);
+      return amt;
+    }
   }
   throw new ApiError("CONFLICT", "This order is being updated right now. Try again.");
 }

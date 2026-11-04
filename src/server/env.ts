@@ -17,6 +17,15 @@ const schema = z.object({
   SHIPPING_COUNTRIES: z.string().default("IN")
     .transform((v) => [...new Set(v.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean))])
     .pipe(z.array(z.string().refine(isCountry, "Unknown ISO country code")).min(1, "List at least one country")),
+  // Customer accounts (Stage 13). Public sign-up is open unless set to "false".
+  ALLOW_PUBLIC_REGISTRATION: z.enum(["true", "false"]).default("true"),
+  // Transactional email via Resend. Without both, emails are logged as "skipped" (and printed in development).
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(), // e.g. "GodPuja <orders@godpuja.com>" (domain verified in Resend)
+  // "Continue with Google" (OIDC). Without both, the button is hidden and the routes answer 503.
+  // Authorised redirect URI in Google Cloud: <SITE_URL>/api/auth/google/callback
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   // IANA zone used for admin date filters and reports (order list "from/to" days).
   ADMIN_TIMEZONE: z.string().default("Asia/Kolkata").refine(isTimeZone, "Unknown IANA time zone"),
   // Shared secret for the generic signed payment webhook (HMAC-SHA256 of the raw body). Without it the webhook is disabled.

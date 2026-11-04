@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ApiClientError } from "@/lib/api";
 import { cart } from "@/lib/cart";
+import { clearCoupon } from "@/lib/coupon-store";
 import { formatMoney } from "@/lib/money";
+import CouponBox from "@/components/store/CouponBox";
+import PricingLines from "@/components/store/PricingLines";
 import type { Address, CheckoutResult } from "@/lib/storefront-api";
 import AddressFields, { TextField as Field, type Country } from "@/components/store/AddressFields";
 import { useValidatedCart } from "../cart/CartClient";
@@ -18,7 +21,6 @@ const strip = ({ name, line1, line2, city, state, postalCode, country }: Address
 export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Country[]; billTo: Country[]; account: CheckoutAccount | null }) {
   const router = useRouter();
   const home = shipTo[0]?.code ?? "IN";
-  const { lines, loading, data, error } = useValidatedCart();
   // Signed in: start from the account's contact details and default address we can deliver to.
   const usable = (account?.addresses ?? []).filter((a) => shipTo.some((c) => c.code === a.country));
   const first = usable.find((a) => a.isDefault) ?? usable[0];
@@ -27,6 +29,8 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
   const [savedId, setSavedId] = useState(first?.id ?? "");
   const [saveAddress, setSaveAddress] = useState(false);
   const [ship, setShip] = useState<Address>(() => (first ? strip(first) : { ...blank(home), name: account?.name ?? "" }));
+  // Priced for the chosen delivery country (tax rules) and the shopper's coupon; the server decides every amount.
+  const { lines, couponCode, loading, data, error } = useValidatedCart({ country: ship.country });
   const [same, setSame] = useState(true);
   const [bill, setBill] = useState<Address>(() => blank(home));
   const [notes, setNotes] = useState("");
@@ -58,6 +62,7 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
       email, phone, shippingAddress: { ...ship, line2: ship.line2 || undefined }, billingSameAsShipping: same,
       ...(same ? {} : { billingAddress: { ...bill, line2: bill.line2 || undefined } }), paymentMethod: "cod", notes: notes || undefined,
       ...(account && !savedId && saveAddress ? { saveAddress: true } : {}),
+      ...(data!.coupon ? { couponCode: data!.coupon.code } : {}), // only a code the server accepted for this cart
     };
     try {
       const res = await fetch("/api/checkout", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "Idempotency-Key": idem.current }, body: JSON.stringify(body) });
@@ -70,6 +75,7 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
       }
       const r = json.data as CheckoutResult;
       cart.clear();
+      clearCoupon();
       router.replace(`/order/${r.orderId}/confirmation?token=${encodeURIComponent(r.accessToken)}`);
     } catch (e) {
       setGeneral(e instanceof ApiClientError ? (e.fields ? "Please fix the highlighted fields." : e.message) : "We could not reach the server. Please try again — you will not be charged twice.");
@@ -130,13 +136,13 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
       <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
         <ul className="space-y-1 text-sm">{buyable.map((i) => <li key={`${i.productId}:${i.variantSku}`} className="flex justify-between gap-3"><span>{i.name} × {i.qty}</span><span>{formatMoney(i.lineTotal, data.pricing.currency)}</span></li>)}</ul>
-        <dl className="space-y-2 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatMoney(data.pricing.subtotal, data.pricing.currency)}</dd></div>
-          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatMoney(data.pricing.shipping, data.pricing.currency)}</dd></div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatMoney(data.pricing.total, data.pricing.currency)}</dd></div>
-        </dl>
+        <div className="space-y-3 border-t border-border pt-3">
+          <CouponBox code={couponCode} applied={data.coupon} error={data.couponError} loading={loading} />
+          {errs.couponCode && <p role="alert" className="field-error">{errs.couponCode}</p>}
+          <PricingLines p={data.pricing} couponCode={data.coupon?.code} />
+        </div>
         {/* PRD v1.1 §5.4 / §13: state the transaction currency before the customer commits. */}
-        <p className="text-xs text-muted">You pay in {currencyName(data.pricing.currency)} ({data.pricing.currency}). Prices include all taxes.</p>
+        <p className="text-xs text-muted">You pay in {currencyName(data.pricing.currency)} ({data.pricing.currency}). {data.pricing.taxName && !data.pricing.taxInclusive ? `${data.pricing.taxName} is added to the total.` : "Prices include all taxes."}</p>
         <button type="submit" className="btn-primary w-full" disabled={busy}>{busy ? "Placing order…" : "Place order"}</button>
         <Link href="/cart" className="btn-ghost w-full">Back to cart</Link>
       </aside>

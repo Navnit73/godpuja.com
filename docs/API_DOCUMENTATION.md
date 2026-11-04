@@ -170,6 +170,24 @@ All `/account` endpoints need a signed-in user (any role) and only ever touch th
 
 Env: `RETURN_WINDOW_DAYS`, `SELLER_NAME`, `SELLER_ADDRESS`, `SELLER_TAX_ID`.
 
+## Coupons and tax (Stage 14, slice 2)
+**Pricing** is assembled in one place (`lib/pricing.ts`, integer minor units): `total = subtotal − discount + shipping + tax added on top`. With no coupon and no tax rule nothing changes.
+
+`POST /cart/validate` now also accepts `couponCode?` and `country?` (ISO, the delivery country) and returns `pricing {currency, subtotal, discount, shipping, tax, taxName|null, taxRateBps, taxInclusive, total, …}`, `coupon {code, type, discount}|null` and `couponError|null`. A bad code never fails the cart: it comes back as a message and the cart is priced without it. The same code path prices the order, so the cart, checkout and order always agree.
+
+`POST /checkout` accepts `couponCode?`. Inside the order transaction the code is re-checked and **counted atomically**: the total-uses counter only increments while below the limit, and the per-customer counter (keyed by lower-cased email) is a guarded upsert, so concurrent checkouts can never exceed either limit; a failed order (stock, validation) leaves the coupon untouched. An invalid code is `400` with field `couponCode`; a limit reached is `409` with the same field. The idempotency hash includes the code. **Cancelling an order gives its coupon use back.** Orders keep a snapshot (`coupon {id, code, type, discount}`, and `pricing.taxName/taxRateBps/taxInclusive`), so editing or deleting a coupon or tax rule never changes a past order.
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET / POST | /admin/coupons | coupons:write (store manager, admin, superadmin) | list / create `{code (3–30 A–Z 0–9 _ -), description?, type (percent\|fixed\|free_shipping), value (percent 1–100; fixed in minor units), maxDiscount? (percent only), minSubtotal?, startsAt?, expiresAt?, usageLimit? (null = unlimited), perCustomerLimit? (null = unlimited), isActive}`. Duplicate code ⇒ 409 |
+| GET / PATCH / DELETE | /admin/coupons/:id | coupons:write | PATCH needs `baseUpdatedAt` (stale ⇒ 409) and the **code cannot change** (⇒ 400). DELETE is allowed any time and clears the per-customer counters |
+| GET / POST | /admin/tax-rules | tax:write (admin, superadmin only) | `{country (ISO), name, rateBps (1800 = 18%), inclusive, appliesToShipping, isActive}`; one rule per country (duplicate ⇒ 409) |
+| PATCH / DELETE | /admin/tax-rules/:id | tax:write | PATCH needs `baseUpdatedAt`; the country cannot change |
+
+Customer-facing messages: unknown and switched-off codes both say "This code is not valid." (codes cannot be probed); also "not active yet", "has expired", "has been fully used", "Spend at least ₹X…", "You have already used this code." Coupon and tax changes are audit-logged.
+
+**Tax rules:** destination = the shipping country. *Inclusive* tax is already in the prices (reported on the order, total unchanged); *exclusive* tax is added to the total. Tax is calculated on goods after discount, plus shipping only when the rule says so. No rule for a country = no tax line. Rounding: round half up, once per formula. Shipping rates are still not destination-dependent.
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 

@@ -228,7 +228,7 @@ describe("orders (godpuja_test)", () => {
       const res = await call({ items: [{ productId: p.id, qty: 1, unitPrice: 1 }] });
       expect(res.status).toBe(200);
       const json = await res.json();
-      expect(Object.keys(json.data).sort()).toEqual(["issues", "items", "pricing"]);
+      expect(Object.keys(json.data).sort()).toEqual(["coupon", "couponError", "issues", "items", "pricing"]);
       expect(Object.keys(json.data.items[0]).sort()).toEqual(["available", "freeShipping", "image", "lineTotal", "maxQty", "name", "options", "productId", "qty", "sku", "slug", "unitPrice", "variantSku"]);
       expect(json.data.items[0].unitPrice).toBe(10000);
       expect((await call({ items: [] })).status).toBe(400);

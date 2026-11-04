@@ -70,12 +70,12 @@ async function Invoice({ params }: { params: PageProps<"/account/orders/[id]/inv
         </table>
         <dl className="ml-auto w-full max-w-xs space-y-1 text-sm">
           <div className="flex justify-between"><dt>Subtotal</dt><dd>{m(o.pricing.subtotal)}</dd></div>
-          {o.pricing.discount > 0 && <div className="flex justify-between"><dt>Discount</dt><dd>−{m(o.pricing.discount)}</dd></div>}
+          {o.pricing.discount > 0 && <div className="flex justify-between"><dt>Discount{o.couponCode ? ` (${o.couponCode})` : ""}</dt><dd>−{m(o.pricing.discount)}</dd></div>}
           <div className="flex justify-between"><dt>Shipping</dt><dd>{o.pricing.shipping === 0 ? "Free" : m(o.pricing.shipping)}</dd></div>
-          {o.pricing.tax > 0 && <div className="flex justify-between"><dt>Tax (included in prices)</dt><dd>{m(o.pricing.tax)}</dd></div>}
+          {o.pricing.tax > 0 && <div className="flex justify-between"><dt>{o.pricing.taxName ?? "Tax"}{o.pricing.taxRateBps ? ` ${o.pricing.taxRateBps / 100}%` : ""}{o.pricing.taxInclusive === false ? " (added)" : " (included in prices)"}</dt><dd>{m(o.pricing.tax)}</dd></div>}
           <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total ({o.currency})</dt><dd>{m(o.pricing.total)}</dd></div>
         </dl>
-        <p className="text-sm text-muted">Payment: {o.payment.method === "cod" ? "Cash on delivery" : o.payment.method} — {PAYMENT_STATUS_LABEL[o.payment.status].toLowerCase()}. Prices include applicable taxes.</p>
+        <p className="text-sm text-muted">Payment: {o.payment.method === "cod" ? "Cash on delivery" : o.payment.method} — {PAYMENT_STATUS_LABEL[o.payment.status].toLowerCase()}. {o.pricing.taxInclusive === false && o.pricing.tax > 0 ? "Tax is added to the total." : "Prices include applicable taxes."}</p>
       </article>
     </main>
   );

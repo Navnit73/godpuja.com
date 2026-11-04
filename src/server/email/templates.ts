@@ -31,16 +31,20 @@ export function passwordReset(site: string, to: string, name: string, url: strin
 
 type OrderSummary = {
   orderNumber: string; currency: string; items: { name: string; qty: number; lineTotal: number }[];
-  pricing: { subtotal: number; shipping: number; total: number }; shippingAddress: Address; paymentMethod: string;
+  pricing: { subtotal: number; discount?: number; shipping: number; tax?: number; taxName?: string; taxInclusive?: boolean; total: number }; couponCode?: string | null;
+  shippingAddress: Address; paymentMethod: string;
 };
+const taxLine = (o: OrderSummary) => (o.pricing.taxName && (o.pricing.tax ?? 0) > 0 ? `${o.pricing.taxName}${o.pricing.taxInclusive === false ? " (added)" : " (included)"}` : null);
 function orderTable(o: OrderSummary) {
   const m = (n: number) => esc(formatMoney(n, o.currency));
   const rows = o.items.map((i) => `<tr><td style="padding:6px 0">${esc(i.name)} × ${i.qty}</td><td style="padding:6px 0;text-align:right">${m(i.lineTotal)}</td></tr>`).join("");
-  return `<table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14px">${rows}<tr><td style="padding:6px 0;border-top:1px solid #d6c3a1">Shipping</td><td style="padding:6px 0;border-top:1px solid #d6c3a1;text-align:right">${o.pricing.shipping === 0 ? "Free" : m(o.pricing.shipping)}</td></tr><tr><td style="padding:6px 0;font-weight:600">Total (${esc(o.currency)})</td><td style="padding:6px 0;text-align:right;font-weight:600">${m(o.pricing.total)}</td></tr></table><p style="margin:0 0 14px;font-size:14px;line-height:1.5"><strong>Delivering to</strong><br>${addressLines(o.shippingAddress).map(esc).join("<br>")}</p>`;
+  return `<table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14px">${rows}${(o.pricing.discount ?? 0) > 0 ? `<tr><td style="padding:6px 0;border-top:1px solid #d6c3a1">Discount${o.couponCode ? ` (${esc(o.couponCode)})` : ""}</td><td style="padding:6px 0;border-top:1px solid #d6c3a1;text-align:right">−${m(o.pricing.discount!)}</td></tr>` : ""}<tr><td style="padding:6px 0;border-top:1px solid #d6c3a1">Shipping</td><td style="padding:6px 0;border-top:1px solid #d6c3a1;text-align:right">${o.pricing.shipping === 0 ? "Free" : m(o.pricing.shipping)}</td></tr>${taxLine(o) ? `<tr><td style="padding:6px 0">${esc(taxLine(o)!)}</td><td style="padding:6px 0;text-align:right">${m(o.pricing.tax!)}</td></tr>` : ""}<tr><td style="padding:6px 0;font-weight:600">Total (${esc(o.currency)})</td><td style="padding:6px 0;text-align:right;font-weight:600">${m(o.pricing.total)}</td></tr></table><p style="margin:0 0 14px;font-size:14px;line-height:1.5"><strong>Delivering to</strong><br>${addressLines(o.shippingAddress).map(esc).join("<br>")}</p>`;
 }
 const orderText = (o: OrderSummary) => [
   ...o.items.map((i) => `${i.name} x ${i.qty}: ${formatMoney(i.lineTotal, o.currency)}`),
+  ...((o.pricing.discount ?? 0) > 0 ? [`Discount${o.couponCode ? ` (${o.couponCode})` : ""}: -${formatMoney(o.pricing.discount!, o.currency)}`] : []),
   `Shipping: ${o.pricing.shipping === 0 ? "Free" : formatMoney(o.pricing.shipping, o.currency)}`,
+  ...(taxLine(o) ? [`${taxLine(o)}: ${formatMoney(o.pricing.tax!, o.currency)}`] : []),
   `Total (${o.currency}): ${formatMoney(o.pricing.total, o.currency)}`, "", "Delivering to:", ...addressLines(o.shippingAddress),
 ];
 

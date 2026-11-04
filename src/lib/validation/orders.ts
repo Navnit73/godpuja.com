@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { addressIssues } from "@/lib/address";
 import { CARRIER_IDS } from "@/lib/carriers";
+import { couponCodeSchema } from "./coupons";
 import { ADMIN_SETTABLE_STATUSES, ORDER_STATUSES, PAYMENT_STATUSES } from "@/lib/order-status";
 
 export const MAX_LINE_QTY = 20;
@@ -18,6 +19,15 @@ export const cartLineSchema = z.object({
 });
 export const cartInputSchema = z.object({ items: z.array(cartLineSchema).min(1, "Your cart is empty").max(MAX_CART_LINES, `At most ${MAX_CART_LINES} different items`) });
 export type CartLineInput = z.infer<typeof cartLineSchema>;
+
+/** A blank coupon box means "no coupon". */
+const optionalCoupon = z.union([z.literal(""), couponCodeSchema]).optional().transform((v) => v || undefined);
+/** What the cart and checkout send to be priced: the lines, an optional coupon code and the destination country. */
+export const quoteSchema = cartInputSchema.extend({
+  couponCode: optionalCoupon,
+  country: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Choose a country").optional(),
+});
+export type QuoteInput = z.infer<typeof quoteSchema>;
 
 const phone = z.string().trim().regex(/^\+?[\d\s-]{8,20}$/, "Enter a valid phone number").refine((v) => { const n = v.replace(/\D/g, "").length; return n >= 8 && n <= 15; }, "Enter a valid phone number");
 /** International address (PRD v1.1 §13). Postal code and state rules depend on the country (lib/address.ts). */
@@ -45,6 +55,7 @@ export const checkoutSchema = cartInputSchema.extend({
   paymentMethod: z.enum(PAYMENT_METHODS),
   notes: z.string().trim().max(300).optional(),
   saveAddress: z.boolean().optional(), // signed-in customers: keep the shipping address in the account
+  couponCode: optionalCoupon,
 }).superRefine((v, ctx) => {
   if (!v.billingSameAsShipping && !v.billingAddress) ctx.addIssue({ code: "custom", path: ["billingAddress"], message: "Enter the billing address" });
 });

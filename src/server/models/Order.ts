@@ -31,7 +31,10 @@ export type OrderDoc = {
   items: OrderItem[];
   /** ISO 4217 code all amounts on this order are in (integer minor units). Missing on pre-Stage-12 rows = INR. */
   currency: string;
-  pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
+  /** All amounts are integer minor units of `currency`. total = subtotal − discount + shipping (+ tax when it is added on top). */
+  pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number; taxName?: string; taxRateBps?: number; taxInclusive?: boolean };
+  /** The coupon applied at checkout (a snapshot: it stays correct if the coupon is later edited or deleted). */
+  coupon?: { id: mongoose.Types.ObjectId; code: string; type: string; discount: number };
   status: OrderStatus;
   payment: { provider: string; method: string; providerOrderId?: string; providerPaymentId?: string; status: PaymentStatus; paidAt?: Date };
   shipments: Shipment[];
@@ -63,6 +66,7 @@ const orderSchema = new mongoose.Schema(
     items: { type: M, required: true },
     currency: { type: String, required: true, match: /^[A-Z]{3}$/ },
     pricing: { type: M, required: true },
+    coupon: { type: M },
     status: { type: String, enum: ORDER_STATUSES, required: true },
     payment: {
       provider: { type: String, required: true },

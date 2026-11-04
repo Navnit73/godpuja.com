@@ -3,7 +3,10 @@ import { env } from "../env";
 import { Product, type ProductDoc } from "../models/Product";
 import { loadCategoryIndex, sortedImages } from "./products";
 import { BASE_CURRENCY } from "@/lib/money";
-import { MAX_LINE_QTY, type CartLineInput } from "@/lib/validation/orders";
+import { assemble, computeTax, type Discount, type TaxTerms } from "@/lib/pricing";
+import { MAX_LINE_QTY, type CartLineInput, type QuoteInput } from "@/lib/validation/orders";
+import { checkCoupon } from "./coupons";
+import { taxTermsFor } from "./tax";
 
 export type CartIssue = { productId: string; variantSku: string | null; code: "unavailable" | "out_of_stock" | "reduced"; message: string };
 export type CartLine = {
@@ -11,8 +14,14 @@ export type CartLine = {
   options: Record<string, string>; unitPrice: number; qty: number; lineTotal: number; available: boolean; maxQty: number; freeShipping: boolean;
 };
 /** Amounts in integer minor units of `currency` (the catalogue currency, BASE_CURRENCY). */
-export type CartPricing = { currency: string; subtotal: number; shipping: number; total: number; freeShippingOver: number; flatShipping: number };
-export type CartResult = { items: CartLine[]; issues: CartIssue[]; pricing: CartPricing };
+export type CartPricing = {
+  currency: string; subtotal: number; discount: number; shipping: number;
+  /** Tax in the total (inclusive) or added to it (exclusive). taxName is null when no rule applies to the destination. */
+  tax: number; taxName: string | null; taxRateBps: number; taxInclusive: boolean;
+  total: number; freeShippingOver: number; flatShipping: number;
+};
+export type CartCoupon = { code: string; type: "percent" | "fixed" | "free_shipping"; discount: number };
+export type CartResult = { items: CartLine[]; issues: CartIssue[]; pricing: CartPricing; coupon: CartCoupon | null; couponError: string | null };
 
 export const shippingConfig = () => ({ flat: env().SHIPPING_FLAT_PAISE, freeOver: env().FREE_SHIPPING_OVER_PAISE });
 
@@ -40,7 +49,14 @@ export function computePricing(lines: Pick<CartLine, "lineTotal" | "freeShipping
   const subtotal = live.reduce((n, l) => n + l.lineTotal, 0);
   const free = subtotal >= freeOver || live.some((l) => l.freeShipping);
   const shipping = subtotal === 0 || free ? 0 : flat;
-  return { currency: BASE_CURRENCY, subtotal, shipping, total: subtotal + shipping, freeShippingOver: freeOver, flatShipping: flat };
+  return { currency: BASE_CURRENCY, subtotal, discount: 0, shipping, tax: 0, taxName: null, taxRateBps: 0, taxInclusive: true, total: subtotal + shipping, freeShippingOver: freeOver, flatShipping: flat };
+}
+
+/** Apply a coupon's discount and the destination's tax to the base pricing. Pure; the order total is assembled in lib/pricing. */
+export function finalizePricing(base: CartPricing, discount: Discount, tax: TaxTerms | null): CartPricing {
+  const t = computeTax(tax, base.subtotal - discount.goods, base.shipping - discount.shipping);
+  const p = assemble(base.subtotal, base.shipping, discount, t);
+  return { ...base, discount: p.discount, tax: p.tax, taxName: tax && tax.rateBps > 0 ? tax.name : null, taxRateBps: tax?.rateBps ?? 0, taxInclusive: tax?.inclusive ?? true, total: p.total };
 }
 
 type LoadedProduct = Pick<ProductDoc, "_id" | "name" | "slug" | "sku" | "images" | "price" | "salePrice" | "stock" | "variants" | "status" | "category" | "shipping">;
@@ -91,12 +107,21 @@ export async function hiddenCategorySet() {
 }
 
 /** POST /cart/validate: recompute everything server-side so the browser never decides a price or a quantity. */
-export async function validateCart(items: CartLineInput[]): Promise<CartResult> {
+export async function validateCart(items: CartLineInput[], opts: Partial<Pick<QuoteInput, "couponCode" | "country">> = {}): Promise<CartResult> {
   await connectDB();
   const ids = [...new Set(items.map((i) => i.productId))];
   const [rows, hidden] = await Promise.all([Product.find({ _id: { $in: ids } }).select(CART_FIELDS).lean(), hiddenCategorySet()]);
   const products = new Map(rows.map((r) => [String(r._id), r as unknown as LoadedProduct]));
   const { lines, issues } = resolveLines(items, products, hidden);
-  return { items: lines, issues, pricing: computePricing(lines) };
+  const base = computePricing(lines);
+  // A bad code never fails the cart: it comes back as a message and the cart is priced without it.
+  let coupon: CartCoupon | null = null, couponError: string | null = null, discount: Discount = { goods: 0, shipping: 0, total: 0 };
+  if (opts.couponCode) {
+    const r = await checkCoupon(opts.couponCode, base.subtotal, base.shipping);
+    if ("error" in r) couponError = r.error;
+    else { discount = r.coupon.discount; coupon = { code: r.coupon.code, type: r.coupon.type, discount: discount.total }; }
+  }
+  const pricing = finalizePricing(base, discount, await taxTermsFor(opts.country));
+  return { items: lines, issues, pricing, coupon, couponError };
 }
 

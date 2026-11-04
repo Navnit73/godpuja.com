@@ -10,7 +10,7 @@ import { deliver, siteName } from "./notifications";
 const orderUrl = (id: string, token: string) => `${env().SITE_URL}/order/${id}/confirmation?token=${encodeURIComponent(token)}`;
 
 async function load(id: string) {
-  const o = await Order.findById(id).select("orderNumber email accessToken status currency items pricing shippingAddress payment.method").lean();
+  const o = await Order.findById(id).select("orderNumber email accessToken status currency items pricing coupon shippingAddress payment.method").lean();
   if (!o) return null;
   return { o, url: orderUrl(id, o.accessToken), site: await siteName(), ref: { kind: "order", id } };
 }
@@ -20,7 +20,7 @@ export async function sendOrderPlaced(id: string) {
   if (!x) return;
   const { o } = x;
   await deliver(T.orderPlaced(x.site, o.email, {
-    orderNumber: o.orderNumber, currency: o.currency ?? "INR", status: o.status, items: o.items, pricing: o.pricing,
+    orderNumber: o.orderNumber, currency: o.currency ?? "INR", status: o.status, items: o.items, pricing: o.pricing, couponCode: o.coupon?.code ?? null,
     shippingAddress: normalizeAddress(o.shippingAddress), paymentMethod: o.payment.method,
   }, x.url), "order.placed", x.ref);
 }

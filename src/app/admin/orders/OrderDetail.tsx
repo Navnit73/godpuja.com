@@ -119,8 +119,9 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
             </div>
             <dl className="ml-auto grid max-w-xs grid-cols-2 gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted">Subtotal</dt><dd className="text-right">{formatMoney(o.pricing.subtotal)}</dd>
+              {o.pricing.discount > 0 && <><dt className="text-muted">Discount{o.couponCode ? ` (${o.couponCode})` : ""}</dt><dd className="text-right text-success">−{formatMoney(o.pricing.discount)}</dd></>}
               <dt className="text-muted">Shipping</dt><dd className="text-right">{o.pricing.shipping === 0 ? "Free" : formatMoney(o.pricing.shipping)}</dd>
-              <dt className="text-muted">Tax (included)</dt><dd className="text-right">{formatMoney(o.pricing.tax)}</dd>
+              <dt className="text-muted">{o.pricing.taxName ?? "Tax"}{o.pricing.taxRateBps ? ` ${o.pricing.taxRateBps / 100}%` : ""}{o.pricing.taxInclusive === false ? " (added)" : " (included)"}</dt><dd className="text-right">{formatMoney(o.pricing.tax)}</dd>
               <dt className="font-semibold">Total</dt><dd className="text-right font-semibold">{formatMoney(o.pricing.total)}</dd>
               {o.refundedTotal > 0 && <><dt className="text-muted">Refunded</dt><dd className="text-right text-danger">−{formatMoney(o.refundedTotal)}</dd></>}
             </dl>

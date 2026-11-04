@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiClientError } from "@/lib/api";
 import { cart, MAX_QTY, useCart } from "@/lib/cart";
+import { useCoupon } from "@/lib/coupon-store";
+import CouponBox from "@/components/store/CouponBox";
+import PricingLines from "@/components/store/PricingLines";
 import { formatMoney } from "@/lib/money";
 import type { CartValidation } from "@/lib/storefront-api";
 import { sized } from "@/lib/image";
@@ -24,24 +27,27 @@ function QtyStepper({ name, value, max, onChange }: { name: string; value: numbe
 }
 
 /** Server-validated cart: prices and stock always come from the API, never from the browser. */
-export function useValidatedCart() {
+export function useValidatedCart(opts: { country?: string } = {}) {
   const lines = useCart();
-  const key = JSON.stringify(lines);
+  const couponCode = useCoupon();
+  const country = opts.country;
+  // Everything that changes the price is part of the key, so a stale answer is never shown for the current inputs.
+  const key = JSON.stringify([lines, couponCode, country ?? null]);
   const [state, setState] = useState<{ key: string; data: CartValidation | null; error: string | null }>({ key: "", data: null, error: null });
   useEffect(() => {
     if (lines.length === 0) return;
     let live = true;
-    api.post<CartValidation>("/cart/validate", { items: lines })
+    api.post<CartValidation>("/cart/validate", { items: lines, ...(couponCode ? { couponCode } : {}), ...(country ? { country } : {}) })
       .then((data) => live && setState({ key, data, error: null }))
       .catch((e) => live && setState({ key, data: null, error: e instanceof ApiClientError ? e.message : "Could not load your cart. Try again." }));
     return () => { live = false; };
-  }, [key, lines]);
+  }, [key, lines, couponCode, country]);
   const loading = lines.length > 0 && state.key !== key;
-  return { lines, loading, data: lines.length ? (state.key === key ? state.data : null) : null, error: state.key === key ? state.error : null };
+  return { lines, couponCode, loading, data: lines.length ? (state.key === key ? state.data : null) : null, error: state.key === key ? state.error : null };
 }
 
 export default function CartClient() {
-  const { lines, loading, data, error } = useValidatedCart();
+  const { lines, couponCode, loading, data, error } = useValidatedCart();
   const [announce, setAnnounce] = useState("");
   const clamped = useRef(false);
 
@@ -110,12 +116,9 @@ export default function CartClient() {
 
       <aside aria-labelledby="summary" className="panel h-fit space-y-3 p-5">
         <h2 id="summary" className="font-sans text-lg font-semibold">Order summary</h2>
-        <dl className="space-y-2 text-sm">
-          <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatMoney(data.pricing.subtotal)}</dd></div>
-          <div className="flex justify-between"><dt>Shipping</dt><dd>{data.pricing.shipping === 0 ? "Free" : formatMoney(data.pricing.shipping)}</dd></div>
-          <div className="flex justify-between border-t border-border pt-2 text-base font-semibold"><dt>Total</dt><dd>{formatMoney(data.pricing.total)}</dd></div>
-        </dl>
-        <p className="text-xs text-muted">Inclusive of all taxes.{data.pricing.shipping > 0 && data.pricing.freeShippingOver > 0 && <> Free shipping on orders over {formatMoney(data.pricing.freeShippingOver)}.</>}</p>
+        <CouponBox code={couponCode} applied={data.coupon} error={data.couponError} loading={loading} />
+        <PricingLines p={data.pricing} couponCode={data.coupon?.code} />
+        <p className="text-xs text-muted">Shipping and any taxes are confirmed at checkout.{data.pricing.shipping > 0 && data.pricing.freeShippingOver > 0 && <> Free shipping on orders over {formatMoney(data.pricing.freeShippingOver)}.</>}</p>
         {buyable.length > 0
           ? <Link href="/checkout" className="btn-primary w-full">Checkout</Link>
           : <p className="text-sm text-danger">Nothing in your cart can be purchased right now.</p>}

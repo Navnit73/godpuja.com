@@ -7,14 +7,19 @@ export type CartItem = {
 };
 export type CartIssue = { productId: string; variantSku: string | null; code: "unavailable" | "out_of_stock" | "reduced"; message: string };
 /** Integer minor units of `currency` (ISO 4217). */
-export type CartPricing = { currency: string; subtotal: number; shipping: number; total: number; freeShippingOver: number; flatShipping: number };
-export type CartValidation = { items: CartItem[]; issues: CartIssue[]; pricing: CartPricing };
+export type CartPricing = {
+  currency: string; subtotal: number; discount: number; shipping: number; tax: number; taxName: string | null; taxRateBps: number; taxInclusive: boolean;
+  total: number; freeShippingOver: number; flatShipping: number;
+};
+export type CartCoupon = { code: string; type: "percent" | "fixed" | "free_shipping"; discount: number };
+export type CartValidation = { items: CartItem[]; issues: CartIssue[]; pricing: CartPricing; coupon: CartCoupon | null; couponError: string | null };
 
 export type CheckoutResult = { orderId: string; orderNumber: string; accessToken: string; status: string; currency: string; payment: { method: string; status: string } };
 export type OrderView = {
   orderNumber: string; status: string; createdAt: string; email?: string; currency: string;
   items: { name: string; sku: string; image?: { url: string; alt: string } | null; variantSku?: string | null; unitPrice: number; qty: number; lineTotal: number }[];
-  pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number };
+  pricing: { subtotal: number; discount: number; shipping: number; tax: number; total: number; taxName?: string; taxRateBps?: number; taxInclusive?: boolean };
+  couponCode?: string | null;
   payment: { method?: string; provider?: string; status: string };
   shippingAddress: Address & { phone?: string };
   shipments?: { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string }[];

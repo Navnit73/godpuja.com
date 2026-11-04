@@ -7,7 +7,9 @@ import { env } from "../env";
 import { Order, type Actor, type Address, type OrderDoc, type OrderItem, type OrderStatus, type PaymentStatus } from "../models/Order";
 import { Product } from "../models/Product";
 import { getProvider } from "../payments/provider";
-import { CART_FIELDS, computePricing, hiddenCategorySet, mergeLines, resolveLines } from "./cart";
+import { CART_FIELDS, computePricing, finalizePricing, hiddenCategorySet, mergeLines, resolveLines } from "./cart";
+import { applyTerms, checkCoupon, redeemCoupon, releaseCoupon } from "./coupons";
+import { taxTermsFor } from "./tax";
 import { ledgerFor, recordLedger, type LedgerRow } from "./ledger";
 import { defer } from "./notifications";
 import { sendOrderPlaced, sendOrderRefund, sendOrderStatus, sendReturnDecision } from "./order-notifications";
@@ -45,7 +47,7 @@ export type CheckoutResult = {
 
 function hashRequest(input: CheckoutInput) {
   const items = mergeLines(input.items).map((i) => `${i.productId}:${i.variantSku ?? ""}:${i.qty}`).sort();
-  return crypto.createHash("sha256").update(JSON.stringify([items, input.email, input.phone, input.shippingAddress, input.billingSameAsShipping, input.billingAddress ?? null, input.paymentMethod, input.notes ?? ""])).digest("hex");
+  return crypto.createHash("sha256").update(JSON.stringify([items, input.couponCode ?? null, input.email, input.phone, input.shippingAddress, input.billingSameAsShipping, input.billingAddress ?? null, input.paymentMethod, input.notes ?? ""])).digest("hex");
 }
 
 function replayOf(existing: OrderDoc, requestHash: string): CheckoutResult {
@@ -109,20 +111,35 @@ export async function placeOrder(input: CheckoutInput, idempotencyKey: string, o
         if (res.matchedCount === 0) throw new ApiError("CONFLICT", `${l.name} just sold out or has less stock than you asked for. Please review your cart.`, { items: "Stock changed" });
       }
 
-      const pricing = computePricing(lines);
+      const base = computePricing(lines);
+      // Coupon: checked and counted inside this transaction, so two checkouts can never both take the last use, and a
+      // failed order (stock, validation) leaves the coupon untouched.
+      let coupon: OrderDoc["coupon"];
+      let discount = { goods: 0, shipping: 0, total: 0 };
+      if (input.couponCode) {
+        const found = await checkCoupon(input.couponCode, base.subtotal, base.shipping, session);
+        if ("error" in found) throw new ApiError("VALIDATION_ERROR", found.error, { couponCode: found.error });
+        await redeemCoupon(found.doc, input.email, session);
+        const applied = applyTerms(found.doc, base.subtotal, base.shipping);
+        discount = applied.discount;
+        coupon = { id: found.doc._id, code: applied.code, type: applied.type, discount: discount.total };
+      }
+      const taxTerms = await taxTermsFor(input.shippingAddress.country, session);
+      const pricing = finalizePricing(base, discount, taxTerms);
+      const orderPricing = { subtotal: pricing.subtotal, discount: pricing.discount, shipping: pricing.shipping, tax: pricing.tax, total: pricing.total, ...(pricing.taxName ? { taxName: pricing.taxName, taxRateBps: pricing.taxRateBps, taxInclusive: pricing.taxInclusive } : {}) };
       const items: OrderItem[] = lines.map((l) => ({
         product: new mongoose.Types.ObjectId(l.productId), variantSku: l.variantSku, name: l.name, slug: l.slug, sku: l.sku, image: l.image, options: l.options,
         unitPrice: l.unitPrice, qty: l.qty, lineTotal: l.lineTotal,
       }));
       const shipping = addr(input.shippingAddress);
       const currency = BASE_CURRENCY;
-      const pay = await provider.createPayment({ orderNumber, currency, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, email: input.email });
+      const pay = await provider.createPayment({ orderNumber, currency, pricing: orderPricing, email: input.email });
       const status: OrderStatus = pay.status === "paid" || provider.confirmsOnPlacement ? "confirmed" : "pending_payment";
       const now = new Date();
       const [doc] = await Order.create([{
         orderNumber, idempotencyKey, requestHash, accessToken, user: opts.userId && isId(opts.userId) ? new mongoose.Types.ObjectId(opts.userId) : null, email: input.email, phone: input.phone, shippingAddress: shipping,
         billingAddress: input.billingSameAsShipping || !input.billingAddress ? shipping : addr(input.billingAddress), customerNote: input.notes ?? "",
-        items, currency, pricing: { subtotal: pricing.subtotal, discount: 0, shipping: pricing.shipping, tax: 0, total: pricing.total }, status,
+        items, currency, pricing: orderPricing, ...(coupon ? { coupon } : {}), status,
         payment: { provider: provider.id, method: input.paymentMethod, ...(pay.providerOrderId ? { providerOrderId: pay.providerOrderId } : {}), status: pay.status, ...(pay.status === "paid" ? { paidAt: now } : {}) },
         history: [{ kind: "created", status, note: status === "pending_payment" ? "Order placed, awaiting payment" : "Order placed", by: SYSTEM, at: now }],
       }], { session });
@@ -148,7 +165,7 @@ export type CustomerOrder = {
   orderNumber: string; status: OrderStatus; createdAt: string; email: string; phone: string; currency: string;
   items: { name: string; sku: string; variantSku: string | null; options: Record<string, string>; image: { url: string; alt: string } | null; slug: string; unitPrice: number; qty: number; lineTotal: number }[];
   pricing: OrderDoc["pricing"]; payment: { method: string; status: PaymentStatus }; shippingAddress: Address; billingAddress: Address;
-  deliveredAt: string | null;
+  deliveredAt: string | null; couponCode: string | null;
   shipments: { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string }[];
   returnRequest: { status: "requested" | "accepted" | "declined"; reason: string; at: string; decisionNote: string } | null;
 };
@@ -160,15 +177,16 @@ export async function getCustomerOrder(id: string, token: string): Promise<Custo
   const notFound = new ApiError("NOT_FOUND", "Order not found");
   if (!isId(id) || !/^[A-Za-z0-9_-]{20,64}$/.test(token)) throw notFound;
   await connectDB();
-  const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken shipments deliveredAt returnRequest").lean();
+  const o = await Order.findById(id).select("orderNumber status createdAt email phone items currency pricing payment shippingAddress billingAddress accessToken shipments deliveredAt returnRequest coupon").lean();
   if (!o || !safeEqual(o.accessToken, token)) throw notFound;
   return customerView(o);
 }
 
 /** What a customer may see of their order: no notes, history, refunds or internal ids. */
-export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "createdAt" | "email" | "phone" | "items" | "currency" | "pricing" | "payment" | "shippingAddress" | "billingAddress"> & Partial<Pick<OrderDoc, "shipments" | "deliveredAt" | "returnRequest">>): CustomerOrder {
+export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "createdAt" | "email" | "phone" | "items" | "currency" | "pricing" | "payment" | "shippingAddress" | "billingAddress"> & Partial<Pick<OrderDoc, "shipments" | "deliveredAt" | "returnRequest" | "coupon">>): CustomerOrder {
   return {
     deliveredAt: iso(o.deliveredAt),
+    couponCode: o.coupon?.code ?? null,
     shipments: (o.shipments ?? []).map((s) => ({ id: s.id, carrier: s.carrier, trackingNumber: s.trackingNumber, link: trackingLink(s.carrier, s.trackingNumber, s.trackingUrl), shippedAt: new Date(s.shippedAt).toISOString() })),
     returnRequest: o.returnRequest ? { status: o.returnRequest.status, reason: o.returnRequest.reason, at: new Date(o.returnRequest.at).toISOString(), decisionNote: o.returnRequest.decisionNote ?? "" } : null,
     orderNumber: o.orderNumber, status: o.status, createdAt: o.createdAt.toISOString(), email: o.email, phone: o.phone, currency: currencyOf(o),
@@ -179,8 +197,8 @@ export function customerView(o: Pick<OrderDoc, "orderNumber" | "status" | "creat
 
 // ---------- admin ----------
 export type AdminShipment = { id: string; carrier: string; trackingNumber: string; link: string | null; shippedAt: string; by: string };
-export type AdminOrder = Omit<OrderDoc, "_id" | "user" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items" | "shipments" | "deliveredAt" | "returnRequest"> & {
-  id: string; user: string | null; createdAt: string; updatedAt: string; ledger: LedgerRow[];
+export type AdminOrder = Omit<OrderDoc, "_id" | "user" | "accessToken" | "requestHash" | "idempotencyKey" | "createdAt" | "updatedAt" | "payment" | "history" | "refunds" | "notes" | "items" | "shipments" | "deliveredAt" | "returnRequest" | "coupon"> & {
+  id: string; user: string | null; couponCode: string | null; createdAt: string; updatedAt: string; ledger: LedgerRow[];
   shipments: AdminShipment[]; deliveredAt: string | null;
   returnRequest: { status: "requested" | "accepted" | "declined"; reason: string; at: string; source: "customer" | "staff"; decidedAt: string | null; decisionNote: string } | null;
   items: (Omit<OrderItem, "product"> & { product: string })[];
@@ -212,7 +230,7 @@ export const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 };
 
 const toAdmin = (o: OrderDoc, ledger: LedgerRow[]): AdminOrder => ({
-  id: String(o._id), user: o.user ? String(o.user) : null, ledger, orderNumber: o.orderNumber,
+  id: String(o._id), user: o.user ? String(o.user) : null, couponCode: o.coupon?.code ?? null, ledger, orderNumber: o.orderNumber,
   shipments: (o.shipments ?? []).map((s) => ({ id: s.id, carrier: s.carrier, trackingNumber: s.trackingNumber, link: trackingLink(s.carrier, s.trackingNumber, s.trackingUrl), shippedAt: new Date(s.shippedAt).toISOString(), by: s.by.name })),
   deliveredAt: iso(o.deliveredAt),
   returnRequest: o.returnRequest ? { status: o.returnRequest.status, reason: o.returnRequest.reason, at: new Date(o.returnRequest.at).toISOString(), source: o.returnRequest.source, decidedAt: iso(o.returnRequest.decidedAt), decisionNote: o.returnRequest.decisionNote ?? "" } : null, email: o.email, phone: o.phone, shippingAddress: normalizeAddress(o.shippingAddress), billingAddress: normalizeAddress(o.billingAddress),
@@ -319,9 +337,10 @@ export async function changeStatus(id: string, to: OrderStatus, note: string | u
     try {
       await session.withTransaction(async () => {
         const u = update(cur.status);
-        const o = await Order.findOneAndUpdate(u.filter, u.set, { session, returnDocument: "before" }).select("items").lean();
+        const o = await Order.findOneAndUpdate(u.filter, u.set, { session, returnDocument: "before" }).select("items coupon email").lean();
         if (!o) throw new ApiError("CONFLICT", "This order was just changed by someone else. Reload and try again.");
         await restoreStock(o.items, session);
+        if (o.coupon) await releaseCoupon(o.coupon.id, o.email, session); // a cancelled order gives its coupon use back
       });
     } finally {
       await session.endSession();

@@ -1,5 +1,6 @@
 import { addressLines } from "@/lib/address";
 import { carrierName } from "@/lib/carriers";
+import PricingLines from "./PricingLines";
 import { formatMoney } from "@/lib/money";
 import { ORDER_STATUS_LABEL, PAYMENT_STATUS_LABEL } from "@/lib/order-status";
 import type { CustomerOrder } from "@/server/services/orders";
@@ -52,11 +53,7 @@ export default function OrderDetails({ o }: { o: CustomerOrder }) {
             </li>
           ))}
         </ul>
-        <dl className="mt-3 space-y-1 border-t border-border pt-3 text-sm">
-          <div className="flex justify-between"><dt>Subtotal</dt><dd>{money(o.pricing.subtotal)}</dd></div>
-          <div className="flex justify-between"><dt>Shipping</dt><dd>{o.pricing.shipping === 0 ? "Free" : money(o.pricing.shipping)}</dd></div>
-          <div className="flex justify-between text-base font-semibold"><dt>Total ({o.currency})</dt><dd>{money(o.pricing.total)}</dd></div>
-        </dl>
+        <div className="mt-3 border-t border-border pt-3"><PricingLines p={{ ...o.pricing, currency: o.currency }} couponCode={o.couponCode} /></div>
       </section>
       <div className="grid gap-6 sm:grid-cols-2">
         <section aria-labelledby="ship" className="panel p-5">

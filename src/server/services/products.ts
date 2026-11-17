@@ -261,7 +261,15 @@ const CARD_FIELDS = "name slug shortDescription images price salePrice stock var
 const ci = (v: string) => new RegExp(`^${escapeRegex(v)}$`, "i");
 
 /** Conditions every public listing shares: visible status, category subtree, price range and text search. */
-async function baseFilter(q: PublicProductsInput) {
+export type SearchOpts = { partial?: boolean };
+const tokensOf = (s: string) => s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 2).slice(0, 5);
+/** Every word typed must start a word in the name, brand or description, or be a prefix of a SKU or an attribute value ("gane" finds "Ganesha"). */
+const partialClauses = (text: string) => tokensOf(text).map((t) => {
+  const word = new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(t)}`, "iu"), start = new RegExp(`^${escapeRegex(t)}`, "i");
+  return { $or: [{ name: word }, { brand: word }, { shortDescription: word }, { sku: start }, { "attributes.value": word }] };
+});
+
+async function baseFilter(q: PublicProductsInput, opts: SearchOpts = {}) {
   const filter: Record<string, unknown> = { status: visible };
   const cats = await categorySnapshot();
   if (q.category) {
@@ -273,7 +281,8 @@ async function baseFilter(q: PublicProductsInput) {
   if (q.minPrice !== undefined || q.maxPrice !== undefined) {
     filter.effectivePrice = { ...(q.minPrice !== undefined ? { $gte: q.minPrice } : {}), ...(q.maxPrice !== undefined ? { $lte: q.maxPrice } : {}) };
   }
-  if (q.q) filter.$text = { $search: q.q };
+  if (q.q && !opts.partial) filter.$text = { $search: q.q };
+  else if (q.q) { const c = partialClauses(q.q); filter.$and = c.length ? c : [{ _id: { $in: [] } }]; } // text with no usable words matches nothing
   return { filter, cats };
 }
 
@@ -287,13 +296,13 @@ function refinements(q: PublicProductsInput): Record<string, unknown>[] {
   return and;
 }
 
-export async function findPublicProducts(q: PublicProductsInput) {
+export async function findPublicProducts(q: PublicProductsInput, opts: SearchOpts = {}) {
   await connectDB();
-  const base = await baseFilter(q);
+  const base = await baseFilter(q, opts);
   if (!base) return { items: [] as PublicProduct[], total: 0, page: q.page, limit: q.limit, pages: 1 };
   const { filter, cats } = base;
   const and = refinements(q);
-  if (and.length) filter.$and = and;
+  if (and.length) filter.$and = [...((filter.$and as unknown[]) ?? []), ...and];
   const sort: Record<string, 1 | -1> =
     q.sort === "price-asc" ? { effectivePrice: 1, _id: 1 } : q.sort === "price-desc" ? { effectivePrice: -1, _id: -1 }
     : q.sort === "popular" ? { soldCount: -1, _id: -1 } : q.sort === "rating" ? { ratingAvg: -1, ratingCount: -1, _id: -1 } : { createdAt: -1, _id: -1 };
@@ -334,9 +343,9 @@ export type FacetGroup = { key: FacetKey; name: string; values: { value: string;
  * filters themselves), with how many products carry each. Only values that exist are offered; groups with none are
  * omitted. Values that differ only in letter case are merged.
  */
-export async function findFacets(q: PublicProductsInput): Promise<FacetGroup[]> {
+export async function findFacets(q: PublicProductsInput, opts: SearchOpts = {}): Promise<FacetGroup[]> {
   await connectDB();
-  const base = await baseFilter(q);
+  const base = await baseFilter(q, opts);
   if (!base) return [];
   const rows = await Product.aggregate<{ _id: { k: string; v: string }; value: string; n: number }>([
     { $match: base.filter },
@@ -417,4 +426,18 @@ export async function findRelated(slug: string, limit = 4): Promise<PublicProduc
     out.push(...((await Product.find({ status: visible, isFeatured: true, slug: { $nin: have }, ...notHidden }).select(pick).sort({ createdAt: -1, _id: -1 }).limit(limit - out.length).lean()) as ProductDoc[]));
   }
   return out.map((p) => toPublicProduct(p, catPath));
+}
+
+/** Type-ahead: products whose name, brand or SKU starts a word with what was typed (all words must match), best sellers first. */
+export async function suggestProducts(text: string, limit = 5): Promise<PublicProduct[]> {
+  const clauses = partialClauses(text);
+  if (!clauses.length) return [];
+  await connectDB();
+  const { catPath, hidden } = await loadCategoryIndex();
+  const rows = await Product.find({ status: visible, ...(hidden.length ? { category: { $nin: hidden } } : {}), $and: clauses })
+    .select(CARD_FIELDS).sort({ soldCount: -1, _id: -1 }).limit(limit * 4).lean();
+  // Name matches first (then best sellers): "gane" should list Ganesha idols before a kit that only mentions Ganesh in its description.
+  const words = tokensOf(text).map((t) => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegex(t)}`, "iu"));
+  const inName = (n: string) => words.every((w) => w.test(n));
+  return rows.map((p, i) => ({ p, i, hit: inName(p.name) ? 0 : 1 })).sort((a, b) => a.hit - b.hit || a.i - b.i).slice(0, limit).map(({ p }) => toPublicProduct(p as ProductDoc, catPath));
 }

@@ -249,10 +249,11 @@ export async function findPreviewVidhi(token: string, now = new Date()): Promise
   return v ? toPublic(v, now) : null;
 }
 
-export async function findPublicVidhiList({ category, page = 1, limit = 12 }: { category?: VidhiCategory; page?: number; limit?: number }, now = new Date()) {
+export async function findPublicVidhiList({ category, page = 1, limit = 12, q }: { category?: VidhiCategory; page?: number; limit?: number; q?: string }, now = new Date()) {
   await connectDB();
   const base = liveFilter(now);
-  const filter = { ...base, ...(category ? { category } : {}) };
+  const rx = q ? new RegExp(escapeRegex(q), "i") : null;
+  const filter = { ...base, ...(category ? { category } : {}), ...(rx ? { $and: [{ $or: [{ title: rx }, { deity: rx }, { tags: rx }, { summary: rx }] }] } : {}) };
   const [rows, total, counts] = await Promise.all([
     Vidhi.find(filter).select(CARD_FIELDS).sort({ publishedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Vidhi.countDocuments(filter),

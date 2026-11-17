@@ -286,9 +286,10 @@ export type PostCard = {
 };
 
 /** Live posts of one kind (or both), newest first. `page` is 1-based. */
-export async function findPublicPosts(kind: Exclude<PageKind, "page"> | "all", { page = 1, limit = 12 } = {}, now = new Date()) {
+export async function findPublicPosts(kind: Exclude<PageKind, "page"> | "all", { page = 1, limit = 12, q }: { page?: number; limit?: number; q?: string } = {}, now = new Date()) {
   await connectDB();
-  const filter: mongoose.QueryFilter<PageDoc> = { ...(kind === "all" ? { kind: { $in: ["blog", "guide"] } } : { kind }), ...liveFilter(now) };
+  const rx = q ? new RegExp(escapeRegex(q), "i") : null;
+  const filter: mongoose.QueryFilter<PageDoc> = { ...(kind === "all" ? { kind: { $in: ["blog", "guide"] } } : { kind }), ...liveFilter(now), ...(rx ? { $and: [{ $or: [{ title: rx }, { description: rx }] }] } : {}) }; // $and: liveFilter already owns the top-level $or
   const [rows, total] = await Promise.all([
     Page.find(filter).select("kind title slug description coverImageUrl coverImageAlt publishedAt")
       .sort({ publishedAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),

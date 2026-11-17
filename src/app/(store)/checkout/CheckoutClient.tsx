@@ -70,7 +70,7 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
       if (!res.ok) {
         const e = json?.error;
         if (e?.fields) setErrs(e.fields);
-        if (res.status === 409 || res.status === 400 && !e?.fields) idem.current = null; // changed cart/stock => next attempt is a new order
+        if (res.status === 409 || res.status === 401 || res.status === 400 && !e?.fields) idem.current = null; // changed cart/stock => next attempt is a new order
         throw new ApiClientError(e?.code ?? "INTERNAL", e?.message ?? "Checkout failed", res.status, e?.fields);
       }
       const r = json.data as CheckoutResult;
@@ -91,7 +91,7 @@ export default function CheckoutClient({ shipTo, billTo, account }: { shipTo: Co
 
         <fieldset className="space-y-4"><legend className="mb-2 font-sans text-xl font-semibold">Contact</legend>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="email" label="Email" type="email" autoComplete="email" value={email} onChange={setEmail} error={errs.email} />
+            <Field id="email" label="Email" type="email" autoComplete="email" value={email} onChange={account ? () => {} : setEmail} error={errs.email} readOnly={!!account} />
             <Field id="phone" label="Mobile number" type="tel" autoComplete="tel" value={phone} onChange={setPhone} error={errs.phone} />
           </div>
         </fieldset>

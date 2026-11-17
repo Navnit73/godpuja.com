@@ -43,9 +43,16 @@ function DesktopItem({ item }: { item: PublicMenuItem }) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const wide = item.children.some((c) => c.children.length > 0); // categories with sub-categories get a multi-column panel
+
   if (!item.children.length) return <li className={pill}><NavLink item={item} className={pillLink} /></li>;
   return (
     <li ref={ref} className="relative"
+      // Mouse users get the menu on hover; touch and keyboard users use the arrow button (click / Enter).
+      onPointerEnter={(e) => { if (e.pointerType === "mouse") { clearTimeout(timer.current); setOpen(true); } }}
+      onPointerLeave={(e) => { if (e.pointerType === "mouse") { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 150); } }}
       onKeyDown={(e) => { if (e.key === "Escape" && open) { setOpen(false); toggleBtn.current?.focus(); } }}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
       <div className={pill}>
@@ -56,34 +63,58 @@ function DesktopItem({ item }: { item: PublicMenuItem }) {
         </button>
       </div>
       {open && (
-        <ul id={panelId} className="absolute left-0 top-full z-40 mt-2 min-w-60 rounded-xl border border-sandal-200 bg-surface p-2 shadow-elev-4">
-          {item.children.map((c) => (
-            <li key={c.id}>
-              <NavLink item={c} className={`block ${subLinkCls}`} />
-              {c.children.length > 0 && (
-                <ul className="ml-3 border-l border-border pl-2">
-                  {c.children.map((g) => <li key={g.id}><NavLink item={g} className={`block ${subLinkCls} text-muted`} /></li>)}
-                </ul>
-              )}
-            </li>
-          ))}
+        // The wrapper's top padding (not a margin) keeps the pointer inside the item while it moves from the label to the panel.
+        <div className="absolute left-0 top-full z-40 pt-2">
+          <ul id={panelId} className={wide
+            ? "grid max-h-[calc(100dvh-9rem)] w-[min(52rem,calc(100vw-2rem))] grid-cols-2 content-start gap-x-4 gap-y-1 overflow-y-auto rounded-xl border border-sandal-200 bg-surface p-3 shadow-elev-4 lg:grid-cols-3"
+            : "min-w-60 rounded-xl border border-sandal-200 bg-surface p-2 shadow-elev-4"}>
+            {item.children.map((c) => (
+              <li key={c.id} className={wide ? "break-inside-avoid" : ""}>
+                <NavLink item={c} className={`block ${subLinkCls} ${wide ? "font-semibold" : ""}`} />
+                {c.children.length > 0 && (
+                  <ul className="ml-3 border-l border-border pl-2">
+                    {c.children.map((g) => <li key={g.id}><NavLink item={g} className={`block ${subLinkCls} py-1.5 text-muted`} /></li>)}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </li>
+  );
+}
+
+const hasCurrent = (item: PublicMenuItem, pathname: string): boolean => item.href === pathname || item.children.some((c) => hasCurrent(c, pathname));
+
+/** One drawer row: the link plus, when it has sub-items, a button that opens them (closed by default, open on the current page's branch). */
+function MobileRow({ item, onNavigate, depth, pathname }: { item: PublicMenuItem; onNavigate: () => void; depth: number; pathname: string }) {
+  const [open, setOpen] = useState(() => hasCurrent(item, pathname) && item.children.length > 0);
+  const panelId = useId();
+  const row = depth === 0 ? "py-3 text-base font-semibold" : depth === 1 ? "py-2.5 text-[0.95rem] font-medium" : "py-2 text-sm font-normal text-muted";
+  return (
+    <li className={depth === 0 ? "border-b border-sandal-200 last:border-b-0" : ""}>
+      <div className="flex items-center">
+        <NavLink item={item} onNavigate={onNavigate} className={`block min-h-11 flex-1 rounded-md px-2 ${row} hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary`} />
+        {item.children.length > 0 && (
+          <button type="button" aria-expanded={open} aria-controls={panelId} aria-label={`${item.label} submenu`} onClick={() => setOpen((o) => !o)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted hover:bg-saffron-50 hover:text-primary">
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        )}
+      </div>
+      {item.children.length > 0 && open && (
+        <ul id={panelId} className="mb-2 ml-3 border-l border-sandal-200 pl-2">
+          {item.children.map((c) => <MobileRow key={c.id} item={c} onNavigate={onNavigate} depth={depth + 1} pathname={pathname} />)}
         </ul>
       )}
     </li>
   );
 }
 
-function MobileList({ items, onNavigate, depth = 0 }: { items: PublicMenuItem[]; onNavigate: () => void; depth?: number }) {
-  return (
-    <ul className={depth ? "ml-3 border-l border-border pl-2" : "flex flex-col"}>
-      {items.map((i) => (
-        <li key={i.id}>
-          <NavLink item={i} onNavigate={onNavigate} className={`block rounded-md px-2 py-2.5 text-base font-medium hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary ${depth ? "text-muted" : ""}`} />
-          {i.children.length > 0 && <MobileList items={i.children} onNavigate={onNavigate} depth={depth + 1} />}
-        </li>
-      ))}
-    </ul>
-  );
+function MobileList({ items, onNavigate }: { items: PublicMenuItem[]; onNavigate: () => void }) {
+  const pathname = usePathname();
+  return <ul className="flex flex-col">{items.map((i) => <MobileRow key={i.id} item={i} onNavigate={onNavigate} depth={0} pathname={pathname} />)}</ul>;
 }
 
 /** Second header row on md+: the admin-managed header menu as a category bar. */
@@ -122,7 +153,7 @@ export function MobileNav({ items }: { items: PublicMenuItem[] }) {
       </button>
       {open && (
         <nav id="mobile-nav" aria-label="Mobile" className="absolute inset-x-0 top-full max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-sandal-200 bg-surface px-4 pb-5 pt-4 shadow-elev-4">
-          <HeaderSearch id="mobile-q" className="mb-4" />
+          <HeaderSearch id="mobile-q" className="mb-3" inline />
           <MobileList items={items} onNavigate={() => setOpen(false)} />
         </nav>
       )}

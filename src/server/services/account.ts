@@ -215,17 +215,17 @@ export async function saveCheckoutAddress(userId: string, input: SavedAddressInp
 }
 
 // ---------- order history ----------
-export type MyOrderListItem = { id: string; orderNumber: string; createdAt: string; status: CustomerOrder["status"]; currency: string; total: number; itemCount: number };
+export type MyOrderListItem = { id: string; orderNumber: string; createdAt: string; status: CustomerOrder["status"]; paymentStatus: CustomerOrder["payment"]["status"]; currency: string; total: number; itemCount: number };
 
 export async function listMyOrders(userId: string, page = 1, limit = 10) {
   await connectDB();
   const filter = { user: oid(userId) };
   const [rows, total] = await Promise.all([
-    Order.find(filter).select("orderNumber createdAt status currency pricing.total items.qty").sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Order.find(filter).select("orderNumber createdAt status payment.status currency pricing.total items.qty").sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Order.countDocuments(filter),
   ]);
   const items: MyOrderListItem[] = rows.map((o) => ({
-    id: String(o._id), orderNumber: o.orderNumber, createdAt: o.createdAt.toISOString(), status: o.status, currency: o.currency ?? "INR",
+    id: String(o._id), orderNumber: o.orderNumber, createdAt: o.createdAt.toISOString(), status: o.status, paymentStatus: o.payment?.status ?? "pending", currency: o.currency ?? "INR",
     total: o.pricing.total, itemCount: o.items.reduce((n, i) => n + i.qty, 0),
   }));
   return { items, total, page, limit, pages: Math.max(1, Math.ceil(total / limit)) };

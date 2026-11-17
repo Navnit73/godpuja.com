@@ -45,9 +45,10 @@ export type CheckoutResult = {
   orderId: string; orderNumber: string; accessToken: string; status: OrderStatus; currency: string; payment: { method: string; status: PaymentStatus }; created: boolean;
 };
 
-function hashRequest(input: CheckoutInput) {
+/** Bound to the owner (`userId`) so a key cannot be replayed by, or into, a different account. */
+function hashRequest(input: CheckoutInput, userId: string | null) {
   const items = mergeLines(input.items).map((i) => `${i.productId}:${i.variantSku ?? ""}:${i.qty}`).sort();
-  return crypto.createHash("sha256").update(JSON.stringify([items, input.couponCode ?? null, input.email, input.phone, input.shippingAddress, input.billingSameAsShipping, input.billingAddress ?? null, input.paymentMethod, input.notes ?? ""])).digest("hex");
+  return crypto.createHash("sha256").update(JSON.stringify([items, input.couponCode ?? null, input.email, input.phone, input.shippingAddress, input.billingSameAsShipping, input.billingAddress ?? null, input.paymentMethod, input.notes ?? "", userId])).digest("hex");
 }
 
 function replayOf(existing: OrderDoc, requestHash: string): CheckoutResult {
@@ -78,7 +79,7 @@ export function assertShippable(country: string) {
 export async function placeOrder(input: CheckoutInput, idempotencyKey: string, opts: { userId?: string | null } = {}): Promise<CheckoutResult> {
   assertShippable(input.shippingAddress.country);
   await connectDB();
-  const requestHash = hashRequest(input);
+  const requestHash = hashRequest(input, opts.userId && isId(opts.userId) ? opts.userId : null);
   const prior = await Order.findOne({ idempotencyKey }).lean();
   if (prior) return replayOf(prior, requestHash);
 

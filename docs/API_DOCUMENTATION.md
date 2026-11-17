@@ -253,6 +253,11 @@ Content managers, admins and superadmins hold the `devotional:*` permissions. Po
 - Content-Security-Policy: `media-src 'self' https:`; Google Tag Manager / Analytics allowed in `script-src` and `connect-src`.
 - Scripts: `npm run seed:legal [-- --apply]` (draft Cookie policy and Data retention pages), `npm run e2e:seed` and `npm run e2e:phase1` (browser run on the test database).
 
+## Advanced search
+- **`GET /api/search/suggest?q=`** (public, 90 requests/min per IP, uncached): type-ahead for the header search. Needs 2+ characters (otherwise empty). Returns `products` (up to 5: name, slug, image, price, sale price, in stock), `categories` (4), `vidhi` (3), `devotionals` (4), `posts` (3) and a `total`. Products match when **every typed word starts a word** in the name, brand or description, or starts the SKU or an attribute value ("gane" finds "Ganesha"); name matches rank first, then best sellers. Only live, visible things are returned (no drafts, unpublished items or hidden categories). Typed text is always literal (never a pattern).
+- **`/search?q=`** now covers the whole site: tabs for *Everything*, *Pooja Vidhi*, *Aarti & Mantras* and *Blog & guides* (`&in=vidhi|devotional|posts`, paginated), with counts. *Everything* shows the top three of each content type above the filtered product listing. Products use full-text search first; if that finds nothing, partial words are tried and the page says so. Empty results offer links to browse.
+- The header box is a plain GET form first (works without JavaScript); with JavaScript it is an accessible combobox with grouped suggestions, arrow-key navigation, highlighted matches, recent searches (kept in the browser only) and popular terms.
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 

@@ -48,8 +48,8 @@
   --color-gold-700: #77591f;
 
   /* Sandalwood cream */
-  --color-sandal-50: #fffdf8;
-  --color-sandal-100: #fbf6ec;
+  --color-sandal-50: #ffffff;
+  --color-sandal-100: #f5f5f4;
   --color-sandal-200: #f4ead7;
   --color-sandal-300: #e9d8b9;
   --color-sandal-400: #d6bd93;
@@ -83,7 +83,7 @@
   --gradient-sacred: linear-gradient(120deg, var(--color-saffron-700) 0%, var(--color-kumkum-600) 55%, var(--color-kumkum-800) 100%);
   --gradient-dusk: linear-gradient(135deg, var(--color-kumkum-800) 0%, var(--color-kumkum-950) 100%);
   --gradient-tulsi: linear-gradient(135deg, var(--color-tulsi-700) 0%, #1f3a24 100%);
-  --gradient-dawn: linear-gradient(180deg, var(--color-saffron-50) 0%, var(--color-sandal-50) 100%);
+  --gradient-dawn: linear-gradient(180deg, #ffffff 0%, #ffffff 100%);
 
   /* Modal / drawer scrim (the only translucent token; not a frosted surface) */
   --color-scrim: rgb(59 13 16 / 0.45);
@@ -112,7 +112,7 @@
 }
 
 :root {
-  --background: var(--color-sandal-50);
+  --background: #ffffff;
   --foreground: var(--color-kumkum-900);
   --surface: #ffffff;
   --muted: #7a625a;

@@ -11,9 +11,10 @@ import { Product } from "@/server/models/Product";
 import { User } from "@/server/models/User";
 import { claimGuestOrders, listMyOrders } from "@/server/services/account";
 import { flushNotifications } from "@/server/services/notifications";
-import { placeOrder } from "@/server/services/orders";
+import { changeStatus, getAdminOrder, placeOrder } from "@/server/services/orders";
+import { applyPaymentEvent } from "@/server/services/payments";
 import { createProduct } from "@/server/services/products";
-import { checkoutSchema } from "@/lib/validation/orders";
+import { checkoutSchema, webhookEventSchema } from "@/lib/validation/orders";
 import { emptySeo } from "@/lib/validation/pages";
 import type { ProductInput } from "@/lib/validation/catalog";
 
@@ -68,5 +69,29 @@ describe("order / account integrity (godpuja_test)", () => {
     await placeOrder(input(p.id, "stranger@example.com"), "oa-key-0004");
     expect(await claimGuestOrders(uid, "asha@example.com")).toBe(1);
     expect((await listMyOrders(uid)).total).toBe(1);
+  });
+
+  describe("payment webhook safety", () => {
+    const ev = (orderNumber: string, over: Record<string, unknown> = {}) => webhookEventSchema.parse({ eventId: `evt-${Math.random()}`, type: "payment.succeeded", timestamp: Date.now(), orderNumber, ...over });
+    it("refuses a payment.succeeded event that does not state the amount", async () => {
+      const p = await createProduct(prod());
+      const o = await placeOrder(input(p.id), "oa-key-0005");
+      const err = await applyPaymentEvent(ev(o.orderNumber)).then(() => null, (e) => e);
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).code).toBe("VALIDATION_ERROR");
+      expect((await getAdminOrder(o.orderId)).payment.status).toBe("pending");
+    });
+    it("flags money received for a cancelled order so a refund is raised", async () => {
+      const p = await createProduct(prod());
+      const o = await placeOrder(input(p.id), "oa-key-0006");
+      await changeStatus(o.orderId, "cancelled", undefined, { id: null, name: "Tester" });
+      const total = (await getAdminOrder(o.orderId)).pricing.total;
+      await applyPaymentEvent(ev(o.orderNumber, { amount: total, providerPaymentId: "pay_late" }));
+      const a = await getAdminOrder(o.orderId);
+      expect(a.status).toBe("cancelled");
+      expect(a.payment.status).toBe("paid");
+      expect(a.refundable).toBe(total);
+      expect(a.history.some((h) => /refund/i.test(h.note) && /cancelled/.test(h.note))).toBe(true);
+    });
   });
 });

@@ -20,6 +20,9 @@ export const POST = handle(async (req) => {
   const session = token ? await verifySession(decodeURIComponent(token)) : null;
   const user = session ? await resolveUser(session) : null;
   if (session && !user) throw new ApiError("UNAUTHENTICATED", "Your session has ended. Please sign in again to place this order.");
+  // Orders are tied to an account only once its email is confirmed: receipts, order lookup and guest-order claiming all
+  // rely on that address being the customer's own.
+  if (user && !user.emailVerifiedAt) throw new ApiError("FORBIDDEN", "Please verify your email address before placing an order. We sent you a link when you registered; you can request a new one from your account.");
   const userId = user ? String(user._id) : null;
   if (userId) await rateLimitShared(`checkout-user:${userId}`, 10, 60_000);
   // The account's own email is the customer's identity (receipts, per-customer coupon limits, order lookup): a signed-in

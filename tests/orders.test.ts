@@ -536,7 +536,8 @@ describe("orders (godpuja_test)", () => {
       const sig = opts.sig === undefined ? signWebhook(raw, secret) : opts.sig;
       return webhookPOST(new Request("http://x/api/payments/webhook", { method: "POST", headers: { "content-type": "application/json", ...(sig ? { "x-signature": sig } : {}) }, body: raw }));
     };
-    const ev = (over: Record<string, unknown>) => ({ eventId: `evt-${Date.now()}-${Math.random()}`, type: "payment.succeeded", timestamp: Date.now(), ...over });
+    // A success event must state the amount paid; the orders built by setup() total 15000 (10000 + shipping).
+    const ev = (over: Record<string, unknown>) => ({ eventId: `evt-${Date.now()}-${Math.random()}`, type: "payment.succeeded", timestamp: Date.now(), ...(over.type === undefined || over.type === "payment.succeeded" ? { amount: 15000 } : {}), ...over });
     const setup = async () => { const p = await mk({ price: 10000, stock: 5 }); return place([{ productId: p.id, qty: 1 }]); };
 
     it("rejects missing/wrong signatures and tampered bodies before touching anything", async () => {

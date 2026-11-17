@@ -11,6 +11,8 @@ import type { WebhookEventInput } from "@/lib/validation/orders";
 
 const WEBHOOK: Actor = { id: null, name: "Payment webhook" };
 const PROVIDER = "generic";
+/** Orders that will never ship: money arriving for one of these must be flagged for a refund. */
+const DEAD: OrderStatus[] = ["cancelled", "returned", "refunded"];
 
 /**
  * Apply a verified payment event. Idempotent on the provider event id (unique index): the event row and the order
@@ -24,8 +26,10 @@ export async function applyPaymentEvent(ev: WebhookEventInput): Promise<{ duplic
   if (ev.currency && ev.currency !== (order.currency ?? "INR")) {
     throw new ApiError("VALIDATION_ERROR", "Currency does not match the order", { currency: "Mismatch" });
   }
-  if (ev.type === "payment.succeeded" && ev.amount !== undefined && ev.amount !== order.pricing.total) {
-    throw new ApiError("VALIDATION_ERROR", "Amount does not match the order total", { amount: "Mismatch" });
+  if (ev.type === "payment.succeeded") {
+    // Money is only recorded against an amount we can reconcile: a success event without one cannot be verified.
+    if (ev.amount === undefined) throw new ApiError("VALIDATION_ERROR", "A payment.succeeded event must include the amount paid", { amount: "Required" });
+    if (ev.amount !== order.pricing.total) throw new ApiError("VALIDATION_ERROR", "Amount does not match the order total", { amount: "Mismatch" });
   }
 
   const session = await mongoose.startSession();
@@ -47,7 +51,7 @@ export async function applyPaymentEvent(ev: WebhookEventInput): Promise<{ duplic
       if (ev.type === "payment.succeeded") {
         const res = await Order.updateOne(
           { _id: order._id, "payment.status": { $in: ["pending", "failed"] satisfies PaymentStatus[] } },
-          { $set: { "payment.status": "paid", "payment.paidAt": at, ...(ev.providerPaymentId ? { "payment.providerPaymentId": ev.providerPaymentId } : {}) }, $push: { history: hist("Payment received") } },
+          { $set: { "payment.status": "paid", "payment.paidAt": at, ...(ev.providerPaymentId ? { "payment.providerPaymentId": ev.providerPaymentId } : {}) }, $push: { history: { $each: [hist("Payment received"), ...(DEAD.includes(order.status) ? [hist(`Payment received after the order was ${order.status}. The customer is owed a refund: review and refund this order.`)] : [])] } } },
           { session },
         );
         if (res.modifiedCount) {
@@ -56,6 +60,7 @@ export async function applyPaymentEvent(ev: WebhookEventInput): Promise<{ duplic
             providerRef: ev.providerPaymentId ?? null, amount: order.pricing.total, currency: order.currency ?? "INR", note: `Webhook ${ev.eventId}`, actor: WEBHOOK,
           }, session);
           await moveStatus("paid", "Payment received");
+          if (DEAD.includes(order.status)) console.warn(`[payments] ${order.orderNumber} was paid while ${order.status}; a refund is due`);
         }
       } else if (ev.type === "payment.failed") {
         const res = await Order.updateOne({ _id: order._id, "payment.status": "pending" }, { $set: { "payment.status": "failed" }, $push: { history: hist("Payment failed") } }, { session });

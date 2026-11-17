@@ -43,7 +43,7 @@ import {
 import { ledgerFor, ledgerTotals } from "@/server/services/ledger";
 import { flushNotifications } from "@/server/services/notifications";
 import { createProduct } from "@/server/services/products";
-import { changePayment, changeStatus, placeOrder, refundOrder } from "@/server/services/orders";
+import { changePayment, changeStatus, getAdminOrder, placeOrder, refundOrder } from "@/server/services/orders";
 import { applyPaymentEvent } from "@/server/services/payments";
 import { _resetRateLimit } from "@/server/rate-limit";
 import { POST as registerPOST } from "@/app/api/auth/register/route";
@@ -400,7 +400,7 @@ describe("Stage 13 with the database (godpuja_test)", () => {
     it("a webhook charge is recorded once with the provider reference, even when delivered twice", async () => {
       const p = await mkProduct();
       const o = await placeOrder(checkoutSchema.parse(checkoutBody(p.id)), key());
-      const ev = webhookEventSchema.parse({ eventId: "evt-l1", type: "payment.succeeded", timestamp: Date.now(), orderNumber: o.orderNumber, providerPaymentId: "pay_77" });
+      const ev = webhookEventSchema.parse({ eventId: "evt-l1", type: "payment.succeeded", timestamp: Date.now(), orderNumber: o.orderNumber, providerPaymentId: "pay_77", amount: (await getAdminOrder(o.orderId)).pricing.total });
       await applyPaymentEvent(ev);
       expect((await applyPaymentEvent(ev)).duplicate).toBe(true);
       const rows = await ledgerFor("order", o.orderId);

@@ -11,7 +11,7 @@ import { getSession, SESSION_COOKIE, verifySession, type Session } from "./sessi
 export async function resolveUser(session: Session | null) {
   if (!session || !mongoose.isValidObjectId(session.uid)) return null;
   await connectDB();
-  const user = await User.findById(session.uid).select("name email role isActive tokenVersion templeIds").lean();
+  const user = await User.findById(session.uid).select("name email role isActive tokenVersion templeIds emailVerifiedAt").lean();
   if (!user || !user.isActive || (user.tokenVersion ?? 0) !== session.tv) return null;
   const role = normalizeRole(user.role); // tolerate rows not yet migrated by scripts/migrate-stage12.ts
   if (!role) return null;

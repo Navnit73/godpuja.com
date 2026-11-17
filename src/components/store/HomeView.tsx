@@ -1,7 +1,10 @@
 /* eslint-disable @next/next/no-img-element -- remote CMS images from any host; Cloudinary ones are resized via lib/image */
 import Link from "next/link";
 import type { PublicHomeSection } from "@/server/services/homepage";
+import DevotionalCardView from "./DevotionalCardView";
 import PostCard from "./PostCard";
+import VidhiCardView from "./VidhiCardView";
+import { PILLARS } from "@/lib/pillars";
 import ProductCard from "./ProductCard";
 import { Section as PageSection } from "./PageView";
 import { responsive } from "@/lib/image";
@@ -182,6 +185,37 @@ function Block({ s }: { s: PublicHomeSection }) {
         <Wrap className={PAD}>
           <Heading title={s.heading} href={s.viewAll} />
           <ul aria-label={s.heading || "Latest posts"} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{s.posts.map((p) => <PostCard key={p.id} p={p} showKind={s.showKind} />)}</ul>
+        </Wrap>
+      );
+    case "pillars":
+      return (
+        <Wrap className={PAD}>
+          <Heading title={s.heading} />
+          <ul aria-label={s.heading || "Explore GodPuja"} className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
+            {PILLARS.map((p) => (
+              <li key={p.key}>
+                <Link href={p.href} className="group flex h-full flex-col items-center gap-1 rounded-2xl border border-saffron-200 bg-surface p-4 text-center transition-colors hover:border-primary hover:bg-dawn">
+                  <span className="font-sans text-base font-semibold text-foreground group-hover:text-primary">{p.label}</span>
+                  <span className="text-xs text-muted">{p.text}</span>
+                  {!p.live && <span className="badge-muted mt-1">Coming soon</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Wrap>
+      );
+    case "vidhiHighlights":
+      return (
+        <Wrap className={PAD}>
+          <Heading title={s.heading} href={s.viewAll} />
+          <ul aria-label={s.heading || "Pooja Vidhi"} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{s.items.map((v) => <VidhiCardView key={v.id} v={v} />)}</ul>
+        </Wrap>
+      );
+    case "devotionalHighlights":
+      return (
+        <Wrap className={PAD}>
+          <Heading title={s.heading} href={s.viewAll} />
+          <ul aria-label={s.heading || "Aarti and mantras"} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{s.items.map((d) => <DevotionalCardView key={d.id} d={d} />)}</ul>
         </Wrap>
       );
     case "custom": {

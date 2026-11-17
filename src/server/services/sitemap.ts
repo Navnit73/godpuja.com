@@ -3,6 +3,8 @@ import { Category } from "../models/Category";
 import { Page } from "../models/Page";
 import { Product } from "../models/Product";
 import { findVidhiForSitemap } from "./vidhi";
+import { findDevotionalForSitemap } from "./devotional";
+import { devotionalHref } from "@/lib/validation/devotional";
 
 export type SitemapEntry = { path: string; lastModified: Date };
 const MAX_URLS = 50_000; // sitemap protocol limit per file
@@ -35,5 +37,12 @@ export async function findSitemapEntries(now = new Date()): Promise<SitemapEntry
   const guides = await findVidhiForSitemap(now);
   if (guides.length) out.push({ path: "/pooja-vidhi", lastModified: guides[0].updatedAt });
   for (const g of guides) out.push({ path: `/pooja-vidhi/${g.slug}`, lastModified: g.updatedAt });
+  const items = await findDevotionalForSitemap(now);
+  if (items.length) {
+    const lastOf = (aarti: boolean) => items.find((i) => (i.type === "aarti") === aarti)?.updatedAt;
+    if (lastOf(true)) out.push({ path: "/aarti", lastModified: lastOf(true)! });
+    if (lastOf(false)) out.push({ path: "/mantras", lastModified: lastOf(false)! });
+  }
+  for (const i of items) out.push({ path: devotionalHref(i.type, i.slug), lastModified: i.updatedAt });
   return out.slice(0, MAX_URLS);
 }

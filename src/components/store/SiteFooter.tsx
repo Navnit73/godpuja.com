@@ -4,6 +4,7 @@ import Logo from "@/components/Logo";
 import { getPublicFooter } from "@/server/public/footer";
 import type { PublicFooter, PublicLink } from "@/server/services/footer";
 import { GiftIcon, HeadsetIcon, Mandala, MailIcon, PhoneIcon, PinIcon, ShieldIcon, TruckIcon } from "./Icons";
+import CookieSettingsButton from "./CookieSettingsButton";
 import NewsletterForm from "./NewsletterForm";
 
 const PLATFORM: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", x: "X", youtube: "YouTube", whatsapp: "WhatsApp", linkedin: "LinkedIn", telegram: "Telegram" };
@@ -45,7 +46,13 @@ export default async function SiteFooter() {
   await connection(); // request-time read; the build never needs the database
   // Chrome must never take the page down: if the read fails, render without a footer (logged for ops).
   const f = await getPublicFooter().catch((e) => { console.error("[footer] read failed", e); return null; });
-  if (!f) return <footer className="mt-auto"><Promises /></footer>;
+  if (!f) return (
+    <footer className="mt-auto text-sm">
+      <Promises />
+      {/* Even without a configured footer, visitors must be able to change their cookie choice. */}
+      <nav aria-label="Legal" className="bg-dusk px-4 py-4 text-sandal-300 sm:px-6"><CookieSettingsButton className="transition-colors hover:text-gold-300" /></nav>
+    </footer>
+  );
   return <FooterView f={f} />;
 }
 
@@ -95,9 +102,10 @@ export function FooterView({ f }: { f: PublicFooter }) {
         <div className="border-t border-white/10">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sandal-300 sm:px-6">
             <p>{f.copyright}</p>
-            {f.legalLinks.length > 0 && (
-              <nav aria-label="Legal"><ul className="flex flex-wrap gap-x-5 gap-y-1">{f.legalLinks.map((l) => <li key={l.id}><FooterLink l={l} /></li>)}</ul></nav>
-            )}
+            <nav aria-label="Legal"><ul className="flex flex-wrap gap-x-5 gap-y-1">
+              {f.legalLinks.map((l) => <li key={l.id}><FooterLink l={l} /></li>)}
+              <li><CookieSettingsButton className="transition-colors hover:text-gold-300" /></li>
+            </ul></nav>
           </div>
         </div>
       </div>

@@ -137,7 +137,7 @@ Tracked in [PROJECT_TRACKER.md](PROJECT_TRACKER.md). Each stage ends with `docs/
 | 11 | Store URLs: v1.1 uses `/shop/...`, we used `/category/...` | Stage 14 | **Done (Stage 14a):** `/shop/...`, permanent redirects from `/category/...` |
 | 12 | Temple / Pandit / donation payment model (merchant of record, settlement, refunds) | Stage 20 | **Open — owner + legal** (v1.1 §6.8, §7, §14.1) |
 | 14 | Pooja Vidhi: must a guide be reviewed before publishing? | Stage 15 | **Decided (default, easy to relax): yes** — a named reviewer and review date are required to publish or schedule (v1.1 §8) |
-| 13 | Aarti/Mantra audio sourcing and licences | Stage 16 | **Open — content/legal**; module ships lyrics-only until rights are recorded |
+| 13 | Aarti/Mantra audio sourcing and licences | Stage 16 | **Open — content/legal**; module shipped in Stage 16 and plays audio only when a complete rights record exists, so it runs lyrics-only until recordings and licences are supplied |
 
 ## 16. PRD v1.1 adoption: scope, stack mapping and gaps
 
@@ -186,7 +186,7 @@ Owner decision (2026-11-03): adopt [PRD v1.1](docs/PRD_v1.1.md) as the product s
 6. **Notifications** — no emails yet (orders, bookings, donations, account).
 7. **Payment gateway** — blocked on owner (decision 8).
 8. **Pooja Vidhi structured content** — samagri, steps, mantras, related aarti/products, author/reviewer (v1.1 §8).
-9. **Aarti & Mantras** — not started; audio player + rights metadata with expiry (v1.1 §9).
+9. **Aarti & Mantras** — done in Stage 16; audio player + rights metadata with expiry (v1.1 §9).
 10. **Temples, temple services, slots, bookings, operator portal** — not started (v1.1 §6).
 11. **Donations** — not started (v1.1 §7).
 12. **Pandits + home/online booking** — not started (v1.1 §10).

@@ -41,6 +41,7 @@ Indexes: `{orderNumber}` unique; `{idempotencyKey}` unique; `{accessToken}` uniq
 ## vidhis (Stage 15 — Pooja Vidhi guides)
 `title, slug (unique), category ('daily'|'festival'|'special'|'vrat-katha'|'step-by-step'), deity, summary, significance, preparation, body (Markdown), samagri[{item,quantity,note,productSlug}], steps[{title,body,mantra}], mantras[{title,text,meaning}], relatedAarti[slug], relatedProducts[slug], relatedVidhi[slug], tags[], durationMinutes|null, coverImageUrl/Alt, author, reviewer, reviewedAt|null, status ('draft'|'published'|'scheduled'), publishAt, publishedAt, previewToken (unique), seo{title,description,canonical,ogImage,noindex}`. Indexes: `{slug}` unique, `{previewToken}` unique, `{status, category, publishedAt:-1}`, `{status, publishAt}`, `{tags}`, text on title/summary/deity/tags.
 
+
 ## reviews (Stage 14)
 `product, user, order (the delivered order that qualifies), rating 1–5, title, body, displayName, status ('pending'|'published'|'rejected'), moderation{by,at,note}`. Unique `{product, user}`; `{product, status, createdAt:-1, _id:-1}` (public list); `{status, createdAt:-1, _id:-1}` (admin queue).
 
@@ -86,6 +87,9 @@ Single document `{_id: "superadmin-guard", n}` written inside transactions that 
 
 ## settings (single doc)
 `key ('main', unique), siteName, defaultTitle, defaultDescription, defaultOgImage, twitterHandle, logoUrl, homeTitle, homeDescription` (Stage 10, SEO only). Site URL comes from the `SITE_URL` env; shipping rules from env (Stage 9). Optimistic concurrency on `updatedAt`; first save create-only.
+
+## devotionals (Stage 16 — Aarti, mantras, chalisas, stotras)
+`title, slug (unique, across all types), type ('aarti'|'mantra'|'chalisa'|'stotra'), deity, language ('sanskrit'|'hindi'|'english'|'tamil'|'telugu'|'bengali'|'marathi'|'gujarati'), lyrics (plain text), transliteration, meaning (Markdown), summary, audioUrl, audioDurationSeconds|null, rights{source, licence ('original'|'licensed'|'public-domain'|''), reference, expiresAt|null, withdrawn}, relatedAarti[slug], relatedVidhi[slug], relatedProducts[slug], tags[], coverImageUrl/Alt, reviewer, reviewedAt|null, status ('draft'|'published'|'scheduled'), publishAt, publishedAt, previewToken (unique), seo{…}`. Audio plays only while `audioUrl` is set, `rights.source` and `rights.licence` are set (and `reference` for `licensed`), `withdrawn` is false and `expiresAt` is empty or in the future. Indexes: `{slug}` unique, `{previewToken}` unique, `{status, type, publishedAt:-1}`, `{status, publishAt}`, `{deity, language}`, `{rights.expiresAt}`, text on title/summary/deity/tags (`language_override: "textLanguage"`, `default_language: "none"`).
 
 ## auditLogs
 `action ("user.create" | "user.update"), actor {id (ref users), name}, target {type, id}, fields [changed field names — never values], ip, createdAt`. Indexes `{target.type:1, target.id:1, createdAt:-1}`, `{createdAt:-1}`. Append-only; no TTL (Stage 11). Orders keep their own `history` with the actor.

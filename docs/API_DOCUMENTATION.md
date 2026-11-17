@@ -230,6 +230,29 @@ Content managers, admins and superadmins hold the `vidhi:*` permissions; store m
 
 `npm run migrate:stage15` (dry run by default; `-- --apply` writes) copies the old Guides into Pooja Vidhi **as drafts** (category "Step-by-step guide", description → introduction, all sections → "Additional text"). The originals are untouched and nothing goes live until an editor restructures it, names a reviewer and publishes.
 
+## Aarti & Mantras (Stage 16, PRD v1.1 §9)
+Aarti at `/aarti` and `/aarti/<slug>`; mantras, chalisas and stotras at `/mantras` and `/mantras/<slug>`. An item is served only under the prefix for its type (a mantra at `/aarti/<slug>` is a real 404). `aarti` and `mantras` are reserved first URL segments. Same workflow as Pooja Vidhi: draft → (schedule) → published, secret-token preview at `/preview/devotional/<token>`, compare-and-set saves, 301 on slug or type change.
+
+**Content:** title, slug, type, deity, language (text), lyrics (plain text; lines kept as written), transliteration, meaning (Markdown), short description, cover image, audio URL and length, **rights**, related aarti/mantras, Pooja Vidhi guides and shop products (all verified when saved), tags, reviewer and review date, SEO.
+
+**Rights and audio.** Saving an audio URL requires `rights.source` (who made or owns it) and `rights.licence` (`original`, `licensed`, `public-domain`); `licensed` also needs `rights.reference`. `rights.expiresAt` (optional) and `rights.withdrawn` end the permission. The public page and list offer audio only while the record is complete, not withdrawn and not expired; this is evaluated on every read (cache window 60 s), so no edit or deploy is needed when a permission lapses. Previews follow the same rule. The public payload exposes the audio URL and the `source` as a credit line only.
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET / POST | /admin/aarti-mantras | devotional:read / write | list: `q` (title, URL, deity; plain text), `status`, `type`, `page`, `limit` ≤50; each row has `audio` status (`none`, `ok`, `expiring` (≤30 days), `expired`, `withdrawn`, `unlicensed`). POST creates a draft |
+| GET / PATCH / DELETE | /admin/aarti-mantras/:id | devotional:read / write | PATCH needs `baseUpdatedAt` (stale ⇒ 409). Without `devotional:publish`, only drafts can be changed or deleted. A rename or type change records a 301 and updates other pages' related lists; delete removes the item from them |
+| POST | /admin/aarti-mantras/:id/publish | devotional:publish | `{action: publish\|unpublish\|schedule, publishAt?}`. Needs text, a **named reviewer and a review date** |
+| POST | /admin/aarti-mantras/:id/preview-token | devotional:write | new secret preview link; the old one stops working |
+
+Content managers, admins and superadmins hold the `devotional:*` permissions. Pooja Vidhi's `relatedAarti` now accepts only existing items (400 with the field otherwise), and a guide shows only the live ones under "Aarti and mantras for this pooja". Structured data: `Article` + breadcrumbs, plus an `AudioObject` only while the audio may play. Index pages with filters or search are `noindex` and canonicalise to the plain list; the sitemap lists both indexes (once something is live) and every live, indexable item.
+
+## Phase 1 release additions (Stage 17)
+- **Admin SEO settings** (`/admin/seo`, same endpoint as before) gain `gaMeasurementId` (`""` or `G-` + 6–12 letters/digits, upper-cased) and `searchConsoleVerification` (`""` or the bare verification code, 20–100 characters; a pasted `<meta>` tag is rejected). GA4 is loaded in the browser only after the visitor accepts analytics; Search Console's tag is rendered on every storefront page.
+- **Homepage sections** `pillars` (heading), `vidhiHighlights` (heading, limit 1–12) and `devotionalHighlights` (heading, kind `aarti`|`mantras`|`all`, limit 1–12). Empty highlight sections are not shown.
+- **Placeholder pages** `/temples`, `/book-a-pooja`, `/donate` (200, `noindex`, not in the sitemap; reserved URL segments).
+- Content-Security-Policy: `media-src 'self' https:`; Google Tag Manager / Analytics allowed in `script-src` and `connect-src`.
+- Scripts: `npm run seed:legal [-- --apply]` (draft Cookie policy and Data retention pages), `npm run e2e:seed` and `npm run e2e:phase1` (browser run on the test database).
+
 ## Rate limits (Stage 11)
 Exceeding a limit returns `429 RATE_LIMITED` with `Retry-After` (seconds).
 

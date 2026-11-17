@@ -8,6 +8,7 @@ export type AdminSeoSettings = SeoSettings & { updatedAt: string | null };
 const pick = (d: SettingsDoc): SeoSettings => ({
   siteName: d.siteName || defaultSeoSettings.siteName, defaultTitle: d.defaultTitle ?? "", defaultDescription: d.defaultDescription ?? "",
   defaultOgImage: d.defaultOgImage ?? "", twitterHandle: d.twitterHandle ?? "", logoUrl: d.logoUrl ?? "", homeTitle: d.homeTitle ?? "", homeDescription: d.homeDescription ?? "",
+  gaMeasurementId: d.gaMeasurementId ?? "", searchConsoleVerification: d.searchConsoleVerification ?? "",
 });
 
 export async function getSeoSettings(): Promise<AdminSeoSettings> {

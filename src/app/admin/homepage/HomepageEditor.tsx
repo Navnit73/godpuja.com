@@ -46,6 +46,9 @@ const SPECS: Record<SectionType, Spec> = {
     { key: "expiresAt", label: "Hide after (IST)", kind: "datetime", hint: "Optional; the offer disappears by itself" }] },
   latestPosts: { fields: [text("heading", "Heading", 80), { key: "kind", label: "Show", kind: "select", options: [["blog", "Blog posts"], ["guide", "Guides"], ["all", "Blog posts and guides"]] },
     { key: "limit", label: "How many (1–12)", kind: "number" }] },
+  pillars: { fields: [text("heading", "Heading (optional)", 80)] },
+  vidhiHighlights: { fields: [text("heading", "Heading", 80), { key: "limit", label: "How many guides (1–12)", kind: "number" }] },
+  devotionalHighlights: { fields: [text("heading", "Heading", 80), { key: "kind", label: "Show", kind: "select", options: [["aarti", "Aarti"], ["mantras", "Mantras, chalisas, stotras"], ["all", "Everything"]] }, { key: "limit", label: "How many (1–12)", kind: "number" }] },
   custom: { fields: [{ key: "markdown", label: "Content (Markdown)", kind: "markdown", max: 20000 }, { key: "tone", label: "Background", kind: "select", options: [["plain", "Plain"], ["soft", "Soft sand"], ["accent", "Saffron tint"]] }] },
 };
 

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { linkUrl, optionalUrl } from "./pages";
 
-export const SECTION_TYPES = ["hero", "banner", "featuredCategories", "featuredProducts", "latestProducts", "bestSellers", "richText", "imageText", "testimonials", "offer", "custom", "latestPosts"] as const;
+export const SECTION_TYPES = ["hero", "banner", "featuredCategories", "featuredProducts", "latestProducts", "bestSellers", "richText", "imageText", "testimonials", "offer", "custom", "latestPosts", "pillars", "vidhiHighlights", "devotionalHighlights"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 export const MAX_SECTIONS = 30;
 export const MAX_RAILS = 6; // each product rail is one indexed query
@@ -47,6 +47,9 @@ export const homeSectionSchema = z.discriminatedUnion("type", [
     expiresAt: z.union([z.literal(""), z.iso.datetime({ offset: true })]),
   }).refine(needLabelLink<Record<string, string>>("ctaLabel", "ctaUrl"), { path: ["ctaUrl"], message: "Add a link for the button" }) }),
   z.object({ ...base, type: z.literal("custom"), data: z.object({ markdown: z.string().max(20_000), tone: z.enum(["plain", "soft", "accent"]) }) }),
+  z.object({ ...base, type: z.literal("pillars"), data: z.object({ heading: text(80) }) }),
+  z.object({ ...base, type: z.literal("vidhiHighlights"), data: z.object({ heading: text(80), limit: z.number().int().min(1).max(12) }) }),
+  z.object({ ...base, type: z.literal("devotionalHighlights"), data: z.object({ heading: text(80), kind: z.enum(["aarti", "mantras", "all"]), limit: z.number().int().min(1).max(12) }) }),
   z.object({ ...base, type: z.literal("latestPosts"), data: z.object({ heading: text(80), kind: z.enum(["blog", "guide", "all"]), limit: z.number().int().min(1).max(12) }) }),
 ]);
 
@@ -67,6 +70,7 @@ type Data<T extends SectionType> = Extract<HomeSection, { type: T }>["data"];
 export const SECTION_LABEL: Record<SectionType, string> = {
   hero: "Hero", banner: "Promotional banners", featuredCategories: "Featured categories", featuredProducts: "Featured products", latestProducts: "Latest products",
   bestSellers: "Best sellers", richText: "Rich text", imageText: "Image + text", testimonials: "Testimonials", offer: "Promotional offer", custom: "Custom block", latestPosts: "Latest blog posts / guides",
+  pillars: "Quick-access tiles (shop, temples, pooja, vidhi, aarti, donate)", vidhiHighlights: "Pooja Vidhi highlights", devotionalHighlights: "Aarti & Mantras highlights",
 };
 export const defaultData: { [T in SectionType]: Data<T> } = {
   hero: { heading: "", subheading: "", imageUrl: "", imageAlt: "", ctaLabel: "", ctaUrl: "", secondaryCtaLabel: "", secondaryCtaUrl: "" },
@@ -81,4 +85,7 @@ export const defaultData: { [T in SectionType]: Data<T> } = {
   offer: { heading: "", text: "", code: "", ctaLabel: "", ctaUrl: "", expiresAt: "" },
   custom: { markdown: "", tone: "plain" },
   latestPosts: { heading: "From our blog", kind: "blog", limit: 3 },
+  pillars: { heading: "" },
+  vidhiHighlights: { heading: "Pooja Vidhi", limit: 3 },
+  devotionalHighlights: { heading: "Aarti & Mantras", kind: "all", limit: 3 },
 };

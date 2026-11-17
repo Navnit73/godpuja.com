@@ -5,6 +5,8 @@ import { Product } from "./models/Product";
 import { loadRedirectMap } from "./services/redirects";
 import { RESERVED_SLUGS, validateSlug } from "@/lib/slug";
 import { vidhiExists } from "./services/vidhi";
+import { devotionalExists } from "./services/devotional";
+import { DEVOTIONAL_TYPE_KEYS, MANTRA_TYPE_KEYS } from "@/lib/validation/devotional";
 
 /**
  * Fast, in-process lookups used by the proxy BEFORE a page starts streaming, so redirects get a real 301 and unknown
@@ -37,7 +39,7 @@ async function cached(key: string, check: () => Promise<boolean>): Promise<boole
 }
 
 const SEGMENT = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const STATIC = new Set(["cart", "checkout", "shop", "pooja-vidhi", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
+const STATIC = new Set(["cart", "checkout", "shop", "pooja-vidhi", "aarti", "mantras", "temples", "book-a-pooja", "donate", "search", "login", "register", "forgot-password", "reset-password", "verify-email", "page-not-found", "blog", "guides"]); // blog/guides: index pages; their posts are CMS pages below
 
 export type RouteVerdict = { kind: "ok" } | { kind: "notFound" };
 
@@ -58,6 +60,13 @@ export async function checkPath(path: string): Promise<RouteVerdict> {
     const slug = rest.join("/");
     if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
     return (await cached(`v:${slug}`, () => vidhiExists(slug))) ? { kind: "ok" } : { kind: "notFound" };
+  }
+  if (first === "aarti" || first === "mantras") {
+    // /aarti/<slug> and /mantras/<slug>: a live item of that kind, else a real 404 (the index pages are in STATIC above).
+    const slug = rest.join("/");
+    if (rest.length !== 1 || !SEGMENT.test(slug) || slug.length > 80) return { kind: "notFound" };
+    const types = first === "aarti" ? (["aarti"] as const) : MANTRA_TYPE_KEYS;
+    return (await cached(`d:${first}:${slug}`, () => devotionalExists(slug, types))) ? { kind: "ok" } : { kind: "notFound" };
   }
   if (first === "shop" || first === "category") {
     const p = rest.join("/");

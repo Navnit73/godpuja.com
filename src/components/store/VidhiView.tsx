@@ -7,6 +7,7 @@ import type { PublicVidhi } from "@/server/services/vidhi";
 import { LotusOrnament } from "./Icons";
 import PageBand from "./PageBand";
 import ProductCard from "./ProductCard";
+import DevotionalCardView from "./DevotionalCardView";
 import VidhiCardView from "./VidhiCardView";
 
 const DATE = new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" });
@@ -101,12 +102,18 @@ export default function VidhiView({ v, preview = false }: { v: PublicVidhi; prev
         {v.tags.length > 0 && <p className="mt-8 flex flex-wrap gap-2 text-xs">{v.tags.map((t) => <span key={t} className="chip">{t}</span>)}</p>}
       </article>
 
-      {(v.relatedProducts.length > 0 || v.relatedVidhi.length > 0) && (
+      {(v.relatedProducts.length > 0 || v.relatedVidhi.length > 0 || v.relatedAarti.length > 0) && (
         <div className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6">
           {v.relatedProducts.length > 0 && (
             <section aria-labelledby="related-products" className="mt-4">
               <H id="related-products">Essentials for this pooja</H>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">{v.relatedProducts.slice(0, 4).map((p) => <ProductCard key={p.id} p={p} />)}</ul>
+            </section>
+          )}
+          {v.relatedAarti.length > 0 && (
+            <section aria-labelledby="related-aarti" className="mt-12">
+              <H id="related-aarti">Aarti and mantras for this pooja</H>
+              <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{v.relatedAarti.map((r) => <DevotionalCardView key={r.id} d={r} />)}</ul>
             </section>
           )}
           {v.relatedVidhi.length > 0 && (

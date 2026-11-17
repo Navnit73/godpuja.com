@@ -12,6 +12,8 @@ const settingsSchema = new mongoose.Schema(
     logoUrl: { type: String, default: "" },
     homeTitle: { type: String, default: "" },
     homeDescription: { type: String, default: "" },
+    gaMeasurementId: { type: String, default: "" },
+    searchConsoleVerification: { type: String, default: "" },
   },
   { timestamps: true },
 );

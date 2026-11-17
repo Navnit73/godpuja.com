@@ -10,13 +10,17 @@ export const seoSettingsSchema = z.object({
   logoUrl: optionalUrl,
   homeTitle: z.string().trim().max(70, "Keep under 70 characters"),
   homeDescription: z.string().trim().max(200, "Keep under 200 characters"),
+  /** GA4 measurement ID. Loaded only after a visitor accepts analytics cookies. "" = analytics off. */
+  gaMeasurementId: z.union([z.literal(""), z.string().trim().toUpperCase().regex(/^G-[A-Z0-9]{6,12}$/, "Like G-ABC123XYZ4")]).default(""),
+  /** The `content` value of Google Search Console's HTML-tag verification. */
+  searchConsoleVerification: z.union([z.literal(""), z.string().trim().regex(/^[A-Za-z0-9_-]{20,100}$/, "Paste only the content value, not the whole tag")]).default(""),
 });
 export const updateSeoSettingsSchema = seoSettingsSchema.extend({ baseUpdatedAt: z.iso.datetime({ offset: true }).nullable() });
 export type SeoSettings = z.infer<typeof seoSettingsSchema>;
 export type UpdateSeoSettings = z.infer<typeof updateSeoSettingsSchema>;
 export const defaultSeoSettings: SeoSettings = {
   siteName: "GodPuja", defaultTitle: "GodPuja — Sacred rituals, made simple", defaultDescription: "Book pujas, find blessings and connect with tradition.",
-  defaultOgImage: "", twitterHandle: "", logoUrl: "", homeTitle: "", homeDescription: "",
+  defaultOgImage: "", twitterHandle: "", logoUrl: "", homeTitle: "", homeDescription: "", gaMeasurementId: "", searchConsoleVerification: "",
 };
 
 /** Paths that can never be redirect sources (app internals) — redirecting them would break the site or the admin. */

@@ -6,6 +6,9 @@ import { renderMarkdown } from "../markdown";
 import { Product } from "../models/Product";
 import { Vidhi, type VidhiDoc } from "../models/Vidhi";
 import { clearRedirectsFrom, dropRedirectsTo, recordRedirects } from "./redirects";
+import { Devotional } from "../models/Devotional";
+import { findLiveDevotionalCards, type DevotionalCard } from "./devotional";
+import { plainExcerpt } from "@/lib/excerpt";
 import { findCards, VISIBLE_STATUSES, type PublicProduct } from "./products";
 import { vidhiCategoryLabel, vidhiHref, type ListVidhiInput, type VidhiCategory, type VidhiInput } from "@/lib/validation/vidhi";
 import { publishProblems } from "@/lib/vidhi-rules";
@@ -51,8 +54,7 @@ function dupSlug(err: unknown): never {
 
 /**
  * Everything a guide points at must exist, so a published guide never carries a dead link: shop products (in the
- * samagri list and "related products") and other guides. Aarti links are checked once that module exists (Stage 16);
- * until then they are stored and shown only when they resolve.
+ * samagri list and "related products"), other guides and aarti/mantras.
  */
 async function verifyRefs(input: VidhiInput, selfSlug?: string) {
   await connectDB();
@@ -63,6 +65,11 @@ async function verifyRefs(input: VidhiInput, selfSlug?: string) {
     input.samagri.forEach((s, i) => { if (s.productSlug && !have.has(s.productSlug)) fields[`samagri.${i}.productSlug`] = "No such product in the shop"; });
     const bad = input.relatedProducts.filter((s) => !have.has(s));
     if (bad.length) fields.relatedProducts = `No such product in the shop: ${bad.join(", ")}`;
+  }
+  if (input.relatedAarti.length) {
+    const have = new Set((await Devotional.find({ slug: { $in: input.relatedAarti } }).select("slug").lean()).map((d) => d.slug));
+    const bad = input.relatedAarti.filter((s) => !have.has(s));
+    if (bad.length) fields.relatedAarti = `No such aarti or mantra: ${bad.join(", ")}`;
   }
   const others = input.relatedVidhi.filter((s) => s !== selfSlug);
   if (others.length) {
@@ -185,18 +192,14 @@ export type PublicVidhi = {
   samagri: { item: string; quantity: string; note: string; product: Pick<PublicProduct, "slug" | "name" | "price" | "salePrice" | "inStock"> | null }[];
   steps: { title: string; bodyHtml: string; mantra: string }[];
   mantras: { title: string; text: string; meaning: string }[];
-  /** Aarti slugs, shown once the Aarti module can resolve them. */
-  relatedAarti: string[]; relatedProducts: PublicProduct[]; relatedVidhi: VidhiCard[];
+  /** Live aarti and mantras only; one that is unpublished or removed simply drops out. */
+  relatedAarti: DevotionalCard[]; relatedProducts: PublicProduct[]; relatedVidhi: VidhiCard[];
   tags: string[]; durationMinutes: number | null; cover: { url: string; alt: string } | null;
   author: string; reviewer: string; reviewedAt: string | null; publishedAt: string | null; updatedAt: string;
   seo: AdminVidhi["seo"]; excerpt: string;
 };
 
-/** Plain-text excerpt of Markdown for cards and meta descriptions. */
-export function plainExcerpt(md: string, max = 160) {
-  const t = md.replace(/```[\s\S]*?```/g, " ").replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[#>*_`~|]/g, "").replace(/\s+/g, " ").trim();
-  return t.length <= max ? t : `${t.slice(0, max - 1).replace(/\s+\S*$/, "")}…`;
-}
+export { plainExcerpt };
 
 const toCard = (v: Pick<VidhiDoc, "_id" | "slug" | "title" | "category" | "deity" | "summary" | "coverImageUrl" | "coverImageAlt" | "durationMinutes">): VidhiCard => ({
   id: String(v._id), slug: v.slug, title: v.title, category: v.category, categoryLabel: vidhiCategoryLabel(v.category), deity: v.deity ?? "", excerpt: plainExcerpt(v.summary ?? ""),
@@ -206,9 +209,10 @@ const CARD_FIELDS = "slug title category deity summary coverImageUrl coverImageA
 
 async function toPublic(v: VidhiDoc, now: Date): Promise<PublicVidhi> {
   const productSlugs = [...new Set([...(v.relatedProducts ?? []), ...(v.samagri ?? []).map((s) => s.productSlug).filter(Boolean)])];
-  const [cards, related] = await Promise.all([
+  const [cards, related, aarti] = await Promise.all([
     findCards({ slugs: productSlugs }),
     v.relatedVidhi?.length ? Vidhi.find({ slug: { $in: v.relatedVidhi }, ...liveFilter(now) }).select(CARD_FIELDS).lean() : Promise.resolve([]),
+    findLiveDevotionalCards(v.relatedAarti ?? [], now),
   ]);
   const bySlug = new Map(cards.map((c) => [c.slug, c]));
   const relatedBySlug = new Map(related.map((r) => [r.slug, r]));
@@ -221,7 +225,7 @@ async function toPublic(v: VidhiDoc, now: Date): Promise<PublicVidhi> {
     }),
     steps: (v.steps ?? []).map((s) => ({ title: s.title ?? "", bodyHtml: renderMarkdown(s.body), mantra: s.mantra ?? "" })),
     mantras: (v.mantras ?? []).map((m) => ({ title: m.title, text: m.text, meaning: m.meaning ?? "" })),
-    relatedAarti: v.relatedAarti ?? [],
+    relatedAarti: aarti,
     relatedProducts: (v.relatedProducts ?? []).map((s) => bySlug.get(s)).filter((p): p is PublicProduct => !!p),
     relatedVidhi: (v.relatedVidhi ?? []).map((s) => relatedBySlug.get(s)).filter((r): r is NonNullable<typeof r> => !!r).map(toCard),
     tags: v.tags ?? [], durationMinutes: v.durationMinutes ?? null, cover: v.coverImageUrl ? { url: v.coverImageUrl, alt: v.coverImageAlt ?? "" } : null,

@@ -12,17 +12,19 @@ const httpsSite = !isDev && (process.env.SITE_URL ?? "").startsWith("https://");
  *  - script-src needs 'unsafe-inline' for Next's inline RSC/bootstrap scripts. XSS defence for CMS content is the
  *    sanitiser (server/markdown.ts); CSP still blocks scripts from any other origin, plugins, <base> hijacking,
  *    cross-site form posts, framing and fetch/XHR to other origins.
+ *  - script/connect allow only Google Tag Manager / Analytics, and the app loads them only after consent.
+ *  - media-src allows any https origin (audio hosting is the owner's choice).
  *  - img-src allows any https origin because admins may paste image URLs from any host.
  * Dev additionally needs 'unsafe-eval' (React debugging) and websockets (HMR).
  */
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
-  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
-  "media-src 'self'",
+  `connect-src 'self' https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com${isDev ? " ws: wss:" : ""}`,
+  "media-src 'self' https:", // aarti/mantra audio may be hosted on any https origin (rights are enforced in the app)
   "frame-src 'none'",
   "worker-src 'self'",
   "manifest-src 'self'",

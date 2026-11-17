@@ -93,6 +93,8 @@ export default function SeoClient({ settings, redirects, q }: Props) {
           <Input label="Logo URL (for search engines)" value={f.logoUrl} error={errs.logoUrl} onChange={(e) => set({ logoUrl: e.target.value })} />
           <Input label="Homepage title" value={f.homeTitle} error={errs.homeTitle} hint={`${homeLen}/70 — shown as-is (no site name added)`} onChange={(e) => set({ homeTitle: e.target.value })} />
           <Input label="Homepage description" value={f.homeDescription} error={errs.homeDescription} hint={`${f.homeDescription.length}/200`} onChange={(e) => set({ homeDescription: e.target.value })} />
+          <Input label="Google Analytics 4 measurement ID" value={f.gaMeasurementId} error={errs.gaMeasurementId} placeholder="G-ABC123XYZ4" hint="Leave empty to switch analytics off. It loads only after a visitor accepts analytics cookies." onChange={(e) => set({ gaMeasurementId: e.target.value })} />
+          <Input label="Search Console verification code" value={f.searchConsoleVerification} error={errs.searchConsoleVerification} hint="From Search Console → HTML tag: paste only the content value." onChange={(e) => set({ searchConsoleVerification: e.target.value })} />
         </div>
         <Button onClick={save} loading={busy} disabled={!dirty}>Save settings</Button>
       </section>

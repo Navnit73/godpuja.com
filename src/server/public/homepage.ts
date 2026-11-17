@@ -7,7 +7,7 @@ import { findPublicHomepage } from "../services/homepage";
  */
 export async function getPublicHomepage() {
   "use cache";
-  cacheTag("home", "products", "categories", "pages"); // "pages": publishing a blog post / guide refreshes "Latest posts"
+  cacheTag("home", "products", "categories", "pages", "vidhi", "devotional"); // "pages": publishing a blog post / guide refreshes "Latest posts"
   const home = await findPublicHomepage();
   cacheLife({ stale: 60, revalidate: 60, expire: 3600 });
   return home;

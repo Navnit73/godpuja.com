@@ -4,6 +4,7 @@ import { Suspense, type ReactNode } from "react";
 import { env } from "@/server/env";
 import { getSiteSettings } from "@/server/public/settings";
 import SiteFooter, { FooterShell } from "@/components/store/SiteFooter";
+import Analytics from "@/components/store/Analytics";
 import SiteHeader, { HeaderShell } from "@/components/store/SiteHeader";
 
 /** Site-wide SEO defaults from /admin/seo; each page fills in its own title, description and canonical. */
@@ -19,6 +20,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** Search Console tag and consent-gated GA4, from /admin/seo. Renders nothing until an ID is configured. */
+async function Tracking() {
+  await connection();
+  const s = await getSiteSettings();
+  return (
+    <>
+      {s.searchConsoleVerification && <meta name="google-site-verification" content={s.searchConsoleVerification} />}
+      {s.gaMeasurementId && <Analytics id={s.gaMeasurementId} />}
+    </>
+  );
+}
+
 // Storefront chrome. Admin and login sit outside this group and keep their own layouts.
 export default function StoreLayout({ children }: { children: ReactNode }) {
   return (
@@ -29,6 +42,9 @@ export default function StoreLayout({ children }: { children: ReactNode }) {
       {children}
       <Suspense fallback={<FooterShell />}>
         <SiteFooter />
+      </Suspense>
+      <Suspense fallback={null}>
+        <Tracking />
       </Suspense>
     </>
   );

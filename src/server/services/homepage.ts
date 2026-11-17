@@ -5,6 +5,9 @@ import { renderMarkdown } from "../markdown";
 import { Category } from "../models/Category";
 import { Homepage, type HomepageDoc } from "../models/Homepage";
 import { findPublicPosts, type PostCard } from "./pages";
+import { findPublicDevotionalList, type DevotionalCard } from "./devotional";
+import { findPublicVidhiList, type VidhiCard } from "./vidhi";
+import { MANTRA_TYPE_KEYS, type DevotionalType } from "@/lib/validation/devotional";
 import { findRail, loadCategoryIndex, type PublicProduct } from "./products";
 import { homeSectionSchema, type HomepageInput, type HomeSection, type UpdateHomepageInput } from "@/lib/validation/homepage";
 
@@ -48,6 +51,9 @@ export type PublicHomeSection =
   | { id: string; type: "testimonials"; heading: string; items: { quote: string; author: string; role: string }[] }
   | { id: string; type: "offer"; heading: string; text: string; code: string; ctaLabel: string; ctaUrl: string }
   | { id: string; type: "custom"; html: string; tone: "plain" | "soft" | "accent" }
+  | { id: string; type: "pillars"; heading: string }
+  | { id: string; type: "vidhiHighlights"; heading: string; items: VidhiCard[]; viewAll: string }
+  | { id: string; type: "devotionalHighlights"; heading: string; items: DevotionalCard[]; viewAll: string }
   | { id: string; type: "latestPosts"; heading: string; posts: PostCard[]; viewAll: string | null; showKind: boolean };
 export type PublicHomepage = { sections: PublicHomeSection[] };
 
@@ -89,9 +95,16 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
 
   const railResults = new Map<string, PublicProduct[]>();
   const postResults = new Map<string, PostCard[]>();
+  const vidhiResults = new Map<string, VidhiCard[]>();
+  const devResults = new Map<string, DevotionalCard[]>();
   await Promise.all([
     ...sections.filter(isRail).map(async (s) => railResults.set(s.id, await findRail({ kind: s.type, category: s.data.category, limit: s.data.limit }, catPath, index?.hidden))),
     ...sections.flatMap((s) => (s.type === "latestPosts" ? [s] : [])).map(async (s) => postResults.set(s.id, (await findPublicPosts(s.data.kind, { limit: s.data.limit }, now)).items)),
+    ...sections.flatMap((s) => (s.type === "vidhiHighlights" ? [s] : [])).map(async (s) => vidhiResults.set(s.id, (await findPublicVidhiList({ page: 1, limit: s.data.limit }, now)).items)),
+    ...sections.flatMap((s) => (s.type === "devotionalHighlights" ? [s] : [])).map(async (s) => {
+      const types: readonly DevotionalType[] = s.data.kind === "aarti" ? ["aarti"] : s.data.kind === "mantras" ? MANTRA_TYPE_KEYS : ["aarti", ...MANTRA_TYPE_KEYS];
+      devResults.set(s.id, (await findPublicDevotionalList({ types, page: 1, limit: s.data.limit }, now)).items);
+    }),
   ]);
 
   const out: PublicHomeSection[] = [];
@@ -118,6 +131,9 @@ export async function findPublicHomepage(now = new Date()): Promise<PublicHomepa
         break;
       }
       case "custom": if (s.data.markdown.trim()) out.push({ id: s.id, type: "custom", html: renderMarkdown(s.data.markdown), tone: s.data.tone }); break;
+      case "pillars": out.push({ id: s.id, type: "pillars", heading: s.data.heading }); break;
+      case "vidhiHighlights": { const items = vidhiResults.get(s.id) ?? []; if (items.length) out.push({ id: s.id, type: "vidhiHighlights", heading: s.data.heading, items, viewAll: "/pooja-vidhi" }); break; }
+      case "devotionalHighlights": { const items = devResults.get(s.id) ?? []; if (items.length) out.push({ id: s.id, type: "devotionalHighlights", heading: s.data.heading, items, viewAll: s.data.kind === "mantras" ? "/mantras" : "/aarti" }); break; }
       case "latestPosts": {
         const posts = postResults.get(s.id) ?? [];
         const viewAll = s.data.kind === "blog" ? "/blog" : s.data.kind === "guide" ? "/guides" : null;

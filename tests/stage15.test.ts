@@ -288,12 +288,12 @@ describe("Pooja Vidhi with the database (godpuja_test)", () => {
       const other = await createVidhi(guide({ title: "Other live", slug: "other-live" }));
       const draft = await createVidhi(guide({ title: "Other draft", slug: "other-draft" }));
       await publishNow(other.id);
-      const live = await mkLive({ relatedProducts: ["diya-b", "diya-a"], relatedVidhi: ["other-live", "other-draft"], relatedAarti: ["ganesh-aarti"] });
+      const live = await mkLive({ relatedProducts: ["diya-b", "diya-a"], relatedVidhi: ["other-live", "other-draft"] });
       const p = (await findPublicVidhi(live.slug))!;
       expect(p.relatedProducts.map((x) => x.slug)).toEqual(["diya-b", "diya-a"]);
       expect(p.relatedVidhi.map((x) => x.slug)).toEqual(["other-live"]); // a draft is never linked from a live page
       expect(draft.slug).toBe("other-draft");
-      expect(p.relatedAarti).toEqual(["ganesh-aarti"]);
+      expect(p.relatedAarti).toEqual([]);
     });
     it("lists live guides newest first with a count per category, a filter and pages", async () => {
       for (const [i, c] of (["daily", "daily", "festival"] as const).entries()) { await mkLive({ title: `Guide ${i}`, slug: `guide-${i}`, category: c }); await new Promise((r) => setTimeout(r, 5)); }

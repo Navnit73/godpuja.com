@@ -78,7 +78,7 @@ function LinkRows({ links, onChange, pages, errs, path }: { links: FooterLinkInp
 }
 
 const Section = ({ title, children, hint }: { title: string; hint?: string; children: React.ReactNode }) => (
-  <section className="card space-y-4 p-4 hover:shadow-elev-1">
+  <section className="card space-y-4 p-4">
     <div><h2 className="font-sans text-lg font-semibold">{title}</h2>{hint && <p className="text-sm text-muted">{hint}</p>}</div>
     {children}
   </section>

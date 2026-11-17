@@ -52,7 +52,7 @@ export default async function OrdersList({ searchParams }: PageProps<"/admin/ord
         {filtered && <Link href="/admin/orders" className="btn-ghost h-10">Clear</Link>}
       </form>
 
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {result.items.length === 0 ? (
           <EmptyState title={filtered ? "No orders match your filters" : "No orders yet"} description={filtered ? "Try a different search, status or date range." : "Orders appear here as soon as customers check out."} />
         ) : (

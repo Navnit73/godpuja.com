@@ -51,7 +51,7 @@ export default async function VidhiAdminList({ searchParams }: PageProps<"/admin
         <button type="submit" className="btn-outline h-10">Filter</button>
         {filtered && <Link href={BASE} className="btn-ghost h-10">Clear</Link>}
       </form>
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {result.items.length === 0 ? (
           <EmptyState title={filtered ? "No guides match your filters" : "No guides yet"} description={filtered ? "Try a different search or filter." : "Write your first guide, such as the daily Ganesh pooja."}
             action={!filtered && canWrite ? <Link href={`${BASE}/new`} className="btn-primary">New guide</Link> : undefined} />

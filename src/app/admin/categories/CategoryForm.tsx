@@ -73,7 +73,7 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
   return (
     <div className="space-y-4">
       {general && <p role="alert" className="alert-error">{general}</p>}
-      <div className="card grid gap-4 p-4 hover:shadow-elev-1 sm:grid-cols-2">
+      <div className="card grid gap-4 p-4 sm:grid-cols-2">
         <Input label="Name" value={f.name} error={errs.name} maxLength={80} onChange={(e) => { change({ name: e.target.value, ...(slugTouched ? {} : { slug: slugify(e.target.value) }) }); }} />
         <Input label="URL slug" value={f.slug} error={errs.slug} hint={slugChanged ? "Old links will redirect automatically (including subcategories)." : "Lowercase letters, numbers, hyphens"}
           onChange={(e) => { setSlugTouched(true); change({ slug: e.target.value }); }} />
@@ -89,7 +89,7 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
         <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" checked={f.isActive} onChange={(e) => change({ isActive: e.target.checked })} /> Visible on the storefront (hiding also hides its subcategories and their products)</label>
       </div>
 
-      <div className="card space-y-3 p-4 hover:shadow-elev-1">
+      <div className="card space-y-3 p-4">
         <h2 className="font-sans text-lg font-semibold">Image</h2>
         <div className="grid items-start gap-4 sm:grid-cols-[8rem_1fr]">
           {f.image.url ? <img src={f.image.url} alt="" className="aspect-square w-32 rounded-lg border border-border object-cover" referrerPolicy="no-referrer" /> : <div className="aspect-square w-32 rounded-lg border border-dashed border-border" />}
@@ -105,7 +105,7 @@ export default function CategoryForm({ category, all }: { category: AdminCategor
         <ImagePicker open={pick} onClose={() => setPick(false)} onPick={(url, alt) => change({ image: { url, alt } })} />
       </div>
 
-      <div className="card grid gap-4 p-4 hover:shadow-elev-1">
+      <div className="card grid gap-4 p-4">
         <h2 className="font-sans text-lg font-semibold">Search engines</h2>
         <Input label="SEO title" value={f.seo.title} error={errs["seo.title"]} onChange={(e) => change({ seo: { ...f.seo, title: e.target.value } })} />
         <Input label="SEO description" value={f.seo.description} error={errs["seo.description"]} onChange={(e) => change({ seo: { ...f.seo, description: e.target.value } })} />

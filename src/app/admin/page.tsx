@@ -58,8 +58,6 @@ export default async function Dashboard() {
     <>
       {/* Hero */}
       <section className="relative mb-8 overflow-hidden rounded-3xl bg-sacred p-6 text-white sm:p-8">
-        <div aria-hidden="true" className="pattern-rangoli absolute inset-0 opacity-60" />
-        <div aria-hidden="true" className="absolute -right-10 -top-16 h-56 w-56 rounded-full bg-gold-300/20 blur-3xl" />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-200">{greeting()}</p>

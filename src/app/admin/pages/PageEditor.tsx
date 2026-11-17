@@ -154,7 +154,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
       <fieldset disabled={readOnly || isSubmitting} className="min-w-0 space-y-6 lg:col-span-2">
         {formError && <p role="alert" className="alert-error">{formError}</p>}
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="basics">
+        <section className="card space-y-4 p-5" aria-labelledby="basics">
           <h2 id="basics" className="font-sans text-lg font-semibold">Basics</h2>
           <Input label="Title" error={errors.title?.message} {...titleReg} />
           <Input label="URL slug" hint={isPost
@@ -195,11 +195,11 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
           {typeof errors.sections?.message === "string" && <p className="field-error">{errors.sections.message}</p>}
 
           {fields.length === 0 && (
-            <p className="card p-6 text-center text-sm text-muted hover:shadow-elev-1">No sections yet. Add a rich text or image + text section.</p>
+            <p className="card p-6 text-center text-sm text-muted">No sections yet. Add a rich text or image + text section.</p>
           )}
 
           {fields.map((f, i) => (
-            <div key={f._key} className="card space-y-4 p-5 hover:shadow-elev-1">
+            <div key={f._key} className="card space-y-4 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{i + 1}. {SECTION_LABEL[f.type]}</p>
                 <div className="flex items-center gap-1">
@@ -235,7 +235,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
           ))}
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="seo">
+        <section className="card space-y-4 p-5" aria-labelledby="seo">
           <h2 id="seo" className="font-sans text-lg font-semibold">SEO</h2>
           <Input label="SEO title" hint="Defaults to the page title. Up to 70 characters." error={errors.seo?.title?.message} {...register("seo.title")} />
           <div>
@@ -254,14 +254,14 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
 
       <aside className="space-y-6 lg:sticky lg:top-20" aria-label="Page actions">
         {!readOnly && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <Button type="submit" loading={isSubmitting} disabled={busy !== null} className="w-full">{page ? "Save changes" : `Create ${noun}`}</Button>
             {isDirty && page && <p className="text-xs text-warning">You have unsaved changes.</p>}
           </div>
         )}
 
         {page && meta && (
-          <div className="card space-y-4 p-5 hover:shadow-elev-1">
+          <div className="card space-y-4 p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-sans text-lg font-semibold">Publishing</h2>
               <span className={live ? "badge-success" : meta.status === "scheduled" ? "badge-primary" : "badge-muted"}>
@@ -301,7 +301,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
         )}
 
         {page && meta && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <h2 className="font-sans text-lg font-semibold">Preview</h2>
             <p className="text-xs text-muted">Anyone with this link can see the saved page, even as a draft. Reset it to revoke access.</p>
             <div className="flex flex-wrap gap-2">
@@ -313,7 +313,7 @@ export default function PageEditor({ page, kind, canPublish, readOnly = false }:
         )}
 
         {page && !readOnly && (
-          <div className="card p-5 hover:shadow-elev-1">
+          <div className="card p-5">
             <Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete {noun}</Button>
           </div>
         )}

@@ -171,6 +171,10 @@
     background: var(--color-saffron-200);
     color: var(--color-kumkum-900);
   }
+  /* Scroll containers (tables) must be the containing block of absolutely positioned children such as sr-only
+     header text. Otherwise those escape the clip and widen the whole page on mobile. Base layer: an explicit
+     position utility on the same element still wins. */
+  .overflow-x-auto, .overflow-auto, .overflow-x-scroll { position: relative; }
   /* Skip link target: focused programmatically, so no ring on the whole page region. */
   main:focus { outline: none; }
 }

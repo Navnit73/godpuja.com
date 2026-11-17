@@ -20,10 +20,10 @@ export default async function NavigationList() {
   return (
     <>
       <PageHeader title="Navigation" description="Menus shown on the storefront. The “header” menu is the main navigation; an optional “mobile” menu replaces it on small screens." />
-      <div className="card mb-6 p-4 hover:shadow-elev-1">
+      <div className="card mb-6 p-4">
         <CreateMenu suggestions={(["header", "mobile"] as const).filter((k) => !keys.has(k))} />
       </div>
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {menus.length === 0 ? (
           <EmptyState title="No menus yet" description="Create the “header” menu to show links in the site header." />
         ) : (

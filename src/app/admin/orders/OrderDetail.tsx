@@ -26,7 +26,7 @@ const actionLabel = (from: OrderStatus, to: OrderStatus) =>
   from === "return_requested" ? (to === "returned" ? "Accept return" : to === "delivered" ? "Decline return" : ACTION_LABEL[to]) : ACTION_LABEL[to];
 
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="card space-y-3 p-4 hover:shadow-elev-1"><h2 className="font-sans text-lg font-semibold">{title}</h2>{children}</section>
+  <section className="card space-y-3 p-4"><h2 className="font-sans text-lg font-semibold">{title}</h2>{children}</section>
 );
 const Address = ({ a }: { a: AdminOrder["shippingAddress"] }) => (
   <address className="not-italic text-sm">{addressLines(a).map((l, n) => <p key={n} className={n === 0 ? "font-medium" : undefined}>{l}</p>)}</address>
@@ -79,7 +79,7 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
     <div className="space-y-4">
       {error && <p role="alert" className="alert-error">{error}</p>}
 
-      <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4 hover:shadow-elev-1">
+      <div className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
         <div><p className="text-xs text-muted">Status</p><StatusBadge status={o.status} /></div>
         <div><p className="text-xs text-muted">Payment</p><PaymentBadge status={o.payment.status} /></div>
         <div><p className="text-xs text-muted">Placed</p><p className="text-sm">{formatDateTime(o.createdAt)}</p></div>
@@ -93,8 +93,8 @@ export default function OrderDetail({ initial, canWrite, canRefund }: { initial:
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
           <Card title="Items">
             <div className="overflow-x-auto">
               <table className="data-table">

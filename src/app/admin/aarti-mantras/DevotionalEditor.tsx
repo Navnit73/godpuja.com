@@ -139,7 +139,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
       <fieldset disabled={readOnly || isSubmitting} className="min-w-0 space-y-6 lg:col-span-2">
         {formError && <p role="alert" className="alert-error">{formError}</p>}
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="basics">
+        <section className="card space-y-4 p-5" aria-labelledby="basics">
           <h2 id="basics" className="font-sans text-lg font-semibold">Basics</h2>
           <Input label="Title" error={errors.title?.message} {...titleReg} />
           <Input label="URL slug" hint="English lowercase letters, numbers and hyphens, e.g. ganesh-aarti. Aarti live at /aarti/<slug>; everything else at /mantras/<slug>." error={errors.slug?.message} {...slugReg} />
@@ -161,14 +161,14 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
           </div>
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="text">
+        <section className="card space-y-4 p-5" aria-labelledby="text">
           <h2 id="text" className="font-sans text-lg font-semibold">Text</h2>
           <Area id="lyrics" label="Lyrics / text" rows={14} lang={lyricsLang} error={errors.lyrics?.message} hint="Type each line on its own line and leave a blank line between verses. Line breaks are kept exactly as written." {...register("lyrics")} />
           <Area id="transliteration" label="In English letters (optional)" rows={8} error={errors.transliteration?.message} hint="For people who cannot read the script." {...register("transliteration")} />
           <Area id="meaning" label="Meaning (optional)" rows={6} error={errors.meaning?.message} hint="Markdown: **bold**, - list." {...register("meaning")} />
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="audio">
+        <section className="card space-y-4 p-5" aria-labelledby="audio">
           <h2 id="audio" className="font-sans text-lg font-semibold">Audio and rights</h2>
           <p className="text-sm text-muted">Use only original, licensed or public-domain recordings. Traditional lyrics do not make a modern recording free to use. The player is shown only while the rights below are complete, not expired and not withdrawn.</p>
           <Input label="Audio file URL (optional)" placeholder="https://…" hint="A direct link to an MP3 or similar file you are allowed to host." error={errors.audioUrl?.message} {...register("audioUrl")} />
@@ -188,7 +188,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
           )}
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="links">
+        <section className="card space-y-4 p-5" aria-labelledby="links">
           <h2 id="links" className="font-sans text-lg font-semibold">Links and tags</h2>
           <CsvField name="relatedAarti" label="Related aarti and mantras (slugs)" hint="Comma-separated, e.g. ganesh-aarti, hanuman-chalisa." control={control} setValue={setValue} error={errors.relatedAarti?.message} readOnly={readOnly} />
           <CsvField name="relatedVidhi" label="Related Pooja Vidhi guides (slugs)" hint="Comma-separated slugs of guides." control={control} setValue={setValue} error={errors.relatedVidhi?.message} readOnly={readOnly} />
@@ -196,7 +196,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
           <CsvField name="tags" label="Tags" hint="Comma-separated, e.g. diwali, morning." control={control} setValue={setValue} error={errors.tags?.message} readOnly={readOnly} />
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="review">
+        <section className="card space-y-4 p-5" aria-labelledby="review">
           <h2 id="review" className="font-sans text-lg font-semibold">Review</h2>
           <p className="text-sm text-muted">Religious text must be checked for accuracy and tradition before it is published. Name who did and when.</p>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -206,7 +206,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
           </div>
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="seo">
+        <section className="card space-y-4 p-5" aria-labelledby="seo">
           <h2 id="seo" className="font-sans text-lg font-semibold">SEO</h2>
           <Input label="SEO title" hint="Defaults to the title. Up to 70 characters." error={errors.seo?.title?.message} {...register("seo.title")} />
           <Area id="seo-desc" label="Meta description" rows={2} error={errors.seo?.description?.message} hint="Defaults to the short description." {...register("seo.description")} />
@@ -218,14 +218,14 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
 
       <aside className="space-y-6 lg:sticky lg:top-20" aria-label="Actions">
         {!readOnly && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <Button type="submit" loading={isSubmitting} disabled={busy !== null} className="w-full">{item ? "Save changes" : "Create"}</Button>
             {isDirty && item && <p className="text-xs text-warning">You have unsaved changes.</p>}
           </div>
         )}
 
         {item && meta && (
-          <div className="card space-y-4 p-5 hover:shadow-elev-1">
+          <div className="card space-y-4 p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-sans text-lg font-semibold">Publishing</h2>
               <span className={live ? "badge-success" : meta.status === "scheduled" ? "badge-primary" : "badge-muted"}>{live ? "Live" : meta.status === "scheduled" ? "Scheduled" : "Draft"}</span>
@@ -260,7 +260,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
         )}
 
         {item && meta && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <h2 className="font-sans text-lg font-semibold">Preview</h2>
             <p className="text-xs text-muted">Anyone with this link can see the saved page, even as a draft. Reset it to revoke access.</p>
             <div className="flex flex-wrap gap-2">
@@ -271,7 +271,7 @@ export default function DevotionalEditor({ item, canPublish, readOnly = false }:
           </div>
         )}
 
-        {item && !readOnly && <div className="card p-5 hover:shadow-elev-1"><Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete</Button></div>}
+        {item && !readOnly && <div className="card p-5"><Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete</Button></div>}
       </aside>
 
       <ImagePicker open={pickCover} onClose={() => setPickCover(false)} onPick={(url, alt) => { setValue("coverImageUrl", url, { shouldDirty: true, shouldValidate: true }); setValue("coverImageAlt", alt, { shouldDirty: true, shouldValidate: true }); }} />

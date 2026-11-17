@@ -10,7 +10,7 @@ import NewsletterForm from "./NewsletterForm";
 const PLATFORM: Record<string, string> = { facebook: "Facebook", instagram: "Instagram", x: "X", youtube: "YouTube", whatsapp: "WhatsApp", linkedin: "LinkedIn", telegram: "Telegram" };
 
 function FooterLink({ l, className = "" }: { l: PublicLink; className?: string }) {
-  const cls = `transition-colors hover:text-gold-300 ${className}`;
+  const cls = `inline-flex min-h-10 items-center transition-colors hover:text-gold-300 ${className}`;
   return l.external || l.newTab
     ? <a href={l.href} className={cls} {...(l.newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{l.label}{l.newTab && <span className="sr-only"> (opens in a new tab)</span>}</a>
     : <Link href={l.href} className={cls}>{l.label}</Link>;
@@ -69,10 +69,10 @@ export function FooterView({ f }: { f: PublicFooter }) {
           <div className="space-y-5 lg:col-span-4">
             <Link href="/" aria-label="GodPuja home" className="inline-block"><Logo tone="light" /></Link>
             {hasContact && (
-              <address className="space-y-2.5 not-italic">
+              <address className="space-y-1 not-italic">
                 {contact.address && <p className="flex gap-2.5"><PinIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" /><span className="whitespace-pre-line">{contact.address}</span></p>}
-                {contact.phone && <p className="flex gap-2.5"><PhoneIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" /><a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="hover:text-gold-300">{contact.phone}</a></p>}
-                {contact.email && <p className="flex gap-2.5"><MailIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" /><a href={`mailto:${contact.email}`} className="break-all hover:text-gold-300">{contact.email}</a></p>}
+                {contact.phone && <p className="flex items-center gap-2.5"><PhoneIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" /><a href={`tel:${contact.phone.replace(/[^\d+]/g, "")}`} className="inline-flex min-h-10 items-center hover:text-gold-300">{contact.phone}</a></p>}
+                {contact.email && <p className="flex items-center gap-2.5"><MailIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold-300" /><a href={`mailto:${contact.email}`} className="inline-flex min-h-10 items-center break-all hover:text-gold-300">{contact.email}</a></p>}
               </address>
             )}
             {f.social.length > 0 && (
@@ -86,7 +86,7 @@ export function FooterView({ f }: { f: PublicFooter }) {
           {f.columns.map((c) => (
             <nav key={c.id} aria-labelledby={`footer-${c.id}`} className="lg:col-span-2">
               <h2 id={`footer-${c.id}`} className="mb-4 font-sans text-sm font-semibold uppercase tracking-widest text-gold-300">{c.heading}</h2>
-              <ul className="space-y-2.5">{c.links.map((l) => <li key={l.id}><FooterLink l={l} /></li>)}</ul>
+              <ul>{c.links.map((l) => <li key={l.id}><FooterLink l={l} /></li>)}</ul>
             </nav>
           ))}
           {f.newsletter.enabled && (
@@ -102,9 +102,9 @@ export function FooterView({ f }: { f: PublicFooter }) {
         <div className="border-t border-white/10">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-sandal-300 sm:px-6">
             <p>{f.copyright}</p>
-            <nav aria-label="Legal"><ul className="flex flex-wrap gap-x-5 gap-y-1">
+            <nav aria-label="Legal"><ul className="flex flex-wrap gap-x-5">
               {f.legalLinks.map((l) => <li key={l.id}><FooterLink l={l} /></li>)}
-              <li><CookieSettingsButton className="transition-colors hover:text-gold-300" /></li>
+              <li><CookieSettingsButton className="inline-flex min-h-10 items-center transition-colors hover:text-gold-300" /></li>
             </ul></nav>
           </div>
         </div>

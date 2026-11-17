@@ -39,7 +39,7 @@ export default function UsersClient({ users, canWrite, currentUserId, hasFilters
           <Button onClick={() => setEditing("new")}>Add user</Button>
         </div>
       )}
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {users.length === 0 ? (
           <EmptyState title={hasFilters ? "No users match your filters" : "No users yet"}
             description={hasFilters ? "Try a different search or role." : "Add the first user to get started."} />

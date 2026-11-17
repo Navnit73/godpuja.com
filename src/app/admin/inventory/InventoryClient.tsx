@@ -36,9 +36,9 @@ export default function InventoryClient({ items }: { items: InventoryItem[] }) {
     } finally { setBusy(null); }
   }
 
-  if (rows.length === 0) return <div className="card hover:shadow-elev-1"><EmptyState title="No products found" description="Add products first, then manage their stock here." /></div>;
+  if (rows.length === 0) return <div className="card"><EmptyState title="No products found" description="Add products first, then manage their stock here." /></div>;
   return (
-    <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+    <div className="card overflow-x-auto p-0">
       <p role="status" aria-live="polite" className="sr-only">{announce}</p>
       <table className="data-table">
         <caption className="sr-only">Stock levels</caption>

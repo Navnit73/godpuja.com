@@ -50,7 +50,7 @@ export default async function ProductsList({ searchParams }: PageProps<"/admin/p
         <button type="submit" className="btn-outline h-10">Filter</button>
         {filtered && <Link href="/admin/products" className="btn-ghost h-10">Clear</Link>}
       </form>
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {result.items.length === 0 ? (
           <EmptyState title={filtered ? "No products match your filters" : "No products yet"} description={filtered ? "Try a different search or filter." : "Add your first product to start selling."}
             action={!filtered && canWrite ? <Link href="/admin/products/new" className="btn-primary">New product</Link> : undefined} />

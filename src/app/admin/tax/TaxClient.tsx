@@ -53,7 +53,7 @@ export default function TaxClient({ initial, countries }: { initial: AdminTaxRul
   return (
     <>
       <div className="mb-4 flex justify-end"><Button onClick={() => { setErrs({}); setError(null); setEditing({ id: null, base: "", form: blank("IN") }); }}>Add tax rule</Button></div>
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {initial.length === 0 ? <EmptyState title="No tax rules" description="Orders currently show no tax line. Add a rule for each country you deliver to." /> : (
           <table className="data-table">
             <caption className="sr-only">Tax rules</caption>

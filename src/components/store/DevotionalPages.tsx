@@ -85,6 +85,7 @@ export async function IndexContent({ section, searchParams }: { section: Section
           </div>
         ) : (
           <>
+            <h2 className="sr-only">Results</h2>
             <p className="sr-only" role="status">{r.total} {r.total === 1 ? "result" : "results"}</p>
             <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{r.items.map((d) => <DevotionalCardView key={d.id} d={d} />)}</ul>
           </>

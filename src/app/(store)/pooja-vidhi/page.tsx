@@ -58,7 +58,10 @@ async function Content({ searchParams }: Props) {
             {q.category && total > 0 && <Link href={href()} className="btn-outline mt-5">See all guides</Link>}
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{r.items.map((v) => <VidhiCardView key={v.id} v={v} />)}</ul>
+          <>
+            <h2 className="sr-only">All guides</h2>
+            <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">{r.items.map((v) => <VidhiCardView key={v.id} v={v} />)}</ul>
+          </>
         )}
         {r.pages > 1 && (
           <nav aria-label="Pagination" className="mt-10 flex items-center justify-between gap-3 border-t border-sandal-200 pt-6 text-sm">

@@ -6,7 +6,7 @@ import { loadRedirectMap } from "./services/redirects";
 import { RESERVED_SLUGS, validateSlug } from "@/lib/slug";
 import { vidhiExists } from "./services/vidhi";
 import { devotionalExists } from "./services/devotional";
-import { DEVOTIONAL_TYPE_KEYS, MANTRA_TYPE_KEYS } from "@/lib/validation/devotional";
+import { MANTRA_TYPE_KEYS } from "@/lib/validation/devotional";
 
 /**
  * Fast, in-process lookups used by the proxy BEFORE a page starts streaming, so redirects get a real 301 and unknown

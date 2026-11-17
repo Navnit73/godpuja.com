@@ -47,7 +47,7 @@ function toInput(f: Form): unknown {
 }
 
 const Card = ({ title, children, hint }: { title: string; hint?: string; children: React.ReactNode }) => (
-  <section className="card space-y-4 p-4 hover:shadow-elev-1"><div><h2 className="font-sans text-lg font-semibold">{title}</h2>{hint && <p className="text-sm text-muted">{hint}</p>}</div>{children}</section>
+  <section className="card space-y-4 p-4"><div><h2 className="font-sans text-lg font-semibold">{title}</h2>{hint && <p className="text-sm text-muted">{hint}</p>}</div>{children}</section>
 );
 const move = <T,>(a: T[], i: number, d: -1 | 1) => { const j = i + d; if (j < 0 || j >= a.length) return a; const c = [...a]; [c[i], c[j]] = [c[j], c[i]]; return c; };
 const mini = "btn-ghost btn-sm px-2 disabled:opacity-40";

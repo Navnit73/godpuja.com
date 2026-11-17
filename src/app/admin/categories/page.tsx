@@ -17,7 +17,7 @@ export default async function CategoriesList() {
     <>
       <PageHeader title="Categories" description="Organise products into categories and subcategories (up to 3 levels). Each gets its own URL."
         actions={<Link href="/admin/categories/new" className="btn-primary">New category</Link>} />
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {cats.length === 0 ? (
           <EmptyState title="No categories yet" description="Create your first category, such as Puja kits or Idols."
             action={<Link href="/admin/categories/new" className="btn-primary">New category</Link>} />

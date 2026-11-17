@@ -61,14 +61,12 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
 
       {/* Brand panel */}
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-kumkum-950 p-12 text-sandal-100 lg:flex">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-saffron-500/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-gold-400/20 blur-3xl" />
         <Chakra className="pointer-events-none absolute -right-40 top-1/2 h-[42rem] w-[42rem] -translate-y-1/2 text-gold-400/25" />
         <Chakra className="pointer-events-none absolute -bottom-28 -left-28 h-72 w-72 text-saffron-400/20" />
-        <p className="relative font-[family-name:var(--font-cormorant)] text-3xl font-semibold text-gold-300">GodPuja</p>
+        <p className="relative font-display text-3xl font-semibold text-gold-300">GodPuja</p>
         <div className="relative max-w-md">
-          <p aria-hidden className="mb-6 text-5xl text-saffron-400 drop-shadow-[0_0_18px_rgb(242_122_26_/_0.6)]">ॐ</p>
-          <h2 className="font-[family-name:var(--font-cormorant)] text-5xl font-semibold leading-tight text-white">
+          <p aria-hidden className="mb-6 text-5xl text-saffron-400">ॐ</p>
+          <h2 className="font-display text-5xl font-semibold leading-tight text-white">
             Sacred rituals, made simple.
           </h2>
           <p className="mt-4 text-lg text-sandal-300">

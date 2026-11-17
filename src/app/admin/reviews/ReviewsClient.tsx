@@ -28,7 +28,7 @@ export default function ReviewsClient({ initial, status }: { initial: AdminRevie
       {error && <p role="alert" className="alert-error">{error}</p>}
       <ul className="space-y-3">
         {initial.map((r) => (
-          <li key={r.id} className="card space-y-2 p-4 hover:shadow-elev-1">
+          <li key={r.id} className="card space-y-2 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm"><Link href={`/product/${r.productSlug}`} className="font-medium text-primary underline" target="_blank" rel="noopener noreferrer">{r.productName}<span className="sr-only"> (opens in a new tab)</span></Link> · <span aria-label={`${r.rating} out of 5 stars`}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span></p>
               <p className="text-xs text-muted">{r.displayName} · {formatDateTime(r.createdAt)}</p>

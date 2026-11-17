@@ -68,7 +68,7 @@ export default function CouponsClient({ initial }: { initial: AdminCoupon[] }) {
   return (
     <>
       <div className="mb-4 flex justify-end"><Button onClick={() => { setErrs({}); setError(null); setEditing({ id: null, base: "", form: blank }); }}>Add coupon</Button></div>
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {initial.length === 0 ? <EmptyState title="No coupons yet" description="Create a code to offer customers a discount." /> : (
           <table className="data-table">
             <caption className="sr-only">Coupons</caption>

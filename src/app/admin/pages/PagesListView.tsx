@@ -73,7 +73,7 @@ export default async function PagesListView({ kind, searchParams }: { kind: Page
         {filtered && <Link href={base} className="btn-ghost h-10">Clear</Link>}
       </form>
 
-      <div className="card overflow-x-auto p-0 hover:shadow-elev-1">
+      <div className="card overflow-x-auto p-0">
         {result.items.length === 0 ? (
           <EmptyState title={filtered ? `No ${meta.plural.toLowerCase()} match your filters` : `No ${kind === "page" ? "pages" : meta.plural.toLowerCase()} yet`}
             description={filtered ? "Try a different search or status." : copy.empty}

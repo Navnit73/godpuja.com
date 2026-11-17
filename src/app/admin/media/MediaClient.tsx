@@ -59,17 +59,17 @@ export default function MediaClient({ initial, configured, page, pages, total }:
     <div className="space-y-4">
       {!configured && <p role="status" className="alert-error">Image storage is not configured yet, so uploads are disabled. Add the CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET environment variables and restart. You can still paste image URLs into products and categories.</p>}
       {error && <p role="alert" className="alert-error">{error}</p>}
-      <div className="card p-4 hover:shadow-elev-1">
+      <div className="card p-4">
         <label htmlFor="media-file" className="label">Upload images</label>
         <input id="media-file" type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp" disabled={!configured || busy} onChange={upload} className="block text-sm" />
         {busy && <p role="status" className="mt-2 text-sm text-muted">Working…</p>}
       </div>
       {initial.length === 0 ? (
-        <div className="card hover:shadow-elev-1"><EmptyState title="No images yet" description="Uploaded images appear here and can be chosen in products and categories." /></div>
+        <div className="card"><EmptyState title="No images yet" description="Uploaded images appear here and can be chosen in products and categories." /></div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {initial.map((m) => (
-            <li key={m.id} className="card overflow-hidden p-0 hover:shadow-elev-1">
+            <li key={m.id} className="card overflow-hidden p-0">
               <img src={m.url} alt={m.alt} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full object-cover" />
               <div className="space-y-2 p-3">
                 <p className="truncate text-sm font-medium" title={m.filename}>{m.filename}</p>

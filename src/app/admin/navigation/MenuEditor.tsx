@@ -200,7 +200,7 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
   const total = flatten(items).length;
   return (
     <div className="space-y-4">
-      <div className="card grid gap-4 p-4 hover:shadow-elev-1 sm:grid-cols-[1fr_auto] sm:items-end">
+      <div className="card grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <Input label="Menu name" value={name} readOnly={readOnly} onChange={(e) => { setName(e.target.value); setDirty(true); edits.current++; }} />
         {!readOnly && <Button onClick={save} loading={busy} disabled={!dirty}>Save menu</Button>}
       </div>
@@ -214,7 +214,7 @@ export default function MenuEditor({ menu, pages, pagesTruncated = false, readOn
       <p className="text-sm text-muted">
         {total} item{total === 1 ? "" : "s"}. Drag the handle or use the arrow buttons to reorder; → nests an item under the one above (up to {MENU_DEPTH} levels). Items linking to unpublished pages stay hidden on the storefront until the page is live.
       </p>
-      {items.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted hover:shadow-elev-1">This menu is empty.</div>}
+      {items.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted">This menu is empty.</div>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <Level list={items} {...{ items, pages, errors, expanded, readOnly, toggle, apply }} />
       </DndContext>

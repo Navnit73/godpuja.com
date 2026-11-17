@@ -209,7 +209,7 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
         </div>
       )}
 
-      {sections.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted hover:shadow-elev-1">No sections yet. Add a hero to get started; until then visitors see the default placeholder.</div>}
+      {sections.length === 0 && <div className="card px-6 py-10 text-center text-sm text-muted">No sections yet. Add a hero to get started; until then visitors see the default placeholder.</div>}
       {sections.length > 1 && <p className="text-xs text-muted">Drag the ⠿ handle (or use ↑ ↓) to reorder sections. Save to publish the new order.</p>}
       <DndContext id={dndId} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={sections.map((x) => x.id)} strategy={verticalListSortingStrategy}>
@@ -303,7 +303,7 @@ export default function HomepageEditor({ initial, categories }: { initial: Admin
       </DndContext>
       {errs.sections && <p className="field-error">{errs.sections}</p>}
 
-      <div className="card flex flex-wrap items-end gap-3 p-4 hover:shadow-elev-1">
+      <div className="card flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-56">
           <Select label="Add a section" value={addType} onChange={(e) => setAddType(e.target.value as SectionType)}>
             {SECTION_TYPES.map((t) => <option key={t} value={t}>{SECTION_LABEL[t]}</option>)}

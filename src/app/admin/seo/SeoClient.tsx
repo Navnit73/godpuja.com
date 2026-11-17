@@ -81,7 +81,7 @@ export default function SeoClient({ settings, redirects, q }: Props) {
   const titleLen = f.defaultTitle.length, homeLen = f.homeTitle.length;
   return (
     <div className="space-y-6">
-      <section className="card space-y-4 p-4 hover:shadow-elev-1" aria-labelledby="defaults">
+      <section className="card space-y-4 p-4" aria-labelledby="defaults">
         <h2 id="defaults" className="font-sans text-lg font-semibold">Site defaults</h2>
         {general && <p role="alert" className="alert-error">{general}</p>}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -99,7 +99,7 @@ export default function SeoClient({ settings, redirects, q }: Props) {
         <Button onClick={save} loading={busy} disabled={!dirty}>Save settings</Button>
       </section>
 
-      <section className="card space-y-4 p-4 hover:shadow-elev-1" aria-labelledby="redirects">
+      <section className="card space-y-4 p-4" aria-labelledby="redirects">
         <div>
           <h2 id="redirects" className="font-sans text-lg font-semibold">Redirects (301)</h2>
           <p className="text-sm text-muted">Renamed products, categories and pages are redirected automatically. Add your own for old links. Changes take up to a minute to apply.</p>

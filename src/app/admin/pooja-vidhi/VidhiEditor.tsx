@@ -134,7 +134,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
       <fieldset disabled={readOnly || isSubmitting} className="min-w-0 space-y-6 lg:col-span-2">
         {formError && <p role="alert" className="alert-error">{formError}</p>}
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="basics">
+        <section className="card space-y-4 p-5" aria-labelledby="basics">
           <h2 id="basics" className="font-sans text-lg font-semibold">Basics</h2>
           <Input label="Title" error={errors.title?.message} {...titleReg} />
           <Input label="URL slug" hint="English lowercase letters, numbers and hyphens, e.g. ganesh-chaturthi-pooja. The guide lives at /pooja-vidhi/<slug>." error={errors.slug?.message} {...slugReg} />
@@ -156,7 +156,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           </div>
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="intro">
+        <section className="card space-y-4 p-5" aria-labelledby="intro">
           <h2 id="intro" className="font-sans text-lg font-semibold">Introduction and significance</h2>
           <MarkdownField id="summary" label="Introduction" rows={4} error={errors.summary?.message} {...register("summary")} hint="Shown first, and used for cards and search results. Up to 2000 characters." />
           <MarkdownField id="significance" label="Significance (optional)" rows={5} error={errors.significance?.message} {...register("significance")} />
@@ -167,9 +167,9 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
             <h2 id="samagri" className="font-sans text-lg font-semibold">Samagri list</h2>
             {!readOnly && <Button variant="outline" size="sm" onClick={() => samagri.append({ item: "", quantity: "", note: "", productSlug: "" })}>+ Add item</Button>}
           </div>
-          {samagri.fields.length === 0 && <p className="card p-5 text-center text-sm text-muted hover:shadow-elev-1">No items yet. Add what the devotee needs; link an item to a shop product so they can buy it.</p>}
+          {samagri.fields.length === 0 && <p className="card p-5 text-center text-sm text-muted">No items yet. Add what the devotee needs; link an item to a shop product so they can buy it.</p>}
           {samagri.fields.map((f, i) => (
-            <div key={f._key} className="card space-y-3 p-4 hover:shadow-elev-1">
+            <div key={f._key} className="card space-y-3 p-4">
               <div className="flex items-center justify-between"><p className="text-sm font-medium">Item {i + 1}</p>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" disabled={i === 0} aria-label={`Move item ${i + 1} up`} onClick={() => samagri.move(i, i - 1)}>↑</Button>
@@ -186,7 +186,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           ))}
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="prep">
+        <section className="card space-y-4 p-5" aria-labelledby="prep">
           <h2 id="prep" className="font-sans text-lg font-semibold">Preparation</h2>
           <MarkdownField id="preparation" label="How to prepare (optional)" rows={4} error={errors.preparation?.message} {...register("preparation")} />
         </section>
@@ -196,9 +196,9 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
             <h2 id="steps" className="font-sans text-lg font-semibold">Steps</h2>
             {!readOnly && <Button variant="outline" size="sm" onClick={() => steps.append({ title: "", body: "", mantra: "" })}>+ Add step</Button>}
           </div>
-          {steps.fields.length === 0 && <p className="card p-5 text-center text-sm text-muted hover:shadow-elev-1">No steps yet. Steps are numbered for the reader in the order you list them.</p>}
+          {steps.fields.length === 0 && <p className="card p-5 text-center text-sm text-muted">No steps yet. Steps are numbered for the reader in the order you list them.</p>}
           {steps.fields.map((f, i) => (
-            <div key={f._key} className="card space-y-3 p-4 hover:shadow-elev-1">
+            <div key={f._key} className="card space-y-3 p-4">
               <div className="flex items-center justify-between"><p className="text-sm font-medium">Step {i + 1}</p>
                 <div className="flex gap-1">
                   <Button variant="ghost" size="sm" disabled={i === 0} aria-label={`Move step ${i + 1} up`} onClick={() => steps.move(i, i - 1)}>↑</Button>
@@ -221,7 +221,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
             {!readOnly && <Button variant="outline" size="sm" onClick={() => mantras.append({ title: "", text: "", meaning: "" })}>+ Add mantra</Button>}
           </div>
           {mantras.fields.map((f, i) => (
-            <div key={f._key} className="card space-y-3 p-4 hover:shadow-elev-1">
+            <div key={f._key} className="card space-y-3 p-4">
               <div className="flex items-center justify-between"><p className="text-sm font-medium">Mantra {i + 1}</p>
                 <Button variant="ghost" size="sm" aria-label={`Remove mantra ${i + 1}`} onClick={() => mantras.remove(i)}>Remove</Button></div>
               <Input label="Name" error={errOf(errors, "mantras", i, "title")} {...reg(`mantras.${i}.title`)} />
@@ -238,7 +238,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           ))}
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="more">
+        <section className="card space-y-4 p-5" aria-labelledby="more">
           <h2 id="more" className="font-sans text-lg font-semibold">More text and links</h2>
           <MarkdownField id="body" label="Additional text (optional)" rows={5} error={errors.body?.message} {...register("body")} hint="Anything that does not fit above. Guides moved from the old Guides section land here." />
           <CsvField name="relatedProducts" label="Related products (shop slugs)" hint="Comma-separated, e.g. brass-diya, camphor. Shown as “Essentials for this pooja”." control={control} setValue={setValue} error={errors.relatedProducts?.message} readOnly={readOnly} />
@@ -247,7 +247,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           <CsvField name="tags" label="Tags" hint="Comma-separated, e.g. diwali, lakshmi, evening." control={control} setValue={setValue} error={errors.tags?.message} readOnly={readOnly} />
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="review">
+        <section className="card space-y-4 p-5" aria-labelledby="review">
           <h2 id="review" className="font-sans text-lg font-semibold">Author and review</h2>
           <p className="text-sm text-muted">Religious content must be checked for accuracy and tradition before it is published. Name who did and when.</p>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -258,7 +258,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           </div>
         </section>
 
-        <section className="card space-y-4 p-5 hover:shadow-elev-1" aria-labelledby="seo">
+        <section className="card space-y-4 p-5" aria-labelledby="seo">
           <h2 id="seo" className="font-sans text-lg font-semibold">SEO</h2>
           <Input label="SEO title" hint="Defaults to the title. Up to 70 characters." error={errors.seo?.title?.message} {...register("seo.title")} />
           <div>
@@ -275,14 +275,14 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
 
       <aside className="space-y-6 lg:sticky lg:top-20" aria-label="Guide actions">
         {!readOnly && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <Button type="submit" loading={isSubmitting} disabled={busy !== null} className="w-full">{vidhi ? "Save changes" : "Create guide"}</Button>
             {isDirty && vidhi && <p className="text-xs text-warning">You have unsaved changes.</p>}
           </div>
         )}
 
         {vidhi && meta && (
-          <div className="card space-y-4 p-5 hover:shadow-elev-1">
+          <div className="card space-y-4 p-5">
             <div className="flex items-center justify-between">
               <h2 className="font-sans text-lg font-semibold">Publishing</h2>
               <span className={live ? "badge-success" : meta.status === "scheduled" ? "badge-primary" : "badge-muted"}>{live ? "Live" : meta.status === "scheduled" ? "Scheduled" : "Draft"}</span>
@@ -317,7 +317,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
         )}
 
         {vidhi && meta && (
-          <div className="card space-y-3 p-5 hover:shadow-elev-1">
+          <div className="card space-y-3 p-5">
             <h2 className="font-sans text-lg font-semibold">Preview</h2>
             <p className="text-xs text-muted">Anyone with this link can see the saved guide, even as a draft. Reset it to revoke access.</p>
             <div className="flex flex-wrap gap-2">
@@ -328,7 +328,7 @@ export default function VidhiEditor({ vidhi, canPublish, readOnly = false }: { v
           </div>
         )}
 
-        {vidhi && !readOnly && <div className="card p-5 hover:shadow-elev-1"><Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete guide</Button></div>}
+        {vidhi && !readOnly && <div className="card p-5"><Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete guide</Button></div>}
       </aside>
 
       <ImagePicker open={pickCover} onClose={() => setPickCover(false)} onPick={(url, alt) => { setValue("coverImageUrl", url, { shouldDirty: true, shouldValidate: true }); setValue("coverImageAlt", alt, { shouldDirty: true, shouldValidate: true }); }} />

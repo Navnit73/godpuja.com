@@ -85,7 +85,7 @@ export default function AdminFrame({ user, items, children }: Props) {
               <Icon name="close" />
             </button>
           </div>
-          <div aria-hidden="true" className="mx-5 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+          <div aria-hidden="true" className="mx-5 h-px bg-white/10" />
 
           <nav className="flex-1 overflow-y-auto px-3 py-4">
             {groups.map(({ group, links }) => (
@@ -128,7 +128,7 @@ export default function AdminFrame({ user, items, children }: Props) {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col" inert={open}>
-          <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-sandal-200 bg-surface/95 px-4 backdrop-blur sm:px-8">
+          <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-sandal-200 bg-surface px-4 sm:px-8">
             <button ref={menuBtn} type="button" className="-ml-1 rounded-lg p-2 text-foreground hover:bg-sandal-100 lg:hidden" aria-label="Open navigation"
               aria-controls="admin-sidebar" aria-expanded={open} onClick={() => setOpen(true)}>
               <Icon name="menu" />

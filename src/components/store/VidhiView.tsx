@@ -25,7 +25,7 @@ export default function VidhiView({ v, preview = false }: { v: PublicVidhi; prev
     <main id="main" tabIndex={-1} className="w-full flex-1">
       {preview && <p role="status" className="bg-saffron-100 px-4 py-2 text-center text-sm font-medium text-saffron-900">Preview: only people with this link can see this guide.</p>}
       <PageBand title={v.title} crumbs={[{ name: "Home", href: "/" }, { name: "Pooja Vidhi", href: VIDHI_BASE }, { name: v.title }]}>
-        <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-sandal-200">
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
           <span>{v.categoryLabel}</span>
           {v.deity && <span>{v.deity}</span>}
           {v.durationMinutes && <span>About {v.durationMinutes} min</span>}
@@ -70,7 +70,7 @@ export default function VidhiView({ v, preview = false }: { v: PublicVidhi; prev
             <ol className="space-y-6">
               {v.steps.map((s, i) => (
                 <li key={i} className="flex gap-4">
-                  <span aria-hidden="true" className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">{i + 1}</span>
+                  <span aria-hidden="true" className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground">{i + 1}</span>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-sans text-lg font-semibold"><span className="sr-only">Step {i + 1}: </span>{s.title || `Step ${i + 1}`}</h3>
                     <div className="content" dangerouslySetInnerHTML={{ __html: s.bodyHtml }} />

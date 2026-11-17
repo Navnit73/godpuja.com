@@ -39,7 +39,10 @@ const PAIRS: [string, string, number, string][] = [
   ["--color-success", "--color-success-soft", 4.5, "success banner"],
   ["--color-warning", "--color-warning-soft", 4.5, "warning banner"],
   ["--color-kumkum-900", "--color-saffron-200", 4.5, "selected text"],
-  // Storefront refresh: sacred gradient stops, dark footer / top bar, dawn bands
+  ["--color-cta-foreground", "--color-cta", 4.5, "marigold CTA button label (Add to cart, Checkout, Pay)"],
+  ["--color-saffron-800", "--color-saffron-100", 4.5, "amber text on primary badge"],
+  ["--color-cta-foreground", "--color-saffron-400", 4.5, "ink on marigold highlight"],
+  // Flat panels (hero, offer strip, footer, top bar) and soft bands. Names kept from the earlier gradients.
   ["--primary-foreground", "--color-saffron-700", 4.5, "white text on sacred gradient start"],
   ["--primary-foreground", "--color-kumkum-600", 4.5, "white text on sacred gradient middle"],
   ["--color-sandal-100", "--color-saffron-700", 4.5, "hero subheading on sacred gradient start"],

@@ -29,7 +29,7 @@ function Promises() {
       <ul className="mx-auto grid w-full max-w-7xl grid-cols-2 gap-x-4 gap-y-6 px-4 py-8 sm:px-6 lg:grid-cols-4">
         {PROMISES.map(({ Icon, title, text }) => (
           <li key={title} className="flex items-center gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface text-primary ring-1 ring-saffron-200"><Icon className="h-6 w-6" /></span>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-surface text-primary ring-1 ring-saffron-200"><Icon className="h-6 w-6" /></span>
             <span><span className="block text-sm font-semibold text-foreground sm:text-base">{title}</span><span className="block text-xs text-muted sm:text-sm">{text}</span></span>
           </li>
         ))}
@@ -78,7 +78,7 @@ export function FooterView({ f }: { f: PublicFooter }) {
             {f.social.length > 0 && (
               <ul className="flex flex-wrap gap-2" aria-label="Social media">
                 {f.social.map((s) => (
-                  <li key={s.id}><a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-white/20 px-3.5 text-xs font-medium transition-colors hover:border-gold-300 hover:text-gold-300">{PLATFORM[s.platform] ?? s.platform}<span className="sr-only"> (opens in a new tab)</span></a></li>
+                  <li key={s.id}><a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-md border border-white/20 px-3.5 text-xs font-medium transition-colors hover:border-gold-300 hover:text-gold-300">{PLATFORM[s.platform] ?? s.platform}<span className="sr-only"> (opens in a new tab)</span></a></li>
                 ))}
               </ul>
             )}
@@ -92,7 +92,7 @@ export function FooterView({ f }: { f: PublicFooter }) {
           {f.newsletter.enabled && (
             <div className="grid items-center gap-4 rounded-2xl bg-surface p-5 text-foreground sm:p-6 md:col-span-2 lg:col-span-12 lg:grid-cols-2 lg:gap-10">
               <div>
-                <h2 className="font-serif text-2xl font-semibold">{f.newsletter.heading || "Newsletter"}</h2>
+                <h2 className="font-display text-2xl font-semibold">{f.newsletter.heading || "Newsletter"}</h2>
                 {f.newsletter.text && <p className="mt-1 text-muted">{f.newsletter.text}</p>}
               </div>
               <NewsletterForm />

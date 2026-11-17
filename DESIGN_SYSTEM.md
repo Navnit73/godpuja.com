@@ -4,91 +4,82 @@
 
 ## Principles
 
-1. Minimal, calm, premium, light theme only (no dark mode, `color-scheme: light`).
-2. Material-style depth: soft elevation shadows from tokens; **no glassmorphism** (no blur, no translucent frosted surfaces).
+1. Clean, modern, light theme only (`color-scheme: light`). White page, ink text, one marigold (genda phool) for actions and offers.
+2. Flat. Cards are white with a 1px mist border and **no shadow**. Shadows (`elev-*`, neutral and light) are only for menus, drawers, popovers and modals. No glassmorphism, no gradients, no decorative patterns.
 3. Only token colors, spacing, radii, fonts. No hex values, arbitrary `px` values, or inline styles in components.
-4. Gradients only on storefront hero/promo panels and title bands, via the tokens `bg-sacred`, `bg-dusk`, `bg-tulsi`, `bg-dawn` (owner request, storefront refresh). Never in admin, never on text, never on form controls.
+4. Radius scale: **3px** small (tags, badges, code), **4px** medium (buttons, inputs, chips, icon buttons), **5px** large (cards, panels, image plates, modals). Nothing is pill-shaped. `rounded-full` is for true circles only (avatars, dots, progress bars).
 5. Same layout language across storefront and admin.
 6. WCAG AA contrast, visible focus ring, 44px minimum touch targets on mobile.
 
-> Reconciliation note: the source brief says "avoid unnecessary shadows". The owner explicitly asked for Material elevation, so shadows are kept but limited: cards = `elev-1` (hover `elev-3`), primary button = `elev-1`, dropdowns/modals = `elev-4`. Sticky navbar has **no** shadow, only a bottom border.
+> Scale names (`saffron-*`, `kumkum-*`, `gold-*`, `sandal-*`, `tulsi-*`) are kept from the earlier palette so existing classes still work, but the values changed. Read the table below, not the names. Panel utilities `bg-sacred`, `bg-dusk`, `bg-tulsi`, `bg-dawn` are now **flat** fills (ink, ink, green, mist). `pattern-rangoli` is a no-op.
 
 ## Color tokens
 
 | Role | Token / class | Value | Use |
 |---|---|---|---|
-| Primary | `primary` (`saffron-700`) | #b44809 | CTAs, links, active states. White on it is 5.6:1 (AA); `saffron-600` (#d9600b, 3.7:1) is **graphic only** (logo mark), never for text |
-| Primary hover | `saffron-800` | #8f380f | hover/pressed |
-| Text | `foreground` (`kumkum-900`) | #3b0d10 | body, headings |
-| Muted text | `muted` | #7a625a | secondary text (AA on `background`) |
-| Background | `background` (`sandal-50`) | #fffdf8 | page |
-| Surface | `surface` | #ffffff | cards, navbar, tables, inputs |
-| Border | `border` (`sandal-300`) | #e9d8b9 | dividers, card edges (decorative) |
-| Input border | `input-border` | #9a8475 | form control edges — 3.3:1+ on surface/background (WCAG 1.4.11, Stage 11) |
-| Accent | `accent` (`gold-600`) | #9a7623 | focus ring (≥3:1 on white), divider ornament. Not for body text |
-| Success | `success` (`tulsi-700`) / `success-soft` (`tulsi-50`) | #335738 / #f2f7f2 | success text and tonal badges (AA). `tulsi-500` is decorative only |
-| Danger | `danger` (`kumkum-600`) / `danger-soft` | #a82a30 | errors, destructive |
-| Scrim | `scrim` | maroon @ 45% | modal and mobile-drawer backdrop only (the single translucent token; no frosted/blurred surfaces) |
+| CTA | `bg-cta` / `text-cta-foreground` (`saffron-500` / `kumkum-900`) | #ffb21e / #14161a | `btn-primary`: Add to cart, Checkout, Pay. Ink text on it is 10:1. **Never use marigold as text** |
+| Primary | `primary` (`kumkum-900`) | #14161a | Links, outline buttons, active chips, text-primary |
+| Text | `foreground` (`kumkum-900`) | #14161a | body, headings |
+| Muted text | `muted` (`kumkum-600`) | #5b616e | secondary text (6.2:1 on white) |
+| Background / Surface | `background`, `surface` | #ffffff | page, cards, navbar, inputs |
+| Mist | `sandal-100` | #f5f6f8 | image plates, search field, soft panels, `bg-dawn` |
+| Border | `border` (`sandal-200`) | #e4e6eb | card edges, dividers (decorative) |
+| Input border | `input-border` | #868c99 | form control edges, 3:1+ (WCAG 1.4.11) |
+| Accent | `accent` (`gold-600`) | #9a5b08 | focus ring (5:1 on white). On dark panels `gold-300` (#ffc13d) |
+| Haldi tint | `saffron-100` / `saffron-800` text | #fff4d9 / #6e4200 | offer panels, primary badges |
+| Success | `success` (`tulsi-700`) / `success-soft` (`tulsi-50`) | #0f7b4a / #e3f4ea | in stock, delivery, success banners |
+| Danger | `danger` / `danger-soft` | #c62828 / #fdecec | errors, destructive. Red is for errors only |
+| Dark panels | `kumkum-950` (#0d0f12), `bg-sacred` (#14161a) | | footer, top bar, admin sidebar, hero. White / `sandal-100` text, `gold-300` highlights |
+| Scrim | `scrim` | ink @ 50% | modal and drawer backdrop only |
 
-Full scales: `saffron-50…900`, `kumkum-50…900`, `gold-50…700`, `sandal-50…400`, `tulsi-50…700`. Semantic aliases (Stage 1): `danger`/`danger-soft`, `success`/`success-soft`, `warning`/`warning-soft`.
+Full scales are in `globals.css` (`@theme`). Semantic aliases: `danger`/`danger-soft`, `success`/`success-soft`, `warning`/`warning-soft`.
 
-## Storefront refresh (spiritual theme)
-
-Layout follows the owner's e-commerce reference (top bar, search header, category nav row, rounded promo panels, circular categories, product tiles, trust strip, dark footer) in the GodPuja palette.
+## Storefront
 
 | Token / utility | Use |
 |---|---|
-| `kumkum-950` (#26070a) | "temple night": top announcement bar, footer base |
-| `bg-sacred` | saffron-700 → kumkum-600 → kumkum-800; hero panel. White / `sandal-100` text only |
-| `bg-dusk` | kumkum-800 → kumkum-950; offer strip, footer |
-| `bg-tulsi` | tulsi-700 → deep green; optional promo panel |
-| `bg-dawn` | saffron-50 → sandal-50; page title bands (`PageBand`), alternate rails, testimonials |
-| `pattern-rangoli` | faint white dot lattice over dark panels |
-| `Mandala`, `LotusOrnament` (`components/store/Icons.tsx`) | decorative SVGs, `aria-hidden`; gold at low opacity on dark panels, `accent` under section titles |
-| `section-title`, `eyebrow` | storefront section headings (serif 3xl/4xl) and small uppercase labels |
-| `btn-light`, `btn-ghost-light` | buttons on dark/gradient panels |
-| `icon-btn` | 44px round header actions (search, account, cart) |
-| `product-tile` | product card: `rounded-2xl`, sandal border, image on `sandal-100` plate, lift on hover (`-translate-y-1` + `elev-2`; the one storefront card allowed a hover shadow) |
-| `summary-plain` | `<summary>` without the disclosure triangle; listing toolbar "Price" popover (`chip` summary, `elev-4` panel, `Popover` closes on Esc/outside click) |
-| `pb-safe` | bottom padding that clears the iOS home indicator; product page mobile sticky buy bar (`surface`, top `border`, `elev-4`, shown only while the main buy row is off screen; `body.has-buy-bar` adds bottom padding so it never hides the footer) |
-| `scrollbar-none` | hides the scrollbar on horizontal rails (homepage product rails below `sm`: `snap-x`, cards `w-5/12`, a peek of the next card signals scrolling) |
-| `chip` | subcategory / filter pills |
+| `section-title`, `eyebrow` | section headings (display, extrabold) and small uppercase muted labels |
+| `btn-light`, `btn-ghost-light` | buttons on dark panels (`btn-light` is marigold) |
+| `icon-btn` | 44px square header actions (search, account, cart), 4px corners |
+| `product-tile` | product card: 5px corners, mist border, image on `sandal-100` plate, border darkens on hover. No lift, no shadow |
+| `chip` | subcategory / filter chips, 4px corners; active is ink fill |
+| `summary-plain`, `pb-safe`, `scrollbar-none` | unchanged (popover summary, iOS safe area, horizontal rails) |
 
-Radius additions for the storefront: `rounded-2xl` (product tiles, banners, panels) and `rounded-3xl` (hero, offer). All new text/background pairs are covered in `tests/contrast.test.ts`.
+All text/background pairs are covered in `tests/contrast.test.ts`.
 
 ## Typography
 
-- Headings: `font-serif` (Cormorant Garamond, 500–700). Body/UI: `font-sans` (Inter).
+- Headings, buttons, prices: `font-display` (Plus Jakarta Sans, 500–800, tight tracking). Body/UI: `font-sans` (Hind, 400–600; Latin and Devanagari share one baseline).
 - Scale (tokenised as `--text-*` in `globals.css`): xs 12, sm 14, base 16, lg 18, xl 20, 2xl 24, 3xl 30, 4xl 36, 5xl 48. Body line-height 1.6, headings 1.2.
 - Weights: 400 body, 500 UI labels/buttons, 600 headings/emphasis. Admin UI uses `font-sans` throughout, including headings.
 
 ## Spacing, radius, containers
 
 - Spacing: Tailwind 4px scale; allowed steps 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 12, 16, 24. No arbitrary values (`w-[…]`, `grid-cols-[…]`). Section vertical rhythm: `py-16` desktop, `py-10` mobile.
-- Radius: `rounded-md` (inputs, small controls), `rounded-xl` (cards, modals), `rounded-full` (buttons, badges). No other radii.
+- Radius: `rounded-sm` 3px, `rounded-md` 4px, `rounded-lg` 5px. `rounded-xl`/`2xl`/`3xl` also resolve to 5px. No pills.
 - Containers: storefront listings `max-w-6xl` (1152), CMS page content `max-w-4xl`, admin content `max-w-7xl`. Horizontal padding `px-4` mobile, `px-6` ≥ sm.
 - Breakpoints: Tailwind defaults — sm 640, md 768, lg 1024, xl 1280 — plus `xs` 360 (small phones; header logo/gaps tighten below it so 320px fits). Pages must never be wider than the screen: `body` has `overflow-x: clip` as a safety net, and anything absolutely positioned inside a horizontal rail needs a positioned ancestor inside the rail (`product-tile` is `relative`).
 
 ## Elevation
 
-`shadow-elev-1` … `shadow-elev-4` (warm maroon-tinted, defined in `@theme`). Motion: `ease-standard`, 150–200 ms.
+`shadow-elev-1` … `shadow-elev-4` (neutral ink-tinted, defined in `@theme`; menus, drawers and modals only). Motion: `ease-standard`, 150–200 ms.
 
 ## Components (utilities in `globals.css`; React wrappers in `src/components/ui`)
 
 | Component | Spec |
 |---|---|
-| `btn-primary` | saffron fill, white text, `elev-1`, hover state-layer 8%, press 14% |
-| `btn-outline` | saffron-300 border, primary text, state layer |
+| `btn-primary` | marigold fill, ink text, 4px corners, no shadow, hover state-layer 8%, press 14% |
+| `btn-outline` | 1.5px ink border, ink text, state layer |
 | `btn-ghost` | no border/fill, for toolbars and row actions |
 | `btn-danger` | `danger` fill |
 | `btn-sm` | `min-h-11` (44px touch target) on mobile, `min-h-8` from `sm` up |
 | `badge-*` | `primary`, `success`, `danger`, `muted`; tonal bg + dark text |
-| Modal | native `<dialog>`; `rounded-xl`, `elev-4`, `scrim` backdrop; closes on Esc or backdrop press+release |
+| Modal | native `<dialog>`; `rounded-lg`, `elev-4`, `scrim` backdrop; closes on Esc or backdrop press+release |
 | Toast | bottom-right, `aria-live="polite"`, auto-dismiss 4 s |
-| `card` | `surface`, `rounded-xl`, `elev-1`, hover `elev-3` (only when clickable) |
+| `card` | `surface`, `rounded-lg`, 1px `sandal-200` border, no shadow |
 | `input`, `label`, `field-error`, `alert-error` (Stage 1) | `surface`, 1px `input-border`, `rounded-md`, h-10, focus: 2px `accent` ring; error: `danger` border + message below |
 | `data-table` (Stage 2) | `surface` card with `overflow-x-auto`, header `sandal-100`, row divider `border`, row hover `sandal-50`, `<caption class="sr-only">`, `scope="col"`; header is **not** sticky (sticky inside a scroll container never sticks); empty state replaces the table |
-| Badge (Stage 2) | `rounded-full`, tonal bg `*-100` + `*-700` text |
+| Badge (Stage 2) | `rounded-sm`, tonal bg `*-100` + `*-800` text |
 | Navbar | sticky, `surface`, bottom `border`, **no shadow** |
 | Admin shell (Stage 2) | sidebar 256px (drawer < lg: hidden from tab order when closed, Esc closes, background `inert` when open), sticky header with breadcrumbs + sign-out, content in `max-w-7xl` |
 
@@ -100,7 +91,7 @@ White (`text-white`) is allowed for text on solid status fills (`btn-danger`, er
 
 ## Accessibility
 
-Focus ring: 2px `accent` + 2px offset on every interactive element. Never remove outlines without replacement. Gold (`accent`) is decorative/ring only; text uses `primary`, `foreground`, or `muted`. Icon-only buttons need `aria-label`. Respect `prefers-reduced-motion`.
+Focus ring: 2px `accent` + 2px offset on every interactive element. Never remove outlines without replacement. Amber (`accent`) is for the focus ring only; marigold is never text; text uses `primary`, `foreground`, or `muted`. Icon-only buttons need `aria-label`. Respect `prefers-reduced-motion`.
 
 ## Change process
 

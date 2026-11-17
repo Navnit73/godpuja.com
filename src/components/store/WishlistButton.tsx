@@ -28,7 +28,7 @@ export default function WishlistButton({ productId, name, compact = false }: { p
   if (compact) {
     return (
       <button type="button" onClick={click} aria-pressed={saved} aria-label={label} title={error ? "Could not update. Try again." : undefined}
-        className={`absolute right-2 top-2 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 shadow-elev-1 transition-colors hover:bg-surface ${saved ? "text-kumkum-700" : "text-foreground"}`}>
+        className={`absolute right-2 top-2 z-10 inline-flex h-10 w-10 items-center justify-center rounded-md bg-surface/90 shadow-elev-1 transition-colors hover:bg-surface ${saved ? "text-kumkum-700" : "text-foreground"}`}>
         {icon}
       </button>
     );

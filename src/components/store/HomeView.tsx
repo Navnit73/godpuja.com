@@ -29,7 +29,7 @@ function Heading({ title, href, center }: { title: string; href?: string | null;
     <div className={`mb-6 flex gap-3 sm:mb-8 ${center ? "flex-col items-center text-center" : "flex-wrap items-end justify-between"}`}>
       {title && <div className={center ? "flex flex-col items-center" : ""}><h2 className="section-title">{title}</h2><LotusOrnament className="mt-2 h-4 w-16 text-accent" /></div>}
       {href && (
-        <Link href={href} className="inline-flex items-center gap-1.5 rounded-full border border-saffron-200 bg-saffron-50 px-4 py-2 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground">
+        <Link href={href} className="inline-flex items-center gap-1.5 rounded-md border border-saffron-200 bg-saffron-50 px-4 py-2 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground">
           View all<span className="sr-only"> {title}</span><ArrowRight className="h-3.5 w-3.5" />
         </Link>
       )}
@@ -83,11 +83,11 @@ function Block({ s }: { s: PublicHomeSection }) {
                   <div className="relative isolate flex items-center justify-between gap-4 overflow-hidden bg-dusk px-5 py-4 text-white sm:px-6 sm:py-5">
                     <div className="pattern-rangoli absolute inset-0 -z-10" aria-hidden="true" />
                     <div className="min-w-0">
-                      {b.heading && <p className="font-serif text-xl font-semibold leading-tight sm:text-2xl">{b.heading}</p>}
+                      {b.heading && <p className="font-display text-xl font-semibold leading-tight sm:text-2xl">{b.heading}</p>}
                       {b.text && <p className="mt-1 text-sm text-sandal-100">{b.text}</p>}
                     </div>
                     {b.linkUrl && (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface px-4 py-2 text-xs font-semibold text-kumkum-900 transition-colors duration-200 ease-standard group-hover:bg-gold-100" aria-hidden="true">
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-surface px-4 py-2 text-xs font-semibold text-kumkum-900 transition-colors duration-200 ease-standard group-hover:bg-gold-100" aria-hidden="true">
                         <span className="hidden sm:inline">Explore</span><ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 ease-standard group-hover:translate-x-0.5" />
                       </span>
                     )}
@@ -116,7 +116,7 @@ function Block({ s }: { s: PublicHomeSection }) {
                   <span className="block w-full max-w-36 rounded-full bg-dawn p-1.5 ring-1 ring-sandal-200 transition-all duration-200 ease-standard group-hover:-translate-y-1 group-hover:shadow-elev-2 group-hover:ring-2 group-hover:ring-gold-400">
                     {c.image.url
                       ? <img {...responsive(c.image.url, "(min-width: 1024px) 160px, 33vw", 320)} alt={c.image.alt} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="aspect-square w-full rounded-full object-cover" />
-                      : <span className="flex aspect-square w-full items-center justify-center rounded-full bg-saffron-50 font-serif text-4xl font-semibold text-primary" aria-hidden="true">{c.name.charAt(0)}</span>}
+                      : <span className="flex aspect-square w-full items-center justify-center rounded-full bg-saffron-50 font-display text-4xl font-semibold text-primary" aria-hidden="true">{c.name.charAt(0)}</span>}
                   </span>
                   <span className="text-sm font-medium text-foreground transition-colors group-hover:text-primary sm:text-base">{c.name}</span>
                 </Link>
@@ -152,7 +152,7 @@ function Block({ s }: { s: PublicHomeSection }) {
                 <figure className="mt-3 flex flex-1 flex-col">
                   <blockquote className="mb-5 text-base leading-relaxed text-foreground">{t.quote}</blockquote>
                   <figcaption className="mt-auto flex items-center gap-3 border-t border-sandal-200 pt-4 text-sm">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sacred font-serif text-lg font-semibold text-white" aria-hidden="true">{t.author.charAt(0)}</span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-sacred font-display text-lg font-semibold text-white" aria-hidden="true">{t.author.charAt(0)}</span>
                     <span><span className="block font-semibold">{t.author}</span>{t.role && <span className="text-muted">{t.role}</span>}</span>
                   </figcaption>
                 </figure>
@@ -169,11 +169,11 @@ function Block({ s }: { s: PublicHomeSection }) {
             <Mandala className="absolute -right-16 top-1/2 -z-10 h-80 w-80 -translate-y-1/2 text-gold-300 opacity-20" />
             <div className="flex flex-col items-start justify-between gap-6 px-6 py-8 sm:px-10 sm:py-10 md:flex-row md:items-center">
               <div>
-                <p className="font-serif text-3xl font-semibold sm:text-4xl">{s.heading}</p>
+                <p className="font-display text-3xl font-semibold sm:text-4xl">{s.heading}</p>
                 {s.text && <p className="mt-2 max-w-xl text-sandal-100">{s.text}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                {s.code && <p className="rounded-full border-2 border-dashed border-gold-300 px-4 py-2 font-mono text-sm font-semibold tracking-widest text-gold-100"><span className="sr-only">Use code </span>{s.code}</p>}
+                {s.code && <p className="rounded-md border-2 border-dashed border-gold-300 px-4 py-2 font-mono text-sm font-semibold tracking-widest text-gold-100"><span className="sr-only">Use code </span>{s.code}</p>}
                 {s.ctaLabel && <Cta href={s.ctaUrl} variant="btn-light">{s.ctaLabel}<ArrowRight /></Cta>}
               </div>
             </div>

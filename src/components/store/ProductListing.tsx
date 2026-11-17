@@ -26,7 +26,7 @@ export default function ProductListing({ base, query, result, facets, hiddenFiel
         <div className="flex flex-wrap items-center gap-2">
           <p role="status" className="text-sm text-muted"><span className="font-semibold text-foreground">{result.total}</span> {result.total === 1 ? "product" : "products"}</p>
           {filtered && (
-            <Link href={clearHref} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-saffron-50 pl-3 pr-2 text-sm font-medium text-primary ring-1 ring-saffron-200 transition-colors hover:bg-saffron-100">
+            <Link href={clearHref} className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-saffron-50 pl-3 pr-2 text-sm font-medium text-primary ring-1 ring-saffron-200 transition-colors hover:bg-saffron-100">
               {priceLabel}<CloseIcon className="h-4 w-4" /><span className="sr-only">Remove price filter</span>
             </Link>
           )}

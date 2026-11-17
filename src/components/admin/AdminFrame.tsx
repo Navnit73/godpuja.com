@@ -77,7 +77,7 @@ export default function AdminFrame({ user, items, children }: Props) {
             <Link href="/admin" className="flex items-center gap-3 rounded-lg" onClick={() => setOpen(false)}>
               <LogoMark className="h-9 w-9 shadow-elev-2 rounded-xl" />
               <span className="leading-tight">
-                <span className="block font-serif text-xl font-semibold text-white">God<span className="text-gold-300">Puja</span></span>
+                <span className="block font-display text-xl font-semibold text-white">God<span className="text-gold-300">Puja</span></span>
                 <span className="block text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-sandal-400">Admin console</span>
               </span>
             </Link>
@@ -112,7 +112,7 @@ export default function AdminFrame({ user, items, children }: Props) {
               <span>View storefront</span>
             </Link>
             <div className="flex items-center gap-3 rounded-xl bg-white/5 p-2.5 ring-1 ring-white/10">
-              <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-saffron-500 to-kumkum-600 text-sm font-semibold text-white">{initials}</span>
+              <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-saffron-500 text-sm font-semibold text-kumkum-900">{initials}</span>
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="truncate text-sm font-medium text-white">{user.name}</p>
                 <p className="text-xs capitalize text-sandal-400">{user.role}</p>
@@ -150,11 +150,11 @@ export default function AdminFrame({ user, items, children }: Props) {
                 <p className="font-medium text-foreground">{user.name}</p>
                 <p className="capitalize text-muted">{user.role}</p>
               </div>
-              <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-saffron-500 to-kumkum-600 text-sm font-semibold text-white ring-2 ring-saffron-100">{initials}</span>
+              <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-md bg-saffron-500 text-sm font-semibold text-kumkum-900 ring-2 ring-saffron-100">{initials}</span>
             </div>
             <span aria-hidden="true" className="hidden h-8 w-px bg-sandal-200 sm:block" />
             <button type="button" onClick={logout} disabled={busy} aria-busy={busy || undefined} title="Sign out"
-              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-sandal-300 px-3 text-sm font-medium text-kumkum-700 transition-colors hover:border-kumkum-300 hover:bg-kumkum-50 disabled:opacity-50 sm:px-4">
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md border border-sandal-300 px-3 text-sm font-medium text-kumkum-700 transition-colors hover:border-kumkum-300 hover:bg-kumkum-50 disabled:opacity-50 sm:px-4">
               <Icon name="logout" className="h-4 w-4" />
               <span className="sr-only sm:not-sr-only">{busy ? "Signing out…" : "Sign out"}</span>
             </button>

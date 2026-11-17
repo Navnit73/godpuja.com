@@ -63,13 +63,13 @@ export default async function Dashboard() {
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-200">{greeting()}</p>
-            <h1 className="mt-2 font-serif text-4xl font-semibold sm:text-5xl">Namaste, {user.name.split(" ")[0]}</h1>
+            <h1 className="mt-2 font-display text-4xl font-semibold sm:text-5xl">Namaste, {user.name.split(" ")[0]}</h1>
             <p className="mt-2 max-w-lg text-sandal-100">Here is what is happening across your store today.</p>
           </div>
           {quick.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {quick.map((a) => (
-                <Link key={a.href} href={a.href} className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white ring-1 ring-white/25 transition-colors hover:bg-white/25">
+                <Link key={a.href} href={a.href} className="inline-flex items-center gap-2 rounded-md bg-white/15 px-4 py-2 text-sm font-medium text-white ring-1 ring-white/25 transition-colors hover:bg-white/25">
                   <Icon name={a.icon} className="h-4 w-4" />{a.label}
                 </Link>
               ))}

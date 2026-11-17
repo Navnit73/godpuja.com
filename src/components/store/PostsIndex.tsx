@@ -46,10 +46,10 @@ export default async function PostsIndex({ kind, searchParams }: { kind: Kind; s
     <main id="main" tabIndex={-1} className="w-full flex-1">
       <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, { name: c.title, path: c.path }])} />
       <PageBand title={c.title} description={c.description} crumbs={[{ name: "Home", href: "/" }, { name: c.title }]}>
-        <nav aria-label="Read" className="mt-6 flex flex-wrap gap-2">
+        <nav aria-label="Read" className="mt-3 flex flex-wrap gap-2">
           {(Object.keys(COPY) as Kind[]).map((k) => (
             <Link key={k} href={COPY[k].path} aria-current={k === kind ? "page" : undefined}
-              className={k === kind ? "inline-flex min-h-9 items-center rounded-full bg-gold-300 px-4 text-sm font-semibold text-kumkum-950" : "chip-dark"}>
+              className={k === kind ? "inline-flex min-h-9 items-center rounded-md bg-gold-300 px-4 text-sm font-semibold text-kumkum-950" : "chip-dark"}>
               {COPY[k].title}
             </Link>
           ))}
@@ -60,7 +60,7 @@ export default async function PostsIndex({ kind, searchParams }: { kind: Kind; s
           ? (
             <div className="panel mx-auto flex max-w-xl flex-col items-center px-6 py-14 text-center">
               <LotusOrnament className="h-5 w-20 text-accent" />
-              <p className="mt-4 font-serif text-2xl font-semibold">{c.empty}</p>
+              <p className="mt-4 font-display text-2xl font-semibold">{c.empty}</p>
               <Link href="/" className="btn-primary mt-6">Back to the shop</Link>
             </div>
           )

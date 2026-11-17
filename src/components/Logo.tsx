@@ -21,7 +21,7 @@ export default function Logo({ tone = "dark", compact = false }: { tone?: "dark"
   return (
     <span className={`inline-flex items-center ${compact ? "gap-2 xs:gap-2.5" : "gap-2.5"}`}>
       <LogoMark className={compact ? "h-8 w-8 xs:h-9 xs:w-9" : undefined} />
-      <span className={`font-serif font-semibold ${compact ? "text-xl xs:text-2xl" : "text-2xl"} ${tone === "light" ? "text-sandal-50" : "text-kumkum-900"}`}>
+      <span className={`font-display font-semibold ${compact ? "text-xl xs:text-2xl" : "text-2xl"} ${tone === "light" ? "text-sandal-50" : "text-kumkum-900"}`}>
         God<span className={tone === "light" ? "text-gold-300" : "text-primary"}>Puja</span>
       </span>
     </span>

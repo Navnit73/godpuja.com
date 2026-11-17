@@ -17,7 +17,7 @@ function QtyStepper({ name, value, max, onChange }: { name: string; value: numbe
   const set = (q: number) => onChange(Math.min(max, Math.max(1, Math.trunc(q) || 1)));
   const btn = "h-11 w-11 text-lg text-foreground hover:bg-sandal-100 focus-visible:bg-sandal-100 disabled:opacity-40 sm:h-10 sm:w-10";
   return (
-    <div role="group" aria-label={`Quantity for ${name}`} className="inline-flex items-center overflow-hidden rounded-full border border-input-border bg-surface focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+    <div role="group" aria-label={`Quantity for ${name}`} className="inline-flex items-center overflow-hidden rounded-md border border-input-border bg-surface focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
       <button type="button" aria-label={`Decrease quantity of ${name}`} disabled={value <= 1} className={btn} onClick={() => set(value - 1)}>−</button>
       <input type="number" inputMode="numeric" aria-label={`Quantity of ${name}`} min={1} max={max} value={value} onChange={(e) => set(Number(e.target.value))}
         className="qty-input h-11 w-10 border-0 bg-transparent text-center text-base font-medium text-foreground outline-none sm:h-10" />

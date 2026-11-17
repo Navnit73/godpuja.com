@@ -83,9 +83,9 @@ async function Content({ searchParams }: Props) {
   return (
     <main id="main" tabIndex={-1} className="w-full flex-1">
       <PageBand title={query.q ? `Results for “${query.q}”` : "Search"} crumbs={[{ name: "Home", href: "/" }, { name: "Search" }]}>
-        <form method="get" action="/search" role="search" aria-label="Search the site" className="mt-5 flex max-w-xl gap-2">
+        <form method="get" action="/search" role="search" aria-label="Search the site" className="mt-3 flex max-w-xl gap-2">
           <label htmlFor="q" className="sr-only">Search products, guides, aarti and mantras</label>
-          <input id="q" name="q" type="search" defaultValue={q} maxLength={100} placeholder="Search products, guides, aarti, mantras…" className="input h-11 flex-1 rounded-full pl-5" />
+          <input id="q" name="q" type="search" defaultValue={q} maxLength={100} placeholder="Search products, guides, aarti, mantras…" className="input h-11 flex-1 rounded-md pl-5" />
           {tab && <input type="hidden" name="in" value={tab} />}
           <button type="submit" className="btn-primary">Search</button>
         </form>

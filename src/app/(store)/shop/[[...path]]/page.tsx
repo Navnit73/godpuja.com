@@ -74,7 +74,7 @@ async function Content({ params, searchParams }: Props) {
         <JsonLd data={breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, { name: "Shop", path: SHOP }])} />
         <PageBand title="Shop" description="Everything for your puja, from daily samagri to festival collections." crumbs={[{ name: "Home", href: "/" }, { name: "Shop" }]}>
           {tree.length > 0 && (
-            <nav aria-label="Categories" className="mt-5"><ul className="flex flex-wrap gap-2">
+            <nav aria-label="Categories" className="mt-3"><ul className="flex flex-wrap gap-2">
               {tree.map((c) => <li key={c.id}><Link href={categoryHref(c.path)} className="chip-dark">{c.name}</Link></li>)}
             </ul></nav>
           )}
@@ -97,7 +97,7 @@ async function Content({ params, searchParams }: Props) {
       <PageBand title={cat.name} description={cat.description || undefined}
         crumbs={[{ name: "Home", href: "/" }, ...crumbs.map((c, i) => ({ name: c.name, href: i < crumbs.length - 1 ? c.path : undefined }))]}>
         {cat.children.length > 0 && (
-          <nav aria-label="Subcategories" className="mt-5"><ul className="flex flex-wrap gap-2">
+          <nav aria-label="Subcategories" className="mt-3"><ul className="flex flex-wrap gap-2">
             {cat.children.map((c) => <li key={c.id}><Link href={categoryHref(c.path)} className="chip-dark">{c.name}</Link></li>)}
           </ul></nav>
         )}

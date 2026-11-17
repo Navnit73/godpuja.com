@@ -9,7 +9,7 @@ import JsonLd from "@/components/JsonLd";
 import { breadcrumbLd, productLd } from "@/lib/jsonld";
 import ProductCard from "@/components/store/ProductCard";
 import ProductGallery from "@/components/store/ProductGallery";
-import { LotusOrnament, ShieldIcon, TruckIcon } from "@/components/store/Icons";
+import { ShieldIcon, TruckIcon } from "@/components/store/Icons";
 import { env } from "@/server/env";
 import { getPublicProduct } from "@/server/public/catalog";
 import { findRelated } from "@/server/services/products";
@@ -47,16 +47,18 @@ async function Related({ slug }: { slug: string }) {
   const items = await findRelated(slug);
   if (!items.length) return null;
   return (
-    <section aria-labelledby="related" className="mt-12 sm:mt-16">
-      <h2 id="related" className="section-title">You may also like</h2>
-      <LotusOrnament className="mb-5 mt-2 h-4 w-16 text-accent sm:mb-6" />
+    <section aria-labelledby="related" className="mt-16 sm:mt-20">
+      <h2 id="related" className="section-title mb-6 sm:mb-8">You may also like</h2>
       {/* Below sm: swipeable rail (same as the homepage rails); from sm up: grid. */}
-      <ul className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0">
+      <ul className="scrollbar-none -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0">
         {items.map((p) => <ProductCard key={p.id} p={p} className="w-5/12 shrink-0 snap-start sm:w-auto" />)}
       </ul>
     </section>
   );
 }
+
+const TRUST = "flex items-center gap-3 rounded-lg bg-sandal-100 px-4 py-3 text-sm font-medium";
+const TRUST_ICON = "h-5 w-5 shrink-0 text-foreground";
 
 async function Content({ params }: Props) {
   await connection();
@@ -64,47 +66,45 @@ async function Content({ params }: Props) {
   // Known limitation (same as CMS pages): the 404 UI streams with HTTP 200; Stage 10 adds the proper status.
   if (!p) notFound();
   return (
-    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 pb-10 pt-4 sm:px-6 sm:py-8">
+    <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 pb-16 pt-4 sm:px-6 sm:pt-6">
       <JsonLd data={[productLd(env().SITE_URL, p), breadcrumbLd(env().SITE_URL, [{ name: "Home", path: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, path: `/shop/${c.path}` })), { name: p.name, path: `/product/${p.slug}` }])]} />
       <Breadcrumbs items={[{ name: "Home", href: "/" }, ...p.breadcrumbs.map((c) => ({ name: c.name, href: `/shop/${c.path}` })), { name: p.name }]} />
-      <div className="grid gap-5 md:grid-cols-2 md:gap-8 lg:gap-12">
+      <div className="grid gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:gap-14">
         <ProductGallery images={p.images} name={p.name} />
-        <div className="space-y-5 sm:space-y-6">
-          <div>
+        <div className="flex min-w-0 flex-col gap-8">
+          <header className="space-y-3">
             {p.brand && <p className="eyebrow">{p.brand}</p>}
-            <h1 className="mt-1 text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">{p.name}</h1>
-            <LotusOrnament className="mt-2 h-4 w-20 text-accent sm:mt-3" />
-            {p.rating && <a href="#reviews" className="mt-2 inline-block"><Stars avg={p.rating.avg} count={p.rating.count} /></a>}
-            {p.shortDescription && <p className="mt-2 text-base text-muted sm:mt-3 sm:text-lg">{p.shortDescription}</p>}
-          </div>
-          <div className="rounded-2xl border border-sandal-200 bg-dawn p-4 sm:p-6">
+            <h1 className="font-display text-3xl font-extrabold leading-tight tracking-tight text-balance sm:text-4xl">{p.name}</h1>
+            {p.rating && <a href="#reviews" className="inline-block"><Stars avg={p.rating.avg} count={p.rating.count} /></a>}
+            {p.shortDescription && <p className="max-w-prose text-base text-muted sm:text-lg">{p.shortDescription}</p>}
+          </header>
+          <div className="border-y border-sandal-200 py-8">
             <AddToCart productId={p.id} price={p.price} salePrice={p.salePrice} inStock={p.inStock} upcoming={p.upcoming} variants={p.variants} />
           </div>
           <WishlistButton productId={p.id} name={p.name} />
-          <ul className="grid grid-cols-2 gap-2 text-xs sm:gap-3 sm:text-sm">
-            <li className="flex items-center gap-2 rounded-xl border border-sandal-200 bg-surface px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"><ShieldIcon className="h-5 w-5 shrink-0 text-primary" />Secure payments</li>
-            <li className="flex items-center gap-2 rounded-xl border border-sandal-200 bg-surface px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3"><TruckIcon className="h-5 w-5 shrink-0 text-primary" />{p.freeShipping ? <span className="font-medium text-success">Free shipping</span> : "Packed with care"}</li>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            <li className={TRUST}><ShieldIcon className={TRUST_ICON} />Secure payments</li>
+            <li className={TRUST}><TruckIcon className={TRUST_ICON} />{p.freeShipping ? <span className="text-success">Free shipping</span> : "Packed with care"}</li>
           </ul>
-          {p.attributes.length > 0 && (
-            <dl className="divide-y divide-sandal-200 overflow-hidden rounded-xl border border-sandal-200 bg-surface text-sm">
-              {p.attributes.map((a, i) => <div key={i} className="grid grid-cols-[8rem_1fr] gap-4 px-4 py-2.5"><dt className="font-medium">{a.name}</dt><dd className="text-muted">{a.value}</dd></div>)}
-              <div className="grid grid-cols-[8rem_1fr] gap-4 px-4 py-2.5"><dt className="font-medium">SKU</dt><dd className="text-muted">{p.sku}</dd></div>
+          <section aria-labelledby="details">
+            <h2 id="details" className="mb-2 font-display text-lg font-bold">Details</h2>
+            <dl className="divide-y divide-sandal-200 border-y border-sandal-200 text-sm">
+              {p.attributes.map((a, i) => <div key={i} className="grid grid-cols-[8rem_1fr] gap-4 py-3"><dt className="font-medium">{a.name}</dt><dd className="text-muted">{a.value}</dd></div>)}
+              <div className="grid grid-cols-[8rem_1fr] gap-4 py-3"><dt className="font-medium">SKU</dt><dd className="text-muted">{p.sku}</dd></div>
             </dl>
-          )}
-          {p.attributes.length === 0 && <p className="text-sm text-muted">SKU: {p.sku}</p>}
+          </section>
         </div>
       </div>
       {p.descriptionHtml && (
-        <section aria-labelledby="about" className="mt-10 max-w-3xl border-t border-sandal-200 pt-8 sm:mt-14 sm:pt-10">
-          <h2 id="about" className="section-title">About this product</h2>
-          <LotusOrnament className="mb-4 mt-2 h-4 w-16 text-accent sm:mb-5" />
-          <div className="content" dangerouslySetInnerHTML={{ __html: p.descriptionHtml }} />
+        <section aria-labelledby="about" className="mt-16 grid gap-6 border-t border-sandal-200 pt-12 sm:mt-20 lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-14">
+          <h2 id="about" className="section-title text-2xl sm:text-3xl">About this product</h2>
+          <div className="content max-w-3xl" dangerouslySetInnerHTML={{ __html: p.descriptionHtml }} />
         </section>
       )}
       <Suspense fallback={null}><ProductReviews productId={p.id} slug={p.slug} /></Suspense>
       <Suspense fallback={null}><Related slug={p.slug} /></Suspense>
       <RecentlyViewed slug={p.slug} />
-      <p className="mt-8 text-sm sm:mt-10"><Link href="/" className="text-primary underline">Continue shopping</Link></p>
+      <p className="mt-12 text-sm"><Link href="/" className="font-semibold text-primary underline underline-offset-4">Continue shopping</Link></p>
     </main>
   );
 }

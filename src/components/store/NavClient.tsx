@@ -24,8 +24,8 @@ function NavLink({ item, className, onNavigate }: { item: PublicMenuItem; classN
   );
 }
 
-const pill = "flex items-center rounded-full transition-colors hover:bg-saffron-50 has-[[aria-current=page]]:bg-saffron-50 has-[[aria-current=page]]:text-primary has-[[aria-expanded=true]]:bg-saffron-50";
-const pillLink = "block rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:text-primary aria-[current=page]:text-primary";
+const pill = "flex items-center rounded-md transition-colors hover:bg-saffron-50 has-[[aria-current=page]]:bg-saffron-50 has-[[aria-current=page]]:text-primary has-[[aria-expanded=true]]:bg-saffron-50";
+const pillLink = "block rounded-md px-4 py-2 text-sm font-medium text-foreground transition-colors hover:text-primary aria-[current=page]:text-primary";
 const subLinkCls = "rounded-md px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-saffron-50 hover:text-primary aria-[current=page]:text-primary";
 
 function DesktopItem({ item }: { item: PublicMenuItem }) {
@@ -57,7 +57,7 @@ function DesktopItem({ item }: { item: PublicMenuItem }) {
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
       <div className={pill}>
         <NavLink item={item} className={`${pillLink} pr-1.5`} />
-        <button ref={toggleBtn} type="button" className="mr-1.5 rounded-full p-1.5 text-muted transition-colors hover:text-primary" aria-expanded={open} aria-controls={panelId}
+        <button ref={toggleBtn} type="button" className="mr-1.5 rounded-md p-1.5 text-muted transition-colors hover:text-primary" aria-expanded={open} aria-controls={panelId}
           aria-label={`${item.label} submenu`} onClick={() => setOpen((o) => !o)}>
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>

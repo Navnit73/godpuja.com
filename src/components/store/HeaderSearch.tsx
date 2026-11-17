@@ -105,8 +105,8 @@ export default function HeaderSearch({ className = "", id = "header-q", inline =
       <input id={id} name="q" type="search" maxLength={100} autoComplete="off" placeholder="Search shop, aarti, guides…" value={q}
         role="combobox" aria-expanded={showResults && !!data && data.total > 0} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={showResults && active >= 0 ? optId(active) : undefined}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => { setRecent(readRecent()); setOpen(true); }} onKeyDown={onKeyDown}
-        className="input h-11 rounded-full border-sandal-300 bg-sandal-50 pl-5 pr-14 focus:bg-surface" />
-      <button type="submit" className="absolute right-1 top-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-saffron-800">
+        className="input h-11 rounded-md border-sandal-300 bg-sandal-50 pl-5 pr-14 focus:bg-surface" />
+      <button type="submit" className="absolute right-1 top-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-colors hover:bg-saffron-800">
         <SearchIcon className="h-4 w-4" /><span className="sr-only">Search</span>
       </button>
 

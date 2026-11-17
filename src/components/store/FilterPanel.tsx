@@ -5,7 +5,7 @@ import type { PublicProductsInput } from "@/lib/validation/catalog";
 import type { FacetGroup } from "@/server/services/products";
 import { CloseIcon } from "./Icons";
 
-const linkCls = (on: boolean) => `inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors ${on ? "border-primary bg-saffron-50 font-medium text-primary" : "border-input-border hover:bg-sandal-100"}`;
+const linkCls = (on: boolean) => `inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors ${on ? "border-primary bg-saffron-50 font-medium text-primary" : "border-input-border hover:bg-sandal-100"}`;
 
 /**
  * Filters beyond price: availability, rating and the attribute facets that exist on the products being browsed. Plain
@@ -18,7 +18,7 @@ export default function FilterPanel({ base, query, facets, hiddenFields = {} }: 
   return (
     <details className="mb-6 rounded-xl border border-sandal-200 bg-surface" open={active > 0}>
       <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 px-4 py-2 text-sm font-medium">
-        <span>Filters{active > 0 && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">{active}<span className="sr-only"> applied</span></span>}</span>
+        <span>Filters{active > 0 && <span className="ml-2 rounded-md bg-primary px-2 py-0.5 text-xs text-primary-foreground">{active}<span className="sr-only"> applied</span></span>}</span>
       </summary>
       <div className="space-y-4 border-t border-sandal-200 px-4 py-4">
         <div>

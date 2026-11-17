@@ -73,7 +73,7 @@ export default function ReviewForm({ slug }: { slug: string }) {
             <legend className="label">Your rating</legend>
             <div className="flex flex-wrap gap-2">
               {STARS.map((s) => (
-                <label key={s} className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${f.rating === s ? "border-primary bg-saffron-50 text-primary" : "border-input-border"}`}>
+                <label key={s} className={`cursor-pointer rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${f.rating === s ? "border-primary bg-saffron-50 text-primary" : "border-input-border"}`}>
                   <input type="radio" name="rating" value={s} checked={f.rating === s} onChange={() => setF({ ...f, rating: s })} className="sr-only" />{s} {s === 1 ? "star" : "stars"}
                 </label>
               ))}
